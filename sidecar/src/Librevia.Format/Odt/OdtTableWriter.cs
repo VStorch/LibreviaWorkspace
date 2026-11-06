@@ -164,7 +164,7 @@ internal sealed class OdtTableWriter(OdtWriteContext context, OdtBlockWriter blo
         if (slot.Colspan > 1) cell.Add(new XAttribute(Ns.Table + "number-columns-spanned", slot.Colspan));
         if (slot.Rowspan > 1) cell.Add(new XAttribute(Ns.Table + "number-rows-spanned", slot.Rowspan));
 
-        foreach (var child in slot.Cell.Content ?? []) cell.Add(blocks.Write(child, flat: true));
+        cell.Add(blocks.WriteAll(slot.Cell.Content ?? []));
         if (!cell.HasElements) cell.Add(new XElement(Ns.Text + "p"));
         return cell;
     }

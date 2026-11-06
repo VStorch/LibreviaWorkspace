@@ -53,6 +53,7 @@ internal sealed class OdtSource
     public required Inventory Notices { get; init; }
     public List<CommentDto>? Comments { get; init; }
     public NotesDto? Notes { get; init; }
+    public required OdtTrackedChanges Changes { get; init; }
 
     /// <summary>The <c>office:name</c> of each named comment, by its id in <see cref="Comments"/>.</summary>
     public required IReadOnlyDictionary<string, string> CommentNames { get; init; }
@@ -87,6 +88,7 @@ internal sealed class OdtSource
             Comments = context.Comments.Library,
             CommentNames = context.Comments.Names,
             Notes = OdtNoteCounter.Read(package.Styles),
+            Changes = context.Changes.Source,
             MasterPage = context.MasterPage,
             Elements = [.. text.Elements()],
         };
@@ -97,6 +99,7 @@ internal sealed class OdtSource
         var doc = Node.Of("doc");
         doc.Content = [.. Blocks.SelectMany(block => block.Nodes)];
         if (doc.Content.Count == 0) doc.Content.Add(OdtParagraphReader.Empty());
-        return new DocumentModelDto(Page, doc, Sheet, Comments: Comments, Notes: Notes, Properties: Properties);
+        return new DocumentModelDto(
+            Page, doc, Sheet, Comments: Comments, TrackChanges: Changes.Tracking ? true : null, Notes: Notes, Properties: Properties);
     }
 }

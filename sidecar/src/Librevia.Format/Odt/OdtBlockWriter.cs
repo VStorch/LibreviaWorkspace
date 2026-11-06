@@ -49,7 +49,7 @@ internal sealed class OdtBlockWriter
             case "paragraph" or "heading" when IsSectionMarkOnly(node):
                 return [];
             case "paragraph" or "heading":
-                return [Paragraph(node, breakBefore, page)];
+                return [Paragraph([node], breakBefore, page)];
             case OdtListLevels.Bullet or OdtListLevels.Ordered:
                 return _lists.Write(node, page);
             case "table":
@@ -67,14 +67,59 @@ internal sealed class OdtBlockWriter
                 _context.NoteLoss(Inventory.Element, node.Type);
                 return node.Content?.Any(child => child.Type != "text") == true
                     ? Children(node, flat)
-                    : [Paragraph(Node.Of("paragraph", [.. node.Content ?? []]), breakBefore, page)];
+                    : [Paragraph([Node.Of("paragraph", [.. node.Content ?? []])], breakBefore, page)];
         }
     }
+
+    /// <summary>Paragraphs joined by deleted paragraph marks (<see cref="ChainLength"/>): one ODF paragraph.</summary>
+    public IEnumerable<XElement> Write(IReadOnlyList<Node> chain, bool flat = false, bool breakBefore = false, OdtPageStart? page = null) =>
+        chain.Count == 1 ? Write(chain[0], flat, breakBefore, page) : [Paragraph(chain, breakBefore, page)];
+
+    /// <summary>A text of its own, a cell's or a note's: no revision range crosses its edges.</summary>
+    public List<XElement> WriteAll(IReadOnlyList<Node> siblings)
+    {
+        var changes = _context.Changes;
+        var outer = changes?.Suspend();
+        var written = new List<XElement>();
+        for (var index = 0; index < siblings.Count;)
+        {
+            var count = changes is null ? 1 : ChainLength(siblings, index);
+            written.AddRange(Write([.. siblings.Skip(index).Take(count)], flat: true));
+            index += count;
+        }
+
+        changes?.Resume(outer);
+        return written;
+    }
+
+    /// <summary>How many paragraphs from <paramref name="index"/> on are joined by deleted paragraph marks.</summary>
+    public static int ChainLength(IReadOnlyList<Node> siblings, int index)
+    {
+        var end = index;
+        while (end + 1 < siblings.Count && JoinsNext(siblings[end]) && IsParagraph(siblings[end + 1])) end++;
+        return end - index + 1;
+    }
+
+    /// <summary>A paragraph whose mark is a tracked deletion: the next paragraph continues it.</summary>
+    public static bool JoinsNext(Node node) =>
+        IsParagraph(node) && OdtTrackedChanges.MarkOfBlock(Attr.Node(node, "markRevision"))?.Type == Revisions.Deletion;
+
+    public static bool IsParagraph(Node node) => node.Type is "paragraph" or "heading" && !IsSectionMarkOnly(node);
 
     private List<XElement> Children(Node node, bool flat) =>
         [.. (node.Content ?? []).SelectMany(child => Write(child, flat))];
 
-    private XElement Paragraph(Node node, bool breakBefore, OdtPageStart? page)
+    private XElement Paragraph(IReadOnlyList<Node> chain, bool breakBefore, OdtPageStart? page)
+    {
+        var element = Shell(chain[0], breakBefore, page);
+        foreach (var node in chain) element.Add(_floats.Write(OdtFloatWriter.FloatsOf(node)));
+        element.Add(new OdtInlineWriter(_context, this).Write(chain, joined => Shell(joined, breakBefore: false, page: null)));
+        _context.Changes?.Anchor(element);
+        return element;
+    }
+
+    /// <summary>The paragraph with its styles, without content.</summary>
+    private XElement Shell(Node node, bool breakBefore, OdtPageStart? page)
     {
         var level = node.Type == "heading" ? Math.Clamp(Attr.Int(node, "level") ?? 1, 1, MaxHeadingLevel) : 0;
         var named = _context.NamedStyle(OdtStyles.ParagraphFamily, Attr.String(node, "styleId"))
@@ -93,8 +138,6 @@ internal sealed class OdtBlockWriter
         var element = new XElement(Ns.Text + (level > 0 ? "h" : "p"));
         if (style is not null) element.Add(new XAttribute(Ns.Text + "style-name", style));
         if (level > 0) element.Add(new XAttribute(Ns.Text + "outline-level", level));
-        element.Add(_floats.Write(OdtFloatWriter.FloatsOf(node)));
-        element.Add(new OdtInlineWriter(_context, this).Write(node.Content));
         return element;
     }
 

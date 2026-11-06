@@ -43,7 +43,7 @@ internal sealed partial class OdtInlineWriter(OdtWriteContext context, OdtBlockW
     {
         switch (node.Type)
         {
-            case "text" when Deleted(node.Marks):
+            case "text" when context.Changes is null && Deleted(node.Marks):
                 context.NoteLoss(OdtNotices.Revisions);
                 return [];
             case "text":
@@ -166,10 +166,14 @@ internal sealed partial class OdtInlineWriter(OdtWriteContext context, OdtBlockW
         Background = Color(Attr.MarkString(mark, "backgroundColor")) ?? format.Background,
     };
 
-    /// <summary>A comment or a revision has no place in a rewritten ODT block: its text stays.</summary>
+    /// <summary>
+    /// A comment mark has no place in a rewritten ODT block, nor a revision outside the body: its
+    /// text stays. In the body, <see cref="Write(IReadOnlyList{Node}, Func{Node, XElement})"/> writes the revision.
+    /// </summary>
     private CharacterFormat Other(CharacterFormat format, Mark mark)
     {
         if (mark.Type is "link" or "charStyle") return format;
+        if (context.Changes is not null && mark.Type is Revisions.Insertion or Revisions.Deletion) return format;
         if (RevisionMarks.Contains(mark.Type)) context.NoteLoss(OdtNotices.Revisions);
         else if (mark.Type == "comment") context.NoteLoss(Inventory.Comments);
         else context.NoteLoss(Inventory.Element, mark.Type);

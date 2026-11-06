@@ -80,11 +80,7 @@ internal sealed class OdtBodyReader
             return body is null ? [] : Children(body, flat);
         }
 
-        if (element.Name == Ns.Text + "tracked-changes")
-        {
-            if (element.HasElements) _context.NoteLoss(OdtNotices.Revisions);
-            return [];
-        }
+        if (element.Name == OdtTrackedChanges.ElementName) return [];
 
         if (element.Name == Ns.Office + "forms")
         {

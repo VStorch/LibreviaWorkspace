@@ -24,7 +24,10 @@ internal sealed class OdtParagraphReader(OdtReadContext context)
         CharacterFormat EffectiveCharacter,
         CharacterFormat NamedCharacter);
 
-    /// <summary>The block, preceded by a <c>pageBreak</c> when it asks for one before it.</summary>
+    /// <summary>
+    /// The block, preceded by a <c>pageBreak</c> when it asks for one before it, and followed by the
+    /// paragraphs a tracked deletion joined to it.
+    /// </summary>
     public IEnumerable<Node> Read(XElement element, bool flat)
     {
         var styleName = element.Attr(Ns.Text + "style-name");
@@ -34,9 +37,7 @@ internal sealed class OdtParagraphReader(OdtReadContext context)
         context.SeeBlock(style?.MasterPage);
 
         var formats = FormatsOf(styleName, style);
-        var node = NodeOf(element, formats);
-        if (flat) Flattened(node, formats);
-        else DirectOnly(node, formats);
+        var node = Formatted(element, formats, flat);
 
         // What the block draws: the style CSS where it reaches, and the node's own font and size.
         var drawn = flat ? context.Styles.DefaultCharacter() : formats.NamedCharacter;
@@ -45,11 +46,33 @@ internal sealed class OdtParagraphReader(OdtReadContext context)
             FontFamily = formats.EffectiveCharacter.FontFamily,
             FontSizePt = formats.EffectiveCharacter.FontSizePt,
         };
-        var content = _inline.Read(element, formats.EffectiveCharacter, inherited);
-        node.Content = content.Count == 0 ? null : content;
+        var pieces = _inline.Read(element, formats.EffectiveCharacter, inherited);
 
         if (breakBefore) yield return Node.Of("pageBreak");
-        yield return node;
+        yield return WithContent(node, pieces[0]);
+        foreach (var piece in pieces.Skip(1)) yield return WithContent(Joined(piece.Paragraph!, flat), piece);
+    }
+
+    private Node Formatted(XElement element, Formats formats, bool flat)
+    {
+        var node = NodeOf(element, formats);
+        if (flat) Flattened(node, formats);
+        else DirectOnly(node, formats);
+        return node;
+    }
+
+    /// <summary>A paragraph whose mark was deleted: it keeps the formatting the deletion stored.</summary>
+    private Node Joined(XElement deleted, bool flat)
+    {
+        var styleName = deleted.Attr(Ns.Text + "style-name");
+        return Formatted(deleted, FormatsOf(styleName, context.Styles.Find(OdtStyles.ParagraphFamily, styleName)), flat);
+    }
+
+    private static Node WithContent(Node node, OdtInlinePiece piece)
+    {
+        node.Content = piece.Nodes.Count == 0 ? null : piece.Nodes;
+        if (piece.MarkRevision is { } revision) node.With("markRevision", revision);
+        return node;
     }
 
     private Formats FormatsOf(string? styleName, OdtStyle? style)

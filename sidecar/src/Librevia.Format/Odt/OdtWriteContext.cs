@@ -28,6 +28,9 @@ internal sealed class OdtWriteContext(OdtStyles styles, OdtAutomaticStyles autom
 
     public OdtFormulas Formulas { get; init; } = new(_ => false);
 
+    /// <summary>The body's revisions; without it (a band), a revision is accepted and noted.</summary>
+    public OdtChangeWriter? Changes { get; init; }
+
     /// <summary>Inside a note, a band or a text box, where ODF allows no note.</summary>
     public int NotelessDepth { get; set; }
 

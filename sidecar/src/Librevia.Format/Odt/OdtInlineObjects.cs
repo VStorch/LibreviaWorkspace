@@ -48,7 +48,7 @@ internal sealed partial class OdtInlineObjects(OdtWriteContext context, OdtBlock
         if (!string.IsNullOrEmpty(mark)) citation.Add(new XAttribute(Ns.Text + "label", mark));
 
         context.NotelessDepth++;
-        var body = new XElement(Ns.Text + "note-body", (node.Content ?? []).SelectMany(child => blocks.Write(child, flat: true)));
+        var body = new XElement(Ns.Text + "note-body", blocks.WriteAll(node.Content ?? []));
         context.NotelessDepth--;
         if (!body.HasElements) body.Add(new XElement(Ns.Text + "p"));
 

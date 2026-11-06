@@ -121,7 +121,7 @@ public partial class OdtCreateTests
     }
 
     [Fact]
-    public void HeadingsBookmarksLinksNotesFieldsAndCommentsAreCarried()
+    public void HeadingsBookmarksLinksNotesFieldsCommentsAndRevisionsAreCarried()
     {
         Assert.Matches("<text:h text:style-name=\"[^\"]+\" text:outline-level=\"1\"><text:bookmark-start text:name=\"_Toc1\"/>", Content);
         Assert.Contains("<text:bookmark-end text:name=\"_Toc1\"/>", Content);
@@ -134,8 +134,14 @@ public partial class OdtCreateTests
         Assert.Contains("<office:annotation office:name=\"__Annotation__9\">", Content);
         Assert.Contains("<office:annotation-end office:name=\"__Annotation__9\"/>", Content);
         Assert.Contains("<text:p>Feito</text:p>", Content);
-        Assert.DoesNotContain("removido", Content);
-        Assert.Contains("<office:annotation-end office:name=\"__Annotation__9\"/> inserido", Content);
+        Assert.Contains(
+            "<office:text><text:tracked-changes text:track-changes=\"false\"><text:changed-region xml:id=\"LvChange1\" text:id=\"LvChange1\">" +
+            "<text:deletion><office:change-info/><text:p><text:s/>removido</text:p></text:deletion></text:changed-region>",
+            Content);
+        Assert.Contains(
+            "<office:annotation-end office:name=\"__Annotation__9\"/><text:change text:change-id=\"LvChange1\"/>" +
+            "<text:change-start text:change-id=\"LvChange2\"/> inserido<text:change-end text:change-id=\"LvChange2\"/>",
+            Content);
     }
 
     [Fact]

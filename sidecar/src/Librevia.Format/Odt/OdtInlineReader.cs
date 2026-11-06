@@ -1,9 +1,20 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Xml.Linq;
 using Librevia.Format.Docx;
 
 namespace Librevia.Format.Odt;
+
+/// <summary>
+/// What one paragraph of the file gives: one piece, or more when a tracked deletion took paragraph
+/// marks away. A later piece takes the formatting of the deleted <paramref name="Paragraph"/> it
+/// starts with; <see cref="MarkRevision"/> is the revision of the piece's own paragraph mark.
+/// </summary>
+internal sealed record OdtInlinePiece(XElement? Paragraph, List<Node> Nodes)
+{
+    public JsonObject? MarkRevision { get; set; }
+}
 
 /// <summary>
 /// The content of a <c>text:p</c> or <c>text:h</c>: text with marks, line breaks and images. ODF
@@ -17,6 +28,7 @@ internal sealed class OdtInlineReader(OdtReadContext context)
 
     private readonly OdtFrameReader _frames = new(context);
     private OdtBodyReader? _noteBodies;
+    private List<OdtInlinePiece> _pieces = [];
     private List<Node> _nodes = [];
     private CharacterFormat _inherited = CharacterFormat.Empty;
     private bool _afterSpace;
@@ -26,14 +38,16 @@ internal sealed class OdtInlineReader(OdtReadContext context)
 
     /// <param name="runBase">What every run starts from: the paragraph's effective formatting.</param>
     /// <param name="inherited">What the block already draws: marks only say what differs.</param>
-    public List<Node> Read(XElement paragraph, CharacterFormat runBase, CharacterFormat inherited)
+    public List<OdtInlinePiece> Read(XElement paragraph, CharacterFormat runBase, CharacterFormat inherited)
     {
-        _nodes = [];
+        _pieces = [new OdtInlinePiece(null, [])];
+        _nodes = _pieces[0].Nodes;
         _inherited = inherited;
         _afterSpace = true;
         _lastMarks = null;
         ReadChildren(paragraph, new Run(runBase, null, null));
-        return _nodes;
+        _pieces[^1].MarkRevision = context.Changes.ParagraphEnd();
+        return _pieces;
     }
 
     private void ReadChildren(XElement container, Run run)
@@ -55,6 +69,12 @@ internal sealed class OdtInlineReader(OdtReadContext context)
         }
 
         if (element.Name.Namespace == Ns.Office && ReadComment(element)) return;
+        if (OdtTrackedChanges.IsChangeMark(element))
+        {
+            ReadChange(element, run);
+            return;
+        }
+
         if (element.Name == Ns.Text + "note" && !context.InNote)
         {
             ReadNote(element);
@@ -88,6 +108,62 @@ internal sealed class OdtInlineReader(OdtReadContext context)
         return true;
     }
 
+    /// <summary>A format change has no mark: it is noted, and its text stays as it is.</summary>
+    private void ReadChange(XElement element, Run run)
+    {
+        var id = element.Attr(Ns.Text + "change-id");
+        switch (element.Name.LocalName)
+        {
+            case "change-start" when context.Changes.Start(id):
+                return;
+            case "change-end":
+                context.Changes.End(id);
+                return;
+            case "change" when context.Changes.Deletion(id) is { } deletion:
+                ReadDeletion(deletion, run);
+                return;
+            default:
+                context.NoteLoss(OdtNotices.Revisions);
+                return;
+        }
+    }
+
+    /// <summary>
+    /// The deleted text, at its point, marked as deleted. Each paragraph after the first is a
+    /// deleted paragraph mark: the piece read so far ends there. The visible text around the point
+    /// collapses its white space as if the deletion were not there.
+    /// </summary>
+    private void ReadDeletion(OdtChangedRegion deletion, Run run)
+    {
+        var afterSpace = _afterSpace;
+        context.Changes.BeginDeletion(deletion.Mark);
+        var first = true;
+        foreach (var block in deletion.Deleted)
+        {
+            if (block.Name != Ns.Text + "p" && block.Name != Ns.Text + "h")
+            {
+                context.NoteLoss(OdtNotices.Revisions);
+                continue;
+            }
+
+            if (!first) Split(block, deletion.Mark);
+            first = false;
+            _afterSpace = true;
+            ReadChildren(block, run);
+        }
+
+        context.Changes.EndDeletion();
+        _afterSpace = afterSpace;
+    }
+
+    private void Split(XElement paragraph, Mark deletion)
+    {
+        _pieces[^1].MarkRevision = OdtTrackedChanges.BlockRevisionOf(deletion);
+        _pieces.Add(new OdtInlinePiece(paragraph, []));
+        _nodes = _pieces[^1].Nodes;
+        _lastMarks = null;
+    }
+
     /// <summary>The body flattened, like a list or a cell, as the DOCX reader gives it.</summary>
     private void ReadNote(XElement note)
     {
@@ -99,7 +175,9 @@ internal sealed class OdtInlineReader(OdtReadContext context)
 
         _noteBodies ??= new OdtBodyReader(context);
         context.InNote = true;
+        var open = context.Changes.Suspend();
         var body = note.Element(Ns.Text + "note-body")?.Elements().SelectMany(child => _noteBodies.ReadBlock(child, flat: true)).ToList() ?? [];
+        context.Changes.Resume(open);
         context.InNote = false;
         node.Content = body.Count == 0 ? [OdtParagraphReader.Empty()] : body;
         Add(node);
@@ -121,7 +199,7 @@ internal sealed class OdtInlineReader(OdtReadContext context)
                 _afterSpace = true;
                 return true;
             case "line-break":
-                Add(Node.Of("hardBreak"));
+                Add(new Node { Type = "hardBreak", Marks = context.Changes.Marks() });
                 _afterSpace = true;
                 return true;
             case "soft-page-break":
@@ -159,7 +237,7 @@ internal sealed class OdtInlineReader(OdtReadContext context)
         }
 
         var field = Node.Of("field").With("instr", instruction).With("result", ResultOf(element));
-        field.Marks = OdtMarks.Of(run.Format, _inherited, run.Href, run.CharStyle);
+        field.Marks = MarksOf(run);
         Add(field);
         _afterSpace = false;
         return true;
@@ -188,8 +266,9 @@ internal sealed class OdtInlineReader(OdtReadContext context)
         {
             case "frame":
                 if (_frames.Read(element) is not { } framed) return;
-                if (framed.Type == "math") framed.Marks = OdtMarks.Of(run.Format, _inherited, run.Href, run.CharStyle);
-                else if (run.Href is { } href) framed.Marks = [Mark.Of("link", "href", href)];
+                if (framed.Type == "math") framed.Marks = MarksOf(run);
+                else if (run.Href is { } href) framed.Marks = [Mark.Of("link", "href", href), .. context.Changes.Marks() ?? []];
+                else framed.Marks = context.Changes.Marks();
                 Add(framed);
                 _afterSpace = false;
                 return;
@@ -244,7 +323,7 @@ internal sealed class OdtInlineReader(OdtReadContext context)
     {
         if (text.Length == 0) return;
 
-        var marks = OdtMarks.Of(run.Format, _inherited, run.Href, run.CharStyle);
+        var marks = MarksOf(run);
         var key = marks is null ? string.Empty : JsonSerializer.Serialize(marks, DocxJson.Options);
         if (_lastMarks == key && _nodes.Count > 0 && _nodes[^1].Type == "text")
         {
@@ -254,6 +333,14 @@ internal sealed class OdtInlineReader(OdtReadContext context)
 
         _nodes.Add(new Node { Type = "text", Text = text, Marks = marks });
         _lastMarks = key;
+    }
+
+    /// <summary>The run's formatting, then its revision, in the DOCX reader's order.</summary>
+    private List<Mark>? MarksOf(Run run)
+    {
+        var marks = OdtMarks.Of(run.Format, _inherited, run.Href, run.CharStyle);
+        if (context.Changes.Marks() is not { } revisions) return marks;
+        return [.. marks ?? [], .. revisions];
     }
 
     private void Add(Node node)

@@ -31,6 +31,7 @@ public static class OdtWriter
         {
             Plan = new OdtDocumentPlan(model.Doc, model.Comments ?? source.Comments, model.Notes ?? source.Notes, source.CommentNames, package.Content),
             Formulas = new OdtFormulas(path => package.Has(path) || package.MediaTypes.ContainsKey(path + "/")),
+            Changes = new OdtChangeWriter(source.Changes, package.Content.Root!, model.TrackChanges),
         };
         context.TakeNames(package.Content.Root!);
 

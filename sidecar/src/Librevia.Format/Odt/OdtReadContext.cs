@@ -12,6 +12,10 @@ internal sealed class OdtReadContext(OdtPackage package, OdtStyles styles, Inven
 
     public OdtCommentReader Comments => _comments ??= new(package.Content);
 
+    private OdtChangeReader? _changes;
+
+    public OdtChangeReader Changes => _changes ??= new(OdtTrackedChanges.Read(package.Content));
+
     /// <summary>Inside a note's body, where ODF allows no other note.</summary>
     public bool InNote { get; set; }
 
