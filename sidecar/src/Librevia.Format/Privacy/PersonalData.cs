@@ -21,7 +21,7 @@ internal static class OfficeContentType
         type.StartsWith("application/vnd.ms-excel", StringComparison.Ordinal);
 }
 
-/// <summary>What a DOCX or XLSX reveals about who made it, beyond its content.</summary>
+/// <summary>What a DOCX, XLSX or ODT reveals about who made it, beyond its content.</summary>
 public sealed record PrivacyReport(
     [property: JsonPropertyName("names")] List<string> Names,
     [property: JsonPropertyName("paths")] List<string> Paths,
@@ -46,7 +46,7 @@ public static class PrivacyCategory
 
 /// <summary>
 /// Inspects and cleans a package at the zip and XML level, part by part: what is not personal
-/// data goes back with the same bytes.
+/// data goes back with the same bytes. An ODT goes to <see cref="OdtPersonalData"/>.
 /// </summary>
 public static class PersonalData
 {
@@ -63,6 +63,7 @@ public static class PersonalData
 
     public static PrivacyReport Inspect(byte[] bytes, PrivacyRequest request)
     {
+        if (OdtPersonalData.IsOdt(bytes)) return OdtPersonalData.Inspect(bytes, request);
         var package = OfficePackage.Read(bytes);
         var (kind, main) = MainPartOf(package);
         return new PrivacyReport(
@@ -77,6 +78,7 @@ public static class PersonalData
     /// <returns>The clean package, and how many parts changed.</returns>
     public static (byte[] Bytes, int Changes) Scrub(byte[] bytes, PrivacyRequest request)
     {
+        if (OdtPersonalData.IsOdt(bytes)) return OdtPersonalData.Scrub(bytes, request);
         var package = OfficePackage.Read(bytes);
         var (kind, main) = MainPartOf(package);
         var categories = request.Categories ?? [];

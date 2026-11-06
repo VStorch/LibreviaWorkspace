@@ -1,5 +1,5 @@
 import { DocumentKind, type LossInventory } from '@shared/types.js'
-import { isOfficePackagePath } from '@services/file/formats.js'
+import { isInspectablePackagePath } from '@services/file/formats.js'
 import { propertiesOf } from '@services/file/properties.js'
 import {
   PrivacyCategory,
@@ -21,9 +21,9 @@ export function anonymousName(): string {
   return t('revisions.unknownAuthor')
 }
 
-/** A DOCX or XLSX: what matters is in the package, which the sidecar reads from disk. */
+/** A DOCX, ODT or XLSX: what matters is in the package, which the sidecar reads from disk. */
 function packagePathOf(file: OpenFile): string | null {
-  return file.path !== null && isOfficePackagePath(file.path) ? file.path : null
+  return file.path !== null && isInspectablePackagePath(file.path) ? file.path : null
 }
 
 /**
@@ -34,7 +34,7 @@ export function inspectionNeedsSave(state: Pick<WorkspaceState, 'file' | 'isDirt
   const { file } = state
   if (file === null || file.kind === DocumentKind.Pdf) return false
   const target = file.path ?? file.name
-  return isOfficePackagePath(target) && (state.isDirty || file.path === null)
+  return isInspectablePackagePath(target) && (state.isDirty || file.path === null)
 }
 
 export function createPrivacyActions(

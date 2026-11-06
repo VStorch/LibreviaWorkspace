@@ -219,8 +219,8 @@ export const ERRORS = {
   },
   'errors.privacy.contract': { pt: 'package.* fora do contrato', en: 'package.* out of contract' },
   'errors.privacy.onlyPackages': {
-    pt: 'Só documentos do Word e planilhas do Excel passam pelo inspetor.',
-    en: 'Only Word documents and Excel spreadsheets go through the inspector.',
+    pt: 'Só documentos do Word e do OpenDocument e planilhas do Excel passam pelo inspetor.',
+    en: 'Only Word and OpenDocument documents and Excel spreadsheets go through the inspector.',
   },
 
   'errors.xlsx.cannotRead': {

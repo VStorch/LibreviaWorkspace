@@ -1,5 +1,5 @@
 /**
- * The personal data inspector, for DOCX and XLSX: the sidecar reads and cleans the package as it is
+ * The personal data inspector, for DOCX, ODT and XLSX: the sidecar reads and cleans the package as it is
  * on disk, and the clean copy becomes the opened file without being written. Saving writes it.
  */
 
@@ -7,9 +7,10 @@ import { readFile } from 'node:fs/promises'
 import { z } from 'zod'
 import { AppError, ErrorCode, fromFileSystemError } from '@shared/errors.js'
 import { privacyReportSchema } from '@shared/schemas.js'
-import { isExcelPath, isOfficePackagePath } from '@services/file/formats.js'
+import { isExcelPath, isInspectablePackagePath, isOdtPackagePath } from '@services/file/formats.js'
 import type { PrivacyCategory } from '@services/file/privacy.js'
 import { decodeDocx, type OpenedDocx } from './docx/index.js'
+import { decodeOdt } from './odt/index.js'
 import { assertReadableFile } from './fs/paths.js'
 import { t } from './i18n.js'
 import { editorPreferences } from './preferences.js'
@@ -57,8 +58,12 @@ export async function removePersonalData(
     )
   }
 
-  const clean = Buffer.from(reply.binary)
-  return isExcelPath(path) ? decodeXlsx(client, path, clean) : decodeDocx(client, path, clean)
+  return decodeClean(client, path, Buffer.from(reply.binary))
+}
+
+function decodeClean(client: SidecarClient, path: string, clean: Buffer): Promise<OpenedDocx | OpenedXlsx> {
+  if (isExcelPath(path)) return decodeXlsx(client, path, clean)
+  return isOdtPackagePath(path) ? decodeOdt(client, path, clean) : decodeDocx(client, path, clean)
 }
 
 /** As Word names the authors it hides. */
@@ -68,7 +73,7 @@ function anonymousName(): string {
 
 /** From disk, not the opened original: after a save, that one is still the package saving started from. */
 async function readPackage(path: string): Promise<Uint8Array> {
-  if (!isOfficePackagePath(path)) {
+  if (!isInspectablePackagePath(path)) {
     throw new AppError(ErrorCode.UnsupportedFormat, t('errors.privacy.onlyPackages'))
   }
   await assertReadableFile(path)

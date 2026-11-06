@@ -77,7 +77,7 @@ internal sealed class OdtSource
             Blocks = blocks,
             Page = OdtPageReader.Read(package.Styles, context.MasterPage, notices),
             Sheet = OdtStyleSheet.Read(styles),
-            Properties = OdtProperties.Read(package.Meta),
+            Properties = OdtProperties.Read(package.Meta, OdtPrivacyMark.IsSet(package.ReadXml(OdtPrivacyMark.SettingsPath))),
             Notices = notices,
             MasterPage = context.MasterPage,
             Elements = [.. text.Elements()],

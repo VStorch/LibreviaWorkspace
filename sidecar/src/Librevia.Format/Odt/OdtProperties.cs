@@ -18,10 +18,14 @@ internal static partial class OdtProperties
     private const string Company = "Company";
     private const string Manager = "Manager";
 
-    public static PropertiesDto? Read(XDocument? meta)
+    /// <summary>Kept in <c>meta.xml</c> as user-defined fields, but properties of the editor, not custom ones.</summary>
+    public static readonly string[] OwnUserDefined = [Category, Company, Manager];
+
+    /// <param name="anonymous">The inspector's mark (<see cref="OdtPrivacyMark"/>).</param>
+    public static PropertiesDto? Read(XDocument? meta, bool anonymous)
     {
         var office = meta?.Root?.Element(Ns.Office + "meta");
-        if (office is null) return null;
+        if (office is null) return anonymous ? new PropertiesDto(RemovePersonalInformation: true) : null;
 
         string? Text(XName name) => office.Element(name)?.Value.Trim() is { Length: > 0 } value ? value : null;
         string? UserDefined(string field) => office.Elements(Ns.Meta + "user-defined")
@@ -46,7 +50,8 @@ internal static partial class OdtProperties
             Manager: UserDefined(Manager),
             Language: Text(Ns.Dc + "language"),
             LastPrinted: Text(Ns.Meta + "print-date"),
-            TotalTime: MinutesOf(Text(Ns.Meta + "editing-duration")));
+            TotalTime: MinutesOf(Text(Ns.Meta + "editing-duration")),
+            RemovePersonalInformation: anonymous ? true : null);
         return properties == new PropertiesDto() ? null : properties;
     }
 
