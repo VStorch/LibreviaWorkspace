@@ -2,7 +2,7 @@ import { copyFile, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
-import { launch, menu, stubDialogs, type Session } from './app.js'
+import { launch, menu, selectionSettled, stubDialogs, type Session } from './app.js'
 import { docxWithMultilevelList, entryOf } from './fixtures.js'
 import { hasPdftotext, pdfText } from './external-tools.js'
 
@@ -96,9 +96,11 @@ test.describe('multilevel lists', () => {
   }
 
   async function rightClick(text: string, action: string): Promise<void> {
-    await session.window
-      .locator('.ProseMirror li p', { hasText: new RegExp(`^${text}$`) })
-      .click({ button: 'right' })
+    const paragraph = session.window.locator('.ProseMirror li p', { hasText: new RegExp(`^${text}$`) })
+    // The menu offers what the selection is in, and a click moves it only in the next frames.
+    await paragraph.click()
+    await selectionSettled(session)
+    await paragraph.click({ button: 'right' })
     await session.window.getByRole('menuitem', { name: action }).click()
   }
 
