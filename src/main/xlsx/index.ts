@@ -5,7 +5,7 @@
 
 import { readFile } from 'node:fs/promises'
 import { z } from 'zod'
-import { AppError, ErrorCode, fromFileSystemError } from '@shared/errors.js'
+import { AppError, ErrorCode } from '@shared/errors.js'
 import type { LossInventory } from '@shared/types.js'
 import { isKnownFunction } from '@services/spreadsheet/formula/functions/index.js'
 import { fromXlsxFormula, toXlsxFormula } from '@services/spreadsheet/formula/interop.js'
@@ -21,7 +21,7 @@ import type { SidecarClient } from '../sidecar/client.js'
 import { sidecarInventorySchema } from '../sidecar/messages.js'
 import { SidecarMethod } from '../sidecar/protocol.js'
 import { t } from '../i18n.js'
-import { editorPreferences } from '../preferences.js'
+import { readFileBytes } from '../fs/read-bytes.js'
 
 const openResultSchema = z.object({
   workbook: z.unknown(),
@@ -58,13 +58,7 @@ export interface OpenedXlsx {
 }
 
 export async function openXlsx(client: SidecarClient, path: string): Promise<OpenedXlsx> {
-  let bytes: Buffer
-  try {
-    bytes = await readFile(path)
-  } catch (cause) {
-    throw fromFileSystemError(cause, 'read', editorPreferences().language)
-  }
-  return decodeXlsx(client, path, bytes)
+  return decodeXlsx(client, path, await readFileBytes(path))
 }
 
 /** See `decodeDocx`. */

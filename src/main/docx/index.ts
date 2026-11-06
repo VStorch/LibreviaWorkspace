@@ -6,7 +6,7 @@
 import { readFile } from 'node:fs/promises'
 import { z } from 'zod'
 import { SDOC_FORMAT, SDOC_VERSION } from '@services/document/serialize.js'
-import { AppError, ErrorCode, fromFileSystemError } from '@shared/errors.js'
+import { AppError, ErrorCode } from '@shared/errors.js'
 import {
   documentCommentSchema,
   documentNotesSchema,
@@ -20,7 +20,7 @@ import type { SidecarClient } from '../sidecar/client.js'
 import { sidecarInventorySchema } from '../sidecar/messages.js'
 import { SidecarMethod } from '../sidecar/protocol.js'
 import { t } from '../i18n.js'
-import { editorPreferences } from '../preferences.js'
+import { readFileBytes } from '../fs/read-bytes.js'
 import { MAX_NAME_LENGTH } from '@shared/limits.js'
 
 /**
@@ -75,13 +75,7 @@ export interface OpenedDocx {
 }
 
 export async function openDocx(client: SidecarClient, path: string): Promise<OpenedDocx> {
-  let bytes: Buffer
-  try {
-    bytes = await readFile(path)
-  } catch (cause) {
-    throw fromFileSystemError(cause, 'read', editorPreferences().language)
-  }
-  return decodeDocx(client, path, bytes)
+  return decodeDocx(client, path, await readFileBytes(path))
 }
 
 /** Also for bytes that never reached the disk, like the personal data inspector's clean copy. */
