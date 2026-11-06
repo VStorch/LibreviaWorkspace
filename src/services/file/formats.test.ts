@@ -5,7 +5,11 @@ import {
   ensureSupportedExtension,
   extensionOf,
   fileNameFromPath,
+  isInspectablePackagePath,
+  isOdtPackagePath,
   isOdtPath,
+  isOdtTemplatePath,
+  isOfficePackagePath,
   isPdfPath,
   isOpenableExtension,
   kindFromPath,
@@ -96,6 +100,35 @@ describe('ODT', () => {
 
   it.each(['/a/b.exe', '/a/odt', '/a/b.html'])('%s cannot be opened', (path) => {
     expect(isOpenableExtension(path)).toBe(false)
+  })
+})
+
+describe('ODT templates', () => {
+  it.each(['/a/b.ott', '/a/b.OTT'])('%s is an ODT template and package, and a save target', (path) => {
+    expect(isOdtTemplatePath(path)).toBe(true)
+    expect(isOdtPackagePath(path)).toBe(true)
+    expect(isOdtPath(path)).toBe(false)
+    expect(isSupportedExtension(path)).toBe(true)
+    expect(ensureSupportedExtension(path)).toBe(path)
+    expect(kindFromPath(path)).toBe(DocumentKind.Document)
+  })
+
+  it('.odt is an ODT package, but not a template', () => {
+    expect(isOdtTemplatePath('/a/b.odt')).toBe(false)
+    expect(isOdtPackagePath('/a/b.odt')).toBe(true)
+  })
+
+  it.each(['/a/b.odt', '/a/b.ott', '/a/b.docx', '/a/b.dotx', '/a/b.xlsx'])(
+    '%s goes through the personal data inspector',
+    (path) => {
+      expect(isInspectablePackagePath(path)).toBe(true)
+    },
+  )
+
+  it('ODF packages stay out of the Office packages', () => {
+    expect(isOfficePackagePath('/a/b.odt')).toBe(false)
+    expect(isOfficePackagePath('/a/b.ott')).toBe(false)
+    expect(isInspectablePackagePath('/a/b.sdoc')).toBe(false)
   })
 })
 

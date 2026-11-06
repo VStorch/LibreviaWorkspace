@@ -76,7 +76,10 @@ describe.skipIf(!published || !HAS_TOOLS)('the ODT with equations', () => {
     const directory = await mkdtemp(join(tmpdir(), 'librevia-odt-xml-'))
     try {
       const path = join(directory, 'equações.odt')
-      await writeFile(path, await exportOdt(client, sdocContentOf(model), 'Librevia/0.0.0'))
+      await writeFile(
+        path,
+        await exportOdt(client, sdocContentOf(model), { generator: 'Librevia/0.0.0', template: false }),
+      )
       const parts = execFileSync('unzip', ['-Z1', path], { encoding: 'utf8' })
         .split('\n')
         .filter((name) => name.endsWith('.xml'))

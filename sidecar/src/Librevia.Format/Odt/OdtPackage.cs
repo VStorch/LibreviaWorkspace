@@ -12,6 +12,7 @@ namespace Librevia.Format.Odt;
 internal sealed class OdtPackage
 {
     public const string TextMimeType = "application/vnd.oasis.opendocument.text";
+    public const string TemplateMimeType = "application/vnd.oasis.opendocument.text-template";
 
     /// <summary>LibreOffice writes it in an <c>.odt</c> saved from HTML; the content is ODF text.</summary>
     private const string WebTextMimeType = "application/vnd.oasis.opendocument.text-web";
@@ -43,6 +44,9 @@ internal sealed class OdtPackage
     public XDocument? Styles { get; }
     public XDocument? Meta { get; }
     public XDocument? Manifest { get; }
+
+    /// <summary>As <c>mimetype</c> declares it, or the manifest's root entry; <c>null</c> when neither does.</summary>
+    public string? MimeType { get; private set; }
 
     private OdtPackage(ZipArchive archive)
     {
@@ -120,7 +124,8 @@ internal sealed class OdtPackage
     public bool IsFormula(string objectPath) =>
         string.Equals(MediaTypeOf(objectPath.TrimEnd('/') + "/"), FormulaMimeType, StringComparison.Ordinal);
 
-    private XDocument? ReadXml(string path)
+    /// <summary>The part parsed, or <c>null</c> when the package does not have it.</summary>
+    public XDocument? ReadXml(string path)
     {
         var bytes = ReadBytes(path);
         if (bytes is null) return null;
@@ -150,10 +155,12 @@ internal sealed class OdtPackage
         var declared = ReadBytes(MimeTypePath) is { } bytes
             ? Encoding.ASCII.GetString(bytes).Trim()
             : MediaTypeOf("/");
-        if (declared is not null && declared is not (TextMimeType or WebTextMimeType))
+        if (declared is not null && declared is not (TextMimeType or TemplateMimeType or WebTextMimeType))
         {
             throw new OdtException("sidecar.error.odtNotText");
         }
+
+        MimeType = declared;
     }
 }
 

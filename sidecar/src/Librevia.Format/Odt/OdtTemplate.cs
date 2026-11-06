@@ -17,7 +17,8 @@ public sealed record OdtCreateDto(
     [property: JsonPropertyName("notes")] NotesDto? Notes = null,
     [property: JsonPropertyName("generator")] string? Generator = null,
     [property: JsonPropertyName("properties")] PropertiesDto? Properties = null,
-    [property: JsonPropertyName("headingLevels")] List<int>? HeadingLevels = null);
+    [property: JsonPropertyName("headingLevels")] List<int>? HeadingLevels = null,
+    [property: JsonPropertyName("template")] bool Template = false);
 
 /// <summary>
 /// The package that plays the original for a document without one, as <see cref="DocxTemplate"/>
@@ -39,15 +40,16 @@ public static class OdtTemplate
     {
         var pictures = new OdtPictures(null);
         var styles = OdtTemplateStyles.Write(request, pictures);
+        var mediaType = request.Template ? OdtPackage.TemplateMimeType : OdtPackage.TextMimeType;
         var entries = new List<(string Path, byte[] Bytes, bool Stored)>
         {
-            (OdtPackage.MimeTypePath, Encoding.ASCII.GetBytes(OdtPackage.TextMimeType), true),
+            (OdtPackage.MimeTypePath, Encoding.ASCII.GetBytes(mediaType), true),
             (OdtPackage.ContentPath, Xml(Content()), false),
             (OdtPackage.StylesPath, Xml(styles), false),
             (OdtPackage.MetaPath, Xml(Meta(request.Generator, request.Properties)), false),
         };
         entries.AddRange(pictures.Added.Select(added => (added.Path, added.Bytes, true)));
-        entries.Add((OdtPackage.ManifestPath, Xml(Manifest(pictures)), false));
+        entries.Add((OdtPackage.ManifestPath, Xml(Manifest(pictures, mediaType)), false));
         return Zip(entries);
     }
 
@@ -92,14 +94,14 @@ public static class OdtTemplate
         return new XDocument(root);
     }
 
-    private static XDocument Manifest(OdtPictures pictures)
+    private static XDocument Manifest(OdtPictures pictures, string mediaType)
     {
         static XElement Entry(string path, string type) => new(
             Ns.Manifest + "file-entry",
             new XAttribute(Ns.Manifest + "full-path", path),
             new XAttribute(Ns.Manifest + "media-type", type));
 
-        var whole = Entry("/", OdtPackage.TextMimeType);
+        var whole = Entry(OdtMediaType.RootPath, mediaType);
         whole.Add(new XAttribute(Ns.Manifest + "version", OdfVersion));
         return new XDocument(new XElement(
             Ns.Manifest + "manifest",

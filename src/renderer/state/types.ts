@@ -148,7 +148,7 @@ export interface WorkspaceState {
   inspectPersonalData: () => Promise<PrivacyReport | null>
   /** Marks the file modified: only saving writes the clean version. */
   removePersonalData: (categories: readonly PrivacyCategory[]) => Promise<boolean>
-  /** `null` browses for a `.dotx`. Returns whether the new document reached the screen. */
+  /** `null` browses for a `.dotx` or `.ott`. Returns whether the new document reached the screen. */
   newFromTemplate: (
     template: { readonly source: 'builtin' | 'user'; readonly id: string } | null,
   ) => Promise<boolean>

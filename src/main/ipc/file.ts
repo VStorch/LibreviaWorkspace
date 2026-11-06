@@ -6,11 +6,13 @@ import {
   extensionOf,
   fileNameFromPath,
   isExcelPath,
-  isOdtPath,
+  isOdtPackagePath,
+  isOdtTemplatePath,
   isPdfPath,
   isWordPackagePath,
   isWordTemplatePath,
   kindFromPath,
+  ODT_EXTENSION,
   WORD_EXTENSION,
 } from '@services/file/formats.js'
 import { showOpenFileDialog, showSaveFileDialog } from '../dialogs.js'
@@ -44,7 +46,7 @@ interface LoadedContent {
 }
 
 /**
- * A Word template opens as a new document, and its path is **not** authorized: nothing writes over
+ * A Word or ODT template opens as a new document, and its path is **not** authorized: nothing writes over
  * it. `templateName` is the new document's name: the builtin template's, translated; when absent,
  * the file's.
  */
@@ -56,10 +58,11 @@ export async function loadFile(path: string, templateName?: string): Promise<Loa
 
   // The original bytes apply to **one** file: otherwise the next save would write into the wrong
   // package.
-  if (!isWordPackagePath(path) && !isOdtPath(path)) forgetOpenedDocx()
+  if (!isWordPackagePath(path) && !isOdtPackagePath(path)) forgetOpenedDocx()
   if (!isExcelPath(path)) forgetOpenedXlsx()
 
-  if (isWordTemplatePath(path)) return loadAsNewDocument(path, loaded, templateName)
+  if (isWordTemplatePath(path)) return loadAsNewDocument(path, loaded, WORD_EXTENSION, templateName)
+  if (isOdtTemplatePath(path)) return loadAsNewDocument(path, loaded, ODT_EXTENSION, templateName)
 
   const authorized = authorizePath(path)
   rememberRecentFile(authorized)
@@ -78,13 +81,21 @@ export async function loadFile(path: string, templateName?: string): Promise<Loa
 /** DOCX, ODT and XLSX become the internal format here: the renderer never sees the package. */
 async function loadContent(path: string): Promise<LoadedContent> {
   if (isWordPackagePath(path)) return openDocx(sidecar(), path)
-  if (isOdtPath(path)) return openOdt(sidecar(), path)
+  if (isOdtPackagePath(path)) return openOdt(sidecar(), path)
   if (isExcelPath(path)) return openXlsx(sidecar(), path)
   return { content: await readTextFile(path), inventory: undefined }
 }
 
-/** Named `.docx`: "Save" asks where, through "Save as". */
-function loadAsNewDocument(path: string, loaded: LoadedContent, templateName?: string): LoadedFile {
+/**
+ * Named after the template's document format: "Save" asks where, through "Save as". The template's
+ * package stays as the original, so saving into its format rewrites only what was edited.
+ */
+function loadAsNewDocument(
+  path: string,
+  loaded: LoadedContent,
+  extension: string,
+  templateName?: string,
+): LoadedFile {
   const source = normalizePath(path)
   rememberRecentFile(source)
   void refreshMenu()
@@ -92,7 +103,7 @@ function loadAsNewDocument(path: string, loaded: LoadedContent, templateName?: s
   const base = templateName ?? name.slice(0, name.length - extensionOf(source).length)
   const file: LoadedFile = {
     path: source,
-    name: `${base}${WORD_EXTENSION}`,
+    name: `${base}${extension}`,
     kind: kindFromPath(source),
     content: loaded.content,
     template: true,
@@ -126,7 +137,7 @@ interface Encoded {
   readonly original: SavedOriginal | null
 }
 
-/** `.docx`, `.odt` and `.xlsx` go to the sidecar, which rewrites only what was touched. */
+/** Word, ODT and `.xlsx` packages go to the sidecar, which rewrites only what was touched. */
 async function encodeForDestination(path: string, content: string, origin: string | null): Promise<Encoded> {
   if (isWordPackagePath(path)) {
     const word = await saveDocx(sidecar(), content, {
@@ -136,8 +147,12 @@ async function encodeForDestination(path: string, content: string, origin: strin
     })
     return { saved: word, original: startingPackage(word, OriginalFormat.Docx) }
   }
-  if (isOdtPath(path)) {
-    const odt = await saveOdt(sidecar(), content, { origin, generator: odtGenerator() })
+  if (isOdtPackagePath(path)) {
+    const odt = await saveOdt(sidecar(), content, {
+      origin,
+      generator: odtGenerator(),
+      template: isOdtTemplatePath(path),
+    })
     return { saved: odt, original: { ...startingPackage(odt, OriginalFormat.Odt), created: odt.created } }
   }
   return { saved: isExcelPath(path) ? await saveXlsx(sidecar(), content) : null, original: null }

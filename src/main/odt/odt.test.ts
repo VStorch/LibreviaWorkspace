@@ -204,7 +204,7 @@ const MODEL: DocumentModel = {
 
 /** A document without an ODT original, through the minimal package. */
 const created = async (): Promise<Buffer> =>
-  Buffer.from(await exportOdt(client, sdocContentOf(MODEL), GENERATOR))
+  Buffer.from(await exportOdt(client, sdocContentOf(MODEL), { generator: GENERATOR, template: false }))
 
 describe.skipIf(!published)('odt.open', () => {
   it('reads back what odt.create and odt.save write', async () => {
@@ -269,6 +269,7 @@ describe.skipIf(!published)('odt.save', () => {
     const saved = await saveOdt(client, editLast(opened.content, 'Fim editado'), {
       origin: path,
       generator: GENERATOR,
+      template: false,
     })
     expect(saved.created).toBe(false)
     await writeFile(path, saved.bytes)
@@ -295,7 +296,7 @@ describe.skipIf(!published)('odt.save', () => {
   it('saves a document without an ODT original into the minimal package, rebuilt on each save', async () => {
     forgetOpenedOriginal()
     const content = editLast(JSON.stringify({ ...MODEL, doc: withOids(MODEL.doc) }), 'Novo')
-    const target = { origin: null, generator: GENERATOR }
+    const target = { origin: null, generator: GENERATOR, template: false }
 
     const saved = await saveOdt(client, content, target)
     expect(saved.created).toBe(true)
@@ -312,6 +313,48 @@ describe.skipIf(!published)('odt.save', () => {
     expect(isCreatedOriginal(destination)).toBe(false)
   })
 })
+
+describe.skipIf(!published)('ODT templates', () => {
+  let directory = ''
+
+  beforeAll(async () => {
+    directory = await mkdtemp(join(tmpdir(), 'librevia-ott-'))
+  })
+
+  afterAll(() => rm(directory, { recursive: true, force: true }))
+
+  it('saves as .ott, and a document from it as .odt over the template package', async () => {
+    forgetOpenedOriginal()
+    const template = await saveOdt(client, sdocContentOf(MODEL), {
+      origin: null,
+      generator: GENERATOR,
+      template: true,
+    })
+    expect(mimetypeOf(template.bytes)).toBe(`${ODT_MEDIA_TYPE}-template`)
+    const templatePath = join(directory, 'modelo.ott')
+    await writeFile(templatePath, template.bytes)
+
+    const opened = await openOdt(client, templatePath)
+    const document = await saveOdt(client, opened.content, {
+      origin: templatePath,
+      generator: GENERATOR,
+      template: false,
+    })
+
+    expect(document.created).toBe(false)
+    expect(mimetypeOf(document.bytes)).toBe(ODT_MEDIA_TYPE)
+  })
+})
+
+const ODT_MEDIA_TYPE = 'application/vnd.oasis.opendocument.text'
+const LOCAL_HEADER_SIZE = 30
+
+/** ODF requires `mimetype` as the first entry, stored: its bytes follow the local header. */
+function mimetypeOf(bytes: Uint8Array): string {
+  const zip = Buffer.from(bytes)
+  const start = LOCAL_HEADER_SIZE + zip.readUInt16LE(26) + zip.readUInt16LE(28)
+  return zip.subarray(start, start + zip.readUInt32LE(18)).toString('latin1')
+}
 
 /** The default paragraph style, as the reader gives it: unsaid. */
 function withoutNormal(node: DocumentNode): DocumentNode {

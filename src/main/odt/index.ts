@@ -47,6 +47,8 @@ export interface OdtTarget {
   readonly origin: string | null
   /** `meta:generator` of a new package. */
   readonly generator: string
+  /** The sidecar writes the template media type in `mimetype` and the manifest. */
+  readonly template: boolean
 }
 
 export interface SavedOdt extends SavedDocx {
@@ -67,8 +69,8 @@ export async function saveOdt(
   const read = readSdocModel(sdocContent)
   const kept = isCreatedOriginal(target.origin) ? null : originalOf(target.origin, OriginalFormat.Odt)
   const model = kept === null ? { ...read, doc: withoutOids(read.doc) } : read
-  const original = kept ?? Buffer.from(await createOdt(client, model, target.generator))
-  const saved = await writeOdt(client, model, original)
+  const original = kept ?? Buffer.from(await createOdt(client, model, target))
+  const saved = await writeOdt(client, model, original, target.template)
   return { ...saved, original, created: kept === null }
 }
 
@@ -76,11 +78,12 @@ export async function saveOdt(
 export async function exportOdt(
   client: SidecarClient,
   sdocContent: string,
-  generator: string,
+  target: Omit<OdtTarget, 'origin'>,
 ): Promise<Uint8Array> {
   const read = readSdocModel(sdocContent)
   const model = { ...read, doc: withoutOids(read.doc) }
-  const saved = await writeOdt(client, model, Buffer.from(await createOdt(client, model, generator)))
+  const created = Buffer.from(await createOdt(client, model, target))
+  const saved = await writeOdt(client, model, created, target.template)
   return saved.bytes
 }
 
@@ -89,8 +92,9 @@ async function writeOdt(
   client: SidecarClient,
   model: SdocModel,
   original: Buffer,
+  template: boolean,
 ): Promise<Omit<SavedDocx, 'original'>> {
-  const params = { ...saveParamsOf(model, {}), doc: withEquationLatex(model.doc as DocumentNode) }
+  const params = { ...saveParamsOf(model, { template }), doc: withEquationLatex(model.doc as DocumentNode) }
   const reply = await client.request(SidecarMethod.OdtSave, params, new Uint8Array(original))
   const parsed = saveResultSchema.safeParse(reply.result)
   if (!parsed.success) {
@@ -102,10 +106,14 @@ async function writeOdt(
 }
 
 /** Created by the sidecar (`OdtTemplate`), with what lives in `styles.xml` and `meta.xml`. */
-async function createOdt(client: SidecarClient, model: SdocModel, generator: string): Promise<Uint8Array> {
+async function createOdt(
+  client: SidecarClient,
+  model: SdocModel,
+  { generator, template }: Omit<OdtTarget, 'origin'>,
+): Promise<Uint8Array> {
   const { page, sections, styles, notes, properties } = model
   const headingLevels = headingLevelsOf(model.doc as DocumentNode)
-  const params = { page, sections, styles, notes, properties, headingLevels, generator }
+  const params = { page, sections, styles, notes, properties, headingLevels, generator, template }
   const reply = await client.request(SidecarMethod.OdtCreate, params)
   if (reply.binary.length === 0) {
     throw new AppError(ErrorCode.SidecarFailed, t('errors.odt.cannotCreate'), t('errors.odt.createContract'))

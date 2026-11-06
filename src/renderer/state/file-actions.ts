@@ -327,7 +327,7 @@ export function openedNotice(
 /** `.xlsx` arrives converted in the `.ssheet` envelope: the extension picks the editor. */
 export function interpret(opened: OpenedFile): LoadedFile {
   const kind = kindFromPath(opened.path)
-  // A Word template opens without a path, so "save" never writes over it.
+  // A template opens without a path, so "save" never writes over it.
   const file: OpenFile =
     opened.template === true
       ? { path: null, name: opened.name, kind, origin: opened.path }

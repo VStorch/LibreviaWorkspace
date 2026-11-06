@@ -5,7 +5,7 @@ import { IpcChannel } from '@shared/ipc-channels.js'
 import { exportHtml } from '@services/document/export-html.js'
 import { exportMarkdown } from '@services/document/export-markdown.js'
 import { parseDocument } from '@services/document/serialize.js'
-import { fileNameFromPath } from '@services/file/formats.js'
+import { fileNameFromPath, isOdtTemplatePath } from '@services/file/formats.js'
 import { showExportSaveDialog } from '../dialogs.js'
 import { writeFileAtomic } from '../fs/atomic-write.js'
 import { authorizePath } from '../fs/paths.js'
@@ -41,7 +41,10 @@ export function registerExportHandlers(): void {
 
     const path = authorizePath(chosen)
     if (payload.format === 'odt') {
-      const bytes = await exportOdt(sidecar(), payload.content, odtGenerator())
+      const bytes = await exportOdt(sidecar(), payload.content, {
+        generator: odtGenerator(),
+        template: isOdtTemplatePath(path),
+      })
       await writeFileAtomic(path, Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength))
     } else {
       await writeTextExport(path, payload.format, payload)

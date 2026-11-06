@@ -9,7 +9,8 @@ namespace Librevia.Format.Odt;
 /// <c>odt.save</c>, surgical as <see cref="DocxWriter"/>: the original is read again with the same
 /// reader, and only what changed is written. A block nobody touched goes back as the exact text it had
 /// in <c>content.xml</c>; <c>styles.xml</c> changes only for a named style or the page,
-/// <c>meta.xml</c> only for the properties, the manifest only for a new image. Every other entry
+/// <c>meta.xml</c> only for the properties, the manifest only for a new image or a change between
+/// document and template (<see cref="OdtMediaType"/>). Every other entry
 /// comes back with the same content, and <c>mimetype</c> first and stored, as ODF asks.
 /// </summary>
 public static class OdtWriter
@@ -41,7 +42,10 @@ public static class OdtWriter
         if (OdtMetaPart.Write(package.Meta, source.Properties, model.Properties) is { } meta) replaced[OdtPackage.MetaPath] = meta;
         var objects = OdtEmbeddedObjects.Find(package, content, styles is null ? package.Styles : XmlParts.Read(Utf8.GetBytes(styles)));
         var addMeta = package.Meta is null && replaced.ContainsKey(OdtPackage.MetaPath);
-        Replace(replaced, package, OdtPackage.ManifestPath, Manifest(package, pictures, context.Formulas, objects, addMeta));
+        var mediaType = OdtMediaType.Wanted(package, model.Template);
+        if (mediaType is not null && package.Has(OdtPackage.MimeTypePath)) replaced[OdtPackage.MimeTypePath] = OdtMediaType.Bytes(mediaType);
+        var changes = new ManifestChanges(pictures, context.Formulas, objects, addMeta, mediaType);
+        Replace(replaced, package, OdtPackage.ManifestPath, Manifest(package, changes));
 
         return (Zip(package, replaced, pictures, context.Formulas, objects), new SaveResult(inventory, preserved, rewritten));
     }
@@ -96,10 +100,17 @@ public static class OdtWriter
         else edits.AppendContent(spans, created);
     }
 
-    private static string? Manifest(OdtPackage package, OdtPictures pictures, OdtFormulas formulas, OdtEmbeddedObjects objects, bool addMeta)
+    /// <summary>What a save adds to or removes from the manifest; <c>MediaType</c> is the root's new type.</summary>
+    private sealed record ManifestChanges(
+        OdtPictures Pictures, OdtFormulas Formulas, OdtEmbeddedObjects Objects, bool AddMeta, string? MediaType)
     {
-        var unchanged = pictures.Added.Count == 0 && formulas.Added.Count == 0 && !addMeta && objects.IsEmpty;
-        if (unchanged || package.Manifest?.Root is not { } root) return null;
+        public bool None => Pictures.Added.Count == 0 && Formulas.Added.Count == 0 && !AddMeta && Objects.IsEmpty && MediaType is null;
+    }
+
+    private static string? Manifest(OdtPackage package, ManifestChanges changes)
+    {
+        if (changes.None || package.Manifest?.Root is not { } root) return null;
+        var (pictures, formulas, objects, addMeta, mediaType) = changes;
         var entries = pictures.ManifestEntries().Concat(formulas.ManifestEntries()).ToList();
         if (addMeta)
         {
@@ -114,7 +125,13 @@ public static class OdtWriter
         var spans = OdtXmlSpans.Root(xml);
         foreach (var entry in root.Elements(Ns.Manifest + "file-entry"))
         {
-            if (entry.Attr(Ns.Manifest + "full-path") is { } path && objects.Drops(path)) edits.Replace(OdtXmlSpans.Find(spans, entry), string.Empty);
+            if (entry.Attr(Ns.Manifest + "full-path") is not { } path) continue;
+            var span = OdtXmlSpans.Find(spans, entry);
+            if (objects.Drops(path)) edits.Replace(span, string.Empty);
+            else if (path == OdtMediaType.RootPath && mediaType is not null)
+            {
+                edits.Replace(span, OdtMediaType.Retyped(xml[span.Start..span.End], entry.Attr(Ns.Manifest + "media-type"), mediaType));
+            }
         }
 
         if (entries.Count > 0) edits.AppendContent(spans, new OdtXmlOut(root).Write(entries));
@@ -132,7 +149,11 @@ public static class OdtWriter
         using (var zip = new ZipArchive(output, ZipArchiveMode.Create, leaveOpen: true))
         {
             var mimeType = package.Entries.FirstOrDefault(entry => entry.FullName == OdtPackage.MimeTypePath);
-            if (mimeType is not null) Add(zip, mimeType.FullName, package.ReadBytes(mimeType.FullName)!, CompressionLevel.NoCompression, mimeType.LastWriteTime);
+            if (mimeType is not null)
+            {
+                var type = replaced.GetValueOrDefault(mimeType.FullName) ?? package.ReadBytes(mimeType.FullName)!;
+                Add(zip, mimeType.FullName, type, CompressionLevel.NoCompression, mimeType.LastWriteTime);
+            }
 
             foreach (var entry in package.Entries.Where(entry => entry != mimeType && !objects.Drops(entry.FullName)))
             {

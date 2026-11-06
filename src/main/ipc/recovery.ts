@@ -5,7 +5,7 @@
 
 import { stat } from 'node:fs/promises'
 import { IpcChannel } from '@shared/ipc-channels.js'
-import { isExcelPath, isOdtPath, isWordPackagePath } from '@services/file/formats.js'
+import { isExcelPath, isOdtPackagePath, isWordPackagePath } from '@services/file/formats.js'
 import { adoptDocxOriginal } from '../docx/index.js'
 import { adoptOriginal, OriginalFormat } from '../opened-original.js'
 import { adoptXlsxOriginal } from '../xlsx/index.js'
@@ -48,7 +48,7 @@ async function reattach(path: string): Promise<void> {
 
   authorizePath(path)
   if (isWordPackagePath(path)) await adoptDocxOriginal(path)
-  if (isOdtPath(path)) await adoptOriginal(path, OriginalFormat.Odt)
+  if (isOdtPackagePath(path)) await adoptOriginal(path, OriginalFormat.Odt)
   if (isExcelPath(path)) await adoptXlsxOriginal(path)
 }
 
