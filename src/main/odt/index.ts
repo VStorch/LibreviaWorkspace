@@ -8,29 +8,29 @@ import { walk } from '@services/document/export-common.js'
 import { withoutUnsafeLinks } from '@services/document/link.js'
 import { withEquationLatex } from '@services/document/mathml-latex.js'
 import type { DocumentNode } from '@services/document/model.js'
+import { withoutOids } from '@services/document/oids.js'
 import { AppError, ErrorCode } from '@shared/errors.js'
+import { readFileBytes } from '../fs/read-bytes.js'
+import { isCreatedOriginal, OriginalFormat, originalOf, rememberOriginal } from '../opened-original.js'
 import {
   openResultSchema,
   readSdocModel,
   saveParamsOf,
   saveResultSchema,
   sdocContentOf,
-  withoutOids,
-  type OpenedDocx,
-  type SavedDocx,
+  type OpenedPackage,
+  type SavedPackage,
   type SdocModel,
-} from '../docx/index.js'
-import { readFileBytes } from '../fs/read-bytes.js'
-import { isCreatedOriginal, OriginalFormat, originalOf, rememberOriginal } from '../opened-original.js'
+} from '../package-document.js'
 import type { SidecarClient } from '../sidecar/client.js'
 import { SidecarMethod } from '../sidecar/protocol.js'
 import { t } from '../i18n.js'
 
-export async function openOdt(client: SidecarClient, path: string): Promise<OpenedDocx> {
+export async function openOdt(client: SidecarClient, path: string): Promise<OpenedPackage> {
   return decodeOdt(client, path, await readFileBytes(path))
 }
 
-export async function decodeOdt(client: SidecarClient, path: string, bytes: Buffer): Promise<OpenedDocx> {
+export async function decodeOdt(client: SidecarClient, path: string, bytes: Buffer): Promise<OpenedPackage> {
   const reply = await client.request(SidecarMethod.OdtOpen, {}, new Uint8Array(bytes))
   const parsed = openResultSchema.safeParse(reply.result)
   if (!parsed.success) {
@@ -51,7 +51,7 @@ export interface OdtTarget {
   readonly template: boolean
 }
 
-export interface SavedOdt extends SavedDocx {
+export interface SavedOdt extends SavedPackage {
   /** The starting package is the minimal one: the next save builds it again from the model. */
   readonly created: boolean
 }
@@ -93,7 +93,7 @@ async function writeOdt(
   model: SdocModel,
   original: Buffer,
   template: boolean,
-): Promise<Omit<SavedDocx, 'original'>> {
+): Promise<Omit<SavedPackage, 'original'>> {
   const params = { ...saveParamsOf(model, { template }), doc: withEquationLatex(model.doc as DocumentNode) }
   const reply = await client.request(SidecarMethod.OdtSave, params, new Uint8Array(original))
   const parsed = saveResultSchema.safeParse(reply.result)

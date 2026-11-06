@@ -53,15 +53,11 @@ const NEEDS_BLOCK = new Set(['tableCell', 'tableHeader', 'listItem', 'noteRef', 
 
 const MERGEABLE = new Set(['paragraph', 'heading'])
 
-/** Comment ends go to no export. */
-const DROPPED = new Set(['commentStart', 'commentEnd'])
+const COMMENT_ENDS = new Set(['commentStart', 'commentEnd'])
 
-/**
- * What "Accept all" would do, without going through the editor. Comments are dropped, except in ODT
- * (`keepComments`), which carries them as annotations.
- */
-export function finalDocument(node: DocumentNode, keepComments = false): DocumentNode {
-  let content = node.content === undefined ? undefined : finalChildren(node.content, keepComments)
+/** What "Accept all" would do, without going through the editor, with the comments dropped. */
+export function finalDocument(node: DocumentNode): DocumentNode {
+  let content = node.content === undefined ? undefined : finalChildren(node.content)
   // A block the schema does not allow empty (cell, item, note) gets a paragraph back when
   // everything in it was deleted.
   if (content?.length === 0 && NEEDS_BLOCK.has(node.type)) content = [{ type: 'paragraph' }]
@@ -76,15 +72,13 @@ export function finalDocument(node: DocumentNode, keepComments = false): Documen
   }
 }
 
-function finalChildren(children: readonly DocumentNode[], keepComments: boolean): DocumentNode[] {
-  const kept = children
-    .filter((child) => survivesFinal(child, keepComments))
-    .map((child) => finalDocument(child, keepComments))
+function finalChildren(children: readonly DocumentNode[]): DocumentNode[] {
+  const kept = children.filter(survivesFinal).map(finalDocument)
   return mergeDeletedParagraphMarks(kept)
 }
 
-function survivesFinal(child: DocumentNode, keepComments: boolean): boolean {
-  if (!keepComments && DROPPED.has(child.type)) return false
+function survivesFinal(child: DocumentNode): boolean {
+  if (COMMENT_ENDS.has(child.type)) return false
   if (hasMark(child, 'deletion')) return false
   return !(child.type === 'tableRow' && blockRevisionKind(child.attrs?.['rowRevision']) === 'del')
 }
@@ -141,11 +135,8 @@ function internalTargetsOf(node: DocumentNode): string[] {
     .map((href) => href.slice(1))
 }
 
-export function prepareExport(
-  model: Pick<DocumentModel, 'doc' | 'notes'>,
-  options: { readonly keepComments?: boolean } = {},
-): ExportSource {
-  const doc = finalDocument(model.doc, options.keepComments === true)
+export function prepareExport(model: Pick<DocumentModel, 'doc' | 'notes'>): ExportSource {
+  const doc = finalDocument(model.doc)
 
   const noteOf = new Map<DocumentNode, ExportNote>()
   const notes: ExportNote[] = []

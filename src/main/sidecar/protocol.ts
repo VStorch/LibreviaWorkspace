@@ -113,8 +113,8 @@ function concat(left: Uint8Array, right: Uint8Array): Uint8Array {
 /**
  * `health` proves the process starts; `diagnostics.echo`, that the binary gets through. `docx.save`
  * receives the original bytes, not a session, because the sidecar is stateless. `docx.create` and
- * `odt.create` return the minimal package for a document without an original of that format. `package.scrub` returns the whole
- * DOCX or XLSX without the personal data asked for.
+ * `odt.create` return the minimal package for a document without an original of that format.
+ * `package.scrub` returns the whole DOCX or XLSX without the personal data asked for.
  */
 export const SidecarMethod = {
   Health: 'health',

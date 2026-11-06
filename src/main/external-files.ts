@@ -10,9 +10,8 @@ const pending: string[] = []
 let target: BrowserWindow | null = null
 
 /**
- * Only native open arguments grant access to a file outside the recent list. A `.dotx`, `.dotm`
- * or `.ott` from the command line creates a new document, as in Word; a `.pdf` opens in the viewer;
- * an `.odt` is imported.
+ * The first openable path among the arguments, resolved against `cwd`. Only native open arguments
+ * grant access to a file outside the recent list.
  */
 export function fileFromArguments(args: readonly string[], cwd: string): string | undefined {
   const path = args.find((arg) => !arg.startsWith('-') && isOpenableExtension(arg))

@@ -73,7 +73,6 @@ async function writeTextExport(
 
   const folder = assetFolderOf(path)
   const { markdown, assets } = exportMarkdown(model, { assetFolder: folder })
-  // The folder only appears when there are images.
   if (assets.length > 0) {
     const directory = join(dirname(path), folder)
     await mkdir(directory, { recursive: true })

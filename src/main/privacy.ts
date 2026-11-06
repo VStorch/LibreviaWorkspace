@@ -9,7 +9,8 @@ import { AppError, ErrorCode, fromFileSystemError } from '@shared/errors.js'
 import { privacyReportSchema } from '@shared/schemas.js'
 import { isExcelPath, isInspectablePackagePath, isOdtPackagePath } from '@services/file/formats.js'
 import type { PrivacyCategory } from '@services/file/privacy.js'
-import { decodeDocx, type OpenedDocx } from './docx/index.js'
+import { decodeDocx } from './docx/index.js'
+import type { OpenedPackage } from './package-document.js'
 import { decodeOdt } from './odt/index.js'
 import { assertReadableFile } from './fs/paths.js'
 import { t } from './i18n.js'
@@ -44,7 +45,7 @@ export async function removePersonalData(
   client: SidecarClient,
   path: string,
   categories: readonly PrivacyCategory[],
-): Promise<OpenedDocx | OpenedXlsx> {
+): Promise<OpenedPackage | OpenedXlsx> {
   const reply = await client.request(
     SidecarMethod.PackageScrub,
     { anonymous: anonymousName(), categories },
@@ -61,7 +62,11 @@ export async function removePersonalData(
   return decodeClean(client, path, Buffer.from(reply.binary))
 }
 
-function decodeClean(client: SidecarClient, path: string, clean: Buffer): Promise<OpenedDocx | OpenedXlsx> {
+function decodeClean(
+  client: SidecarClient,
+  path: string,
+  clean: Buffer,
+): Promise<OpenedPackage | OpenedXlsx> {
   if (isExcelPath(path)) return decodeXlsx(client, path, clean)
   return isOdtPackagePath(path) ? decodeOdt(client, path, clean) : decodeDocx(client, path, clean)
 }

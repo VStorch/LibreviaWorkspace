@@ -16,10 +16,16 @@ import {
   WORD_EXTENSION,
 } from '@services/file/formats.js'
 import { showOpenFileDialog, showSaveFileDialog } from '../dialogs.js'
-import { forgetOpenedDocx, openDocx, saveDocx, type SavedDocx } from '../docx/index.js'
+import { openDocx, saveDocx } from '../docx/index.js'
 import { openOdt, saveOdt } from '../odt/index.js'
 import { odtGenerator } from '../odt/generator.js'
-import { followOriginal, OriginalFormat, type SavedOriginal } from '../opened-original.js'
+import {
+  followOriginal,
+  forgetOpenedOriginal,
+  OriginalFormat,
+  type SavedOriginal,
+} from '../opened-original.js'
+import type { SavedPackage } from '../package-document.js'
 import { forgetOpenedXlsx, openXlsx, saveXlsx } from '../xlsx/index.js'
 import { sidecar } from '../sidecar/index.js'
 import { writeFileAtomic } from '../fs/atomic-write.js'
@@ -58,7 +64,7 @@ export async function loadFile(path: string, templateName?: string): Promise<Loa
 
   // The original bytes apply to **one** file: otherwise the next save would write into the wrong
   // package.
-  if (!isWordPackagePath(path) && !isOdtPackagePath(path)) forgetOpenedDocx()
+  if (!isWordPackagePath(path) && !isOdtPackagePath(path)) forgetOpenedOriginal()
   if (!isExcelPath(path)) forgetOpenedXlsx()
 
   if (isWordTemplatePath(path)) return loadAsNewDocument(path, loaded, WORD_EXTENSION, templateName)
@@ -117,7 +123,7 @@ function loadAsNewDocument(
  */
 async function loadPdf(path: string): Promise<LoadedFile> {
   await assertViewablePdf(path)
-  forgetOpenedDocx()
+  forgetOpenedOriginal()
   forgetOpenedXlsx()
 
   const source = allowViewing(path)
@@ -158,7 +164,7 @@ async function encodeForDestination(path: string, content: string, origin: strin
   return { saved: isExcelPath(path) ? await saveXlsx(sidecar(), content) : null, original: null }
 }
 
-function startingPackage(saved: SavedDocx, format: OriginalFormat): SavedOriginal {
+function startingPackage(saved: SavedPackage, format: OriginalFormat): SavedOriginal {
   return { original: saved.original, format }
 }
 

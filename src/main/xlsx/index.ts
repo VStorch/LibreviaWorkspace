@@ -41,7 +41,7 @@ export function forgetOpenedXlsx(): void {
   openedOriginal = null
 }
 
-/** See `adoptDocxOriginal`. */
+/** See `adoptOriginal`. */
 export async function adoptXlsxOriginal(path: string): Promise<boolean> {
   try {
     openedOriginal = { path, bytes: await readFile(path) }

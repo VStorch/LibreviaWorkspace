@@ -14,7 +14,9 @@ import { DEFAULT_PAGE_SETUP, type DocumentModel, type DocumentNode } from '@serv
 import { BUILTIN_STYLES, StyleType, type StyleSheet } from '@services/document/styles.js'
 import { SidecarClient } from '../sidecar/client.js'
 import { sidecarPathIn } from '../sidecar/locate.js'
-import { saveDocx, sdocContentOf, withoutOids } from '../docx/index.js'
+import { withoutOids } from '@services/document/oids.js'
+import { saveDocx } from '../docx/index.js'
+import { sdocContentOf } from '../package-document.js'
 import { t } from '../i18n.js'
 import {
   followOriginal,
