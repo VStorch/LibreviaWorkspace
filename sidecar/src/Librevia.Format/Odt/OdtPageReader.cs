@@ -7,8 +7,9 @@ namespace Librevia.Format.Odt;
 /// <summary>
 /// The first block's master page → the page setup: paper, orientation and margins. ODF measures the
 /// top margin to the header and Word to the text, so the header's height and spacing join the
-/// margin, the inverse of <see cref="OdtTemplatePage"/>. Only a plain text header or footer has a place in
-/// the model (<c>{n}</c> and <c>{total}</c> for the page fields).
+/// margin, the inverse of <see cref="OdtTemplatePage"/>. A plain text header or footer is text the
+/// editor edits (<c>{n}</c> and <c>{total}</c> for the page fields); a richer one, a band
+/// (<see cref="OdtPageBands"/>).
 /// </summary>
 internal static class OdtPageReader
 {
@@ -28,10 +29,9 @@ internal static class OdtPageReader
 
     private const string Centered = "center";
 
-    private static readonly string[] Variants = ["header-left", "header-first", "footer-left", "footer-first"];
-
-    public static PageSetupDto Read(XDocument? styles, string? masterName, Inventory inventory)
+    public static PageSetupDto Read(OdtPackage package, string? masterName, Inventory inventory)
     {
+        var styles = package.Styles;
         var masters = styles?.Root?.Element(Ns.Office + "master-styles")?.Elements(Ns.Style + "master-page").ToList() ?? [];
         var master = masters.FirstOrDefault(page => page.Attr(Ns.Style + "name") == (masterName ?? DefaultMaster))
                      ?? masters.FirstOrDefault();
@@ -42,27 +42,23 @@ internal static class OdtPageReader
 
         var (size, orientation) = PaperOf(properties, inventory);
         var bandStyles = styles is null ? null : OdtStyles.Read(styles, styles);
-        var header = BandText(master, "header", bandStyles, inventory);
-        var footer = BandText(master, "footer", bandStyles, inventory);
-        var (top, headerDistance) = Edge(properties?.Attr(Ns.Fo + "margin-top"), layout, "header-style", "margin-bottom", header);
-        var (bottom, footerDistance) = Edge(properties?.Attr(Ns.Fo + "margin-bottom"), layout, "footer-style", "margin-top", footer);
-        if (master is not null && Variants.Any(variant => HasContent(master.Element(Ns.Style + variant))))
-        {
-            inventory.NoteLoss(OdtNotices.HeaderVariants);
-        }
+        var bands = OdtPageBands.Read(master, bandStyles, package, inventory);
+        var (top, headerDistance) = Edge(properties?.Attr(Ns.Fo + "margin-top"), layout, "header-style", "margin-bottom", HasContent(master?.Element(Ns.Style + "header")));
+        var (bottom, footerDistance) = Edge(properties?.Attr(Ns.Fo + "margin-bottom"), layout, "footer-style", "margin-top", HasContent(master?.Element(Ns.Style + "footer")));
 
         var margins = new MarginsDto(
             top,
             OdtLength.RoundedMillimetres(properties?.Attr(Ns.Fo + "margin-right")) ?? DefaultMarginMm,
             bottom,
             OdtLength.RoundedMillimetres(properties?.Attr(Ns.Fo + "margin-left")) ?? DefaultMarginMm);
-        return new PageSetupDto(size, orientation, margins, Header: null, Footer: null,
+        return new PageSetupDto(size, orientation, margins, bands.Header, bands.Footer,
+            bands.FirstHeader, bands.FirstFooter, bands.EvenHeader, bands.EvenFooter,
             HeaderDistanceMm: headerDistance, FooterDistanceMm: footerDistance,
-            HeaderText: header ?? string.Empty, FooterText: footer ?? string.Empty,
+            HeaderText: bands.HeaderText, FooterText: bands.FooterText,
             PageNumberFormat: PageNumberFormatOf(properties?.Attr(Ns.Style + "num-format")),
             PageNumberStart: PageReader.StartElement(null),
-            TitlePage: false,
-            EvenAndOddHeaders: false);
+            TitlePage: bands.TitlePage,
+            EvenAndOddHeaders: bands.EvenAndOdd);
     }
 
     /// <summary>The five the panel offers; any other is shown as digits.</summary>
@@ -91,10 +87,10 @@ internal static class OdtPageReader
 
     /// <summary>The margin to the text, and the distance from the edge to the band.</summary>
     private static (double Margin, double Distance) Edge(
-        string? pageMargin, XElement? layout, string bandStyle, string spacing, string? band)
+        string? pageMargin, XElement? layout, string bandStyle, string spacing, bool band)
     {
         var edge = OdtLength.Millimetres(pageMargin) ?? DefaultMarginMm;
-        if (band is null) return (Math.Round(edge, 2), DefaultBandDistanceMm);
+        if (!band) return (Math.Round(edge, 2), DefaultBandDistanceMm);
 
         var properties = layout?.Element(Ns.Style + bandStyle)?.Element(Ns.Style + "header-footer-properties");
         var height = OdtLength.Millimetres(properties?.Attr(Ns.Fo + "min-height") ?? properties?.Attr(Ns.Svg + "height")) ?? 0;
@@ -106,7 +102,7 @@ internal static class OdtPageReader
     /// The band as one line of text, or <c>null</c> when the page shows none. The plain band is
     /// centered, in the editor's own look: any other alignment or character formatting is noted.
     /// </summary>
-    private static string? BandText(XElement? master, string kind, OdtStyles? styles, Inventory inventory)
+    internal static string? BandText(XElement? master, string kind, OdtStyles? styles, Inventory inventory)
     {
         var band = master?.Element(Ns.Style + kind);
         if (band is null || !HasContent(band)) return null;

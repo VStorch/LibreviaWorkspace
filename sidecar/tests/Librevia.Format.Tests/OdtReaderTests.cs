@@ -363,10 +363,10 @@ public class OdtReaderTests
         """<style:style style:name="MP1" style:family="paragraph" style:parent-style-name="Header"><style:paragraph-properties fo:text-align="center"/></style:style>""";
 
     [Theory]
-    [InlineData("""<text:p>Relatório</text:p>""")]
-    [InlineData("""<text:p text:style-name="MP2">Relatório</text:p>""")]
-    [InlineData("""<text:p text:style-name="MP1">Relatório <text:span text:style-name="MT1">anual</text:span></text:p>""")]
-    public void ABandThatIsNotPlainCenteredTextIsNoted(string paragraph)
+    [InlineData("""<text:p>Relatório</text:p>""", 0, "Relatório|", false)]
+    [InlineData("""<text:p text:style-name="MP2">Relatório</text:p>""", 1, "Relatório|8pt", false)]
+    [InlineData("""<text:p text:style-name="MP1">Relatório <text:span text:style-name="MT1">anual</text:span></text:p>""", 1, "Relatório |,anual|", true)]
+    public void ABandThatIsNotPlainCenteredTextBecomesColumns(string paragraph, int column, string pieces, bool bold)
     {
         var bytes = Build(
             "<text:p>x</text:p>",
@@ -375,8 +375,55 @@ public class OdtReaderTests
                          """<style:style style:name="MT1" style:family="text"><style:text-properties fo:font-weight="bold"/></style:style>""",
             masters: $"""<style:master-page style:name="Standard" style:page-layout-name="pm1"><style:footer>{paragraph}</style:footer></style:master-page>""");
 
-        Assert.StartsWith("Relatório", Open(bytes).Model.Page.FooterText, StringComparison.Ordinal);
-        Assert.Equal(["sidecar.notice.bandFormatting"], Noted(bytes));
+        var page = Open(bytes).Model.Page;
+        Assert.Equal(string.Empty, page.FooterText);
+        var columns = new[] { page.Footer!.Left, page.Footer.Center, page.Footer.Right };
+        Assert.Equal(pieces, string.Join(',', columns[column].Select(piece => $"{piece.Text}|{(piece.FontSize == "8pt" ? piece.FontSize : string.Empty)}")));
+        Assert.Equal(bold, columns[column][^1].Bold);
+        Assert.Equal(1, columns.Count(pieces => pieces.Count > 0));
+        Assert.Empty(Noted(bytes));
+    }
+
+    [Fact]
+    public void TabsSendTheBandToItsColumnsWithPageFieldsAPictureAndTheRule()
+    {
+        var bytes = Build(
+            "<text:p>x</text:p>",
+            pageLayouts: DefaultPage +
+                         """<style:style style:name="MP3" style:family="paragraph"><style:paragraph-properties fo:border-bottom="0.5pt solid #000000"><style:tab-stops><style:tab-stop style:position="17cm" style:type="right"/><style:tab-stop style:position="8.5cm" style:type="center"/></style:tab-stops></style:paragraph-properties></style:style>""",
+            masters: """<style:master-page style:name="Standard" style:page-layout-name="pm1"><style:header><text:p>Empresa</text:p>""" +
+                     """<text:p text:style-name="MP3">Setor<text:tab/>Página <text:page-number>1</text:page-number> de <text:page-count>2</text:page-count> <text:title>T</text:title><text:tab/><draw:frame text:anchor-type="as-char" svg:width="2mm" svg:height="3mm"><draw:image xlink:href="Pictures/logo.png"/></draw:frame></text:p></style:header></style:master-page>""",
+            files: new Dictionary<string, byte[]> { ["Pictures/logo.png"] = Png() });
+
+        var band = Open(bytes).Model.Page.Header!;
+        Assert.Equal(["text:Empresa:False", "text:Setor:True"], band.Left.Select(piece => $"{piece.Kind}:{piece.Text}:{piece.Line}"));
+        Assert.Equal(
+            ["text:Página ", "pageNumber:", "text: de ", "totalPages:", "text: T"],
+            band.Center.Select(piece => $"{piece.Kind}:{piece.Text}"));
+        Assert.Equal(PieceDto.KindImage, band.Right.Single().Kind);
+        Assert.StartsWith("data:image/png;base64,", band.Right[0].Src, StringComparison.Ordinal);
+        Assert.True(band.Rule);
+        Assert.Empty(Noted(bytes));
+    }
+
+    [Fact]
+    public void LeftPageBandsAreTheEvenOnesAndTheMissingOneRepeatsTheDefault()
+    {
+        var bytes = Build(
+            "<text:p>x</text:p>",
+            pageLayouts: DefaultPage + CenteredBandStyle,
+            masters: """<style:master-page style:name="Standard" style:page-layout-name="pm1">""" +
+                     """<style:header><text:p text:style-name="MP1">Ímpar</text:p></style:header><style:header-left><text:p>Par</text:p></style:header-left>""" +
+                     """<style:footer><text:p text:style-name="MP1"><text:page-number>1</text:page-number></text:p></style:footer></style:master-page>""");
+
+        var page = Open(bytes).Model.Page;
+        Assert.Equal((true, false), (page.EvenAndOddHeaders, page.TitlePage));
+        Assert.Equal("Ímpar", page.Header!.Center.Single().Text);
+        Assert.Equal("Par", page.EvenHeader!.Left.Single().Text);
+        Assert.Same(page.Footer, page.EvenFooter);
+        Assert.Equal(PieceDto.KindPageNumber, page.Footer!.Center.Single().Kind);
+        Assert.Null(page.FirstHeader);
+        Assert.Empty(Noted(bytes));
     }
 
     [Fact]
@@ -391,11 +438,10 @@ public class OdtReaderTests
 
         var page = Open(bytes).Model.Page;
         Assert.Equal("A4", page.Size);
-        Assert.Equal("Data: 1/1/26", page.HeaderText);
-        Assert.Equal(
-            ["sidecar.notice.bandFormatting", "sidecar.notice.headerFields", "sidecar.notice.headerVariants",
-             "sidecar.notice.paperSizeChanged", "sidecar.notice.sections"],
-            Noted(bytes));
+        Assert.Equal(("Data: 1/1/26", string.Empty), (page.Header!.Left.Single().Text, page.HeaderText));
+        Assert.Equal((true, "Capa"), (page.TitlePage, page.FirstFooter!.Left.Single().Text));
+        Assert.Same(page.Header, page.FirstHeader);
+        Assert.Equal(["sidecar.notice.bandFormatting", "sidecar.notice.paperSizeChanged", "sidecar.notice.sections"], Noted(bytes));
     }
 
     [Fact]
@@ -437,9 +483,9 @@ public class OdtReaderTests
         Assert.Equal(["ab7r", "dentro", "Capítulo"], blocks.Select(block => string.Concat(block.Content!.Select(node => node.Text))));
         Assert.Equal(
             [
-                "sidecar.notice.bookmarks", "sidecar.notice.comments", "sidecar.notice.drawings",
-                "sidecar.notice.element=text:ruby", "sidecar.notice.endnotes", "sidecar.notice.equations",
-                "sidecar.notice.footnotes", "sidecar.notice.forms", "sidecar.notice.indexes",
+                "sidecar.notice.bookmarks", "sidecar.notice.drawings",
+                "sidecar.notice.element=text:ruby", "sidecar.notice.equations",
+                "sidecar.notice.forms", "sidecar.notice.indexes",
                 "sidecar.notice.plainFields", "sidecar.notice.revisions", "sidecar.notice.sections",
                 "sidecar.notice.textBoxes",
             ],

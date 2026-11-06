@@ -1,5 +1,4 @@
 using System.Text;
-using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Xml.Linq;
 using Librevia.Format.Docx;
@@ -72,6 +71,7 @@ internal sealed class OdtBodyWriter
                 Place(body, block);
                 body.Append(_xml, Span(block).Start, Span(block).End - Span(block).Start);
                 RememberList(block);
+                CountNotes(block);
                 _kept.Add(block.Number);
                 Preserved++;
                 index += block.Nodes.Count;
@@ -125,27 +125,10 @@ internal sealed class OdtBodyWriter
         {
             var node = content[index + offset];
             if (Attr.String(node, "oid") != block.OidAt(offset)) return null;
-            if (Comparable(node) != Comparable(block.Nodes[offset])) return null;
+            if (OdtBlockIdentity.Of(node, _context.Plan.Comments) != OdtBlockIdentity.Of(block.Nodes[offset], _source.Comments ?? [])) return null;
         }
 
         return block;
-    }
-
-    /// <summary>
-    /// The fingerprint without the editor's indent level when it is zero: the editor gives it to
-    /// every paragraph, and an ODT states its indent in millimetres.
-    /// </summary>
-    private static string Comparable(Node node)
-    {
-        var copy = JsonSerializer.Deserialize<Node>(JsonSerializer.Serialize(node, DocxJson.Options), DocxJson.Options)!;
-        WithoutZeroIndent(copy);
-        return copy.Fingerprint();
-    }
-
-    private static void WithoutZeroIndent(Node node)
-    {
-        if (node.Attrs?.TryGetValue("indent", out var indent) == true && indent?.ToJsonString() == "0") node.Attrs.Remove("indent");
-        foreach (var child in node.Content ?? []) WithoutZeroIndent(child);
     }
 
     /// <summary>The gap that belongs before the block, once.</summary>
@@ -211,6 +194,15 @@ internal sealed class OdtBodyWriter
     private void NoteLosses(OdtSourceBlock block)
     {
         foreach (var notice in block.Notices.Lost) _context.NoteLoss(notice.Key, notice.Value);
+    }
+
+    /// <summary>A kept note still takes its number: the next written one follows it.</summary>
+    private void CountNotes(OdtSourceBlock block)
+    {
+        foreach (var note in block.Nodes.SelectMany(OdtBlockIdentity.Descendants).Where(node => node.Type == "noteRef"))
+        {
+            _context.Plan.Notes.Next(Attr.String(note, "kind") == OdtNoteCounter.Endnote, _context.Section, Attr.String(note, "mark"));
+        }
     }
 
     /// <summary>A kept list's style, so a written list with the same key continues it.</summary>

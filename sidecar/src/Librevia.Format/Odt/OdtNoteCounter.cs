@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using System.Xml.Linq;
 using Librevia.Format.Docx;
 
 namespace Librevia.Format.Odt;
@@ -27,6 +28,24 @@ internal sealed class OdtNoteCounter(NotesDto? notes)
     ];
 
     private readonly Dictionary<bool, (int Ordinal, int Section)> _last = [];
+
+    /// <summary><c>text:notes-configuration</c> → the model's numbering, the inverse of <see cref="OdtTemplateStyles"/>.</summary>
+    public static NotesDto? Read(XDocument? styles)
+    {
+        var configurations = styles?.Root?.Element(Ns.Office + "styles")?.Elements(Ns.Text + "notes-configuration").ToList() ?? [];
+        NotePrDto? Of(string kind) =>
+            configurations.FirstOrDefault(element => (element.Attr(Ns.Text + "note-class") ?? Footnote) == kind) is { } found ? ConfigurationOf(found) : null;
+
+        var footnote = Of(Footnote);
+        var endnote = Of(Endnote);
+        return footnote is null && endnote is null ? null : new NotesDto(footnote, endnote);
+    }
+
+    /// <summary>LibreOffice counts the start from zero: 0 means "starts at 1".</summary>
+    private static NotePrDto ConfigurationOf(XElement configuration) => new(
+        NumFmt: configuration.Attr(Ns.Style + "num-format") is { } format ? OdtListLevels.FormatOf(format) : null,
+        Start: OdtLength.Integer(configuration.Attr(Ns.Text + "start-value")) is { } offset ? offset + 1 : null,
+        Restart: OdtTemplateStyles.RestartOf(configuration.Attr(Ns.Text + "start-numbering-at")));
 
     public static NotePrDto? NumberingOf(NotesDto? notes, bool endnote) => endnote ? notes?.EndnotePr : notes?.FootnotePr;
 

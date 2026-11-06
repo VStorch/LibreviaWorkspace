@@ -149,7 +149,7 @@ public class OdtWriterTests
 
         var (saved, result) = Save(original, model);
 
-        Assert.Equal(["umdois", "Novo  com espaços", "ab", "Com nota aqui", "Primeiro"], Texts(saved));
+        Assert.Equal(["umdois", "Novo  com espaços", "ab", "Com notanota aqui", "Primeiro"], Texts(saved));
         var text = Part(saved, "content.xml");
         Assert.True(text.IndexOf("text:sequence-decls", StringComparison.Ordinal) < text.IndexOf("Novo", StringComparison.Ordinal));
         Assert.Contains("<text:soft-page-break/>", text, StringComparison.Ordinal);
@@ -342,18 +342,22 @@ public class OdtWriterTests
     }
 
     [Fact]
-    public void EditingAParagraphWithAFootnoteDeclaresItLost()
+    public void EditingAParagraphWithAFootnoteRewritesTheNoteWithItsId()
     {
         var original = Rich();
-        var untouched = Save(original, ModelOf(original)).Result;
-        Assert.Empty(untouched.Inventory.Lost);
-        Assert.Contains(new Notice(Inventory.Footnotes), OdtReader.Read(original).Inventory.Invisible);
+        Assert.Empty(OdtReader.Read(original).Inventory.Invisible);
 
         var model = ModelOf(original);
-        model.Doc.Content![3].Content![0].Text = "Sem nota";
-        var (_, result) = Save(original, model);
+        model.Doc.Content![3].Content![0].Text = "Ainda com nota";
+        var (saved, result) = Save(original, model);
 
-        Assert.Equal(["sidecar.notice.footnotes"], Lost(result));
+        Assert.Empty(Lost(result));
+        var text = Part(saved, "content.xml");
+        Assert.Matches(
+            """<text:p[^>]*>Ainda com nota<text:note text:id="ftn1" text:note-class="footnote"><text:note-citation>1</text:note-citation><text:note-body><text:p[^>]*>nota</text:p></text:note-body></text:note> aqui</text:p>""",
+            text);
+        var note = Blocks(saved)[3].Content![1];
+        Assert.Equal(("noteRef", "nota"), (note.Type, TextOf(note)));
     }
 
     [Fact]

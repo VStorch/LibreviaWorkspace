@@ -165,10 +165,6 @@ export const SIDECAR = {
     pt: 'tamanho de papel diferente de A4 e Carta (o documento passa a usar A4)',
     en: 'paper size other than A4 and Letter (the document now uses A4)',
   },
-  'sidecar.notice.headerVariants': {
-    pt: 'cabeçalho ou rodapé diferente na primeira página ou nas páginas pares',
-    en: 'different header or footer on the first page or on even pages',
-  },
   'sidecar.notice.bandFormatting': {
     pt: 'formatação, tabela ou imagem do cabeçalho ou rodapé (fica só o texto)',
     en: 'formatting, table or image in the header or footer (only the text is kept)',

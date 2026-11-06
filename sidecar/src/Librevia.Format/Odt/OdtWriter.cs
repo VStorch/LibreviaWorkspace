@@ -29,7 +29,7 @@ public static class OdtWriter
         var taken = OdtAutomaticStyles.NamesIn(package.Content, package.Styles).ToList();
         var context = new OdtWriteContext(source.Styles, new OdtAutomaticStyles(taken), pictures, inventory)
         {
-            Plan = new OdtDocumentPlan(model.Doc, model.Comments, model.Notes),
+            Plan = new OdtDocumentPlan(model.Doc, model.Comments ?? source.Comments, model.Notes ?? source.Notes, source.CommentNames, package.Content),
             Formulas = new OdtFormulas(path => package.Has(path) || package.MediaTypes.ContainsKey(path + "/")),
         };
         context.TakeNames(package.Content.Root!);

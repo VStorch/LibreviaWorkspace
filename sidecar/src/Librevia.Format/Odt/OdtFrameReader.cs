@@ -1,11 +1,13 @@
+using System.Text.Json.Nodes;
 using System.Xml.Linq;
 using Librevia.Format.Docx;
 
 namespace Librevia.Format.Odt;
 
 /// <summary>
-/// <c>draw:frame</c> → the editor's <c>image</c>. A frame carries one rendition the editor uses: an
-/// embedded object or a text box goes to the inventory, even when it brings a preview image.
+/// <c>draw:frame</c> → the editor's <c>image</c>, or <c>math</c> for a formula object. A frame
+/// carries one rendition the editor uses: any other embedded object or a text box goes to the
+/// inventory, even when it brings a preview image.
 /// </summary>
 internal sealed class OdtFrameReader(OdtReadContext context)
 {
@@ -30,8 +32,7 @@ internal sealed class OdtFrameReader(OdtReadContext context)
     {
         if ((frame.Element(Ns.Draw + "object") ?? frame.Element(Ns.Draw + "object-ole")) is { } embedded)
         {
-            NoteObject(embedded);
-            return null;
+            return ObjectOf(frame, embedded);
         }
 
         if (frame.Element(Ns.Draw + "text-box") is not null)
@@ -77,11 +78,68 @@ internal sealed class OdtFrameReader(OdtReadContext context)
     }
 
     /// <summary>A formula is an equation; any other object is named by its tag.</summary>
-    private void NoteObject(XElement embedded)
+    private Node? ObjectOf(XElement frame, XElement embedded)
     {
         var path = PathOf(embedded.Attr(Ns.XLink + "href"));
-        if (path is not null && context.Package.IsFormula(path)) context.NoteLoss(Inventory.Equations);
-        else OdtNotices.Element(context.Inventory, embedded);
+        if (path is null || !context.Package.IsFormula(path))
+        {
+            OdtNotices.Element(context.Inventory, embedded);
+            return null;
+        }
+
+        if (embedded.Name.LocalName != "object" || FormulaOf(path) is not { } math)
+        {
+            context.NoteLoss(Inventory.Equations);
+            return null;
+        }
+
+        return new Node { Type = "math" }
+            .With("mathml", math.ToString(SaveOptions.DisableFormatting))
+            .With("latex", frame.Element(Ns.Svg + "desc")?.Value ?? string.Empty)
+            .With("display", math.Attr("display") == "block" && IsAlone(frame))
+            .With("lossy", new JsonArray())
+            .With("editable", true);
+    }
+
+    /// <summary>
+    /// The MathML of the formula's sub-document, through <see cref="MathMlFilter"/> as an edited one
+    /// would be. What the filter drops stays in the object until its block is rewritten.
+    /// </summary>
+    private XElement? FormulaOf(string folder)
+    {
+        var bytes = context.Package.ReadBytes(folder.TrimEnd('/') + "/content.xml");
+        var root = bytes is null ? null : XmlParts.Read(bytes)?.Root;
+        if (root is null || root.Name != MathMlFilter.MathMl + "math") return null;
+
+        var plain = Unprefixed(root);
+        var math = MathMlFilter.Sanitize(plain.ToString(SaveOptions.DisableFormatting));
+        if (math is not null && math.DescendantsAndSelf().Count() < plain.DescendantsAndSelf().Count()) context.NoteLoss(Inventory.Equations);
+        return math;
+    }
+
+    /// <summary>
+    /// Older LibreOffice writes <c>math:math</c>: the filter takes MathML only without a prefix, and
+    /// foreign elements, attributes and comments go.
+    /// </summary>
+    private static XElement Unprefixed(XElement element) => new(
+        element.Name,
+        element.Attributes().Where(attribute => !attribute.IsNamespaceDeclaration && attribute.Name.Namespace == XNamespace.None),
+        element.Nodes().Select(MathNodeOf).OfType<XNode>());
+
+    private static XNode? MathNodeOf(XNode node) => node switch
+    {
+        XElement inner when inner.Name.Namespace == MathMlFilter.MathMl => Unprefixed(inner),
+        XText text => new XText(text.Value),
+        _ => null,
+    };
+
+    /// <summary>LibreOffice marks every formula <c>block</c>: only one alone in its paragraph is displayed.</summary>
+    private static bool IsAlone(XElement frame)
+    {
+        var paragraph = frame.Ancestors().FirstOrDefault(ancestor => ancestor.Name == Ns.Text + "p" || ancestor.Name == Ns.Text + "h");
+        if (paragraph is null || paragraph.Descendants(Ns.Draw + "frame").Count() != 1) return false;
+        var outside = paragraph.DescendantNodes().OfType<XText>().Where(text => !text.Ancestors(Ns.Draw + "frame").Any());
+        return outside.All(text => string.IsNullOrWhiteSpace(text.Value));
     }
 
     /// <summary>The bytes inside the package, or in <c>office:binary-data</c>; never a link outside.</summary>

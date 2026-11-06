@@ -19,7 +19,6 @@ internal static class OdtNotices
     public const string Drawings = "sidecar.notice.drawings";
     public const string ImagePosition = "sidecar.notice.imagePosition";
     public const string PaperSize = "sidecar.notice.paperSizeChanged";
-    public const string HeaderVariants = "sidecar.notice.headerVariants";
     public const string BandFormatting = "sidecar.notice.bandFormatting";
     public const string ImageType = "sidecar.notice.imageType";
     public const string ImageWithoutContent = "sidecar.notice.imageWithoutContent";

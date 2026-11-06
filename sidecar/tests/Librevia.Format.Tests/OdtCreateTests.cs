@@ -258,6 +258,37 @@ public partial class OdtCreateTests
         Assert.Contains("display=\"block\"><mfrac><mi>a</mi><mi>b</mi></mfrac></math>", Part(bytes, "Object 2/content.xml"));
     }
 
+    private static IEnumerable<Node> Descendants(Node node) =>
+        (node.Content ?? []).SelectMany(child => new[] { child }.Concat(Descendants(child)));
+
+    [Fact]
+    public void WhatTheWriterWritesReadsBackAsNotesCommentsAndEquations()
+    {
+        var model = OdtReader.Read(Rich).Model;
+
+        var notes = Descendants(model.Doc).Where(node => node.Type == "noteRef").ToList();
+        Assert.Equal(
+            [("footnote", "Nota de rodapé"), ("footnote", "Nota na célula"), ("endnote", "Nota de fim")],
+            notes.Select(note => (note.Attrs!["kind"]!.GetValue<string>(), TextOf(note))));
+        var anchors = Descendants(model.Doc).Where(node => node.Type is "commentStart" or "commentEnd");
+        Assert.Equal(["commentStart:0", "commentEnd:0"], anchors.Select(node => $"{node.Type}:{node.Attrs!["cid"]!.GetValue<string>()}"));
+        Assert.Equal(
+            [("0", "Bia <revisora>", "Confira & ajuste", null), ("1", "Ana", "Feito", "0")],
+            model.Comments!.Select(comment => (comment.Id, comment.Author, comment.Paragraphs.Single(), comment.ParentId)));
+
+        var (bytes, _) = Export(WithBlocks(
+            Paragraph(Text("Seja "), Math("<math display=\"inline\"><msup><mi>x</mi><mn>2</mn></msup></math>", "x^2"), Text(" & mais")),
+            Paragraph(Math("<math display=\"block\"><mfrac><mi>a</mi><mi>b</mi></mfrac></math>", display: true))));
+        var equations = Descendants(OdtReader.Read(bytes).Model.Doc).Where(node => node.Type == "math").ToList();
+        Assert.Equal(
+            [("x^2", false, "<msup><mi>x</mi><mn>2</mn></msup>"), (string.Empty, true, "<mfrac><mi>a</mi><mi>b</mi></mfrac>")],
+            equations.Select(math => (
+                math.Attrs!["latex"]!.GetValue<string>(),
+                math.Attrs["display"]!.GetValue<bool>(),
+                Regex.Match(math.Attrs["mathml"]!.GetValue<string>(), "<m(sup|frac)>.*</m(sup|frac)>").Value)));
+        Assert.Empty(OdtReader.Read(bytes).Inventory.Invisible);
+    }
+
     [Theory]
     [InlineData("<!DOCTYPE math [<!ENTITY x \"y\">]><math><mi>&x;</mi></math>")]
     [InlineData("<math><!-- x --><mi>x</mi></math>")]
@@ -350,6 +381,30 @@ public partial class OdtCreateTests
         Assert.Matches("^<text:p text:style-name=\"LvMP\\d+\"><text:span text:style-name=\"LvT\\d+\">Empresa</text:span><text:tab ?/><text:page-number text:select-page=\"current\">1</text:page-number><text:tab ?/>\\{n\\}</text:p>$", header);
         Assert.Contains("<style:tab-stop style:type=\"center\" style:position=\"80mm\"", styles);
         Assert.Contains("fo:border-bottom=\"0.5pt solid #000000\"", styles);
+    }
+
+    [Fact]
+    public void AHeaderFromAnotherFormatReadsBackAsTheSameColumnsAndStaysAsItWas()
+    {
+        var model = RichModel();
+        var band = new BandDto(
+            [new PieceDto("text", "Empresa", Bold: true)],
+            [new PieceDto("pageNumber")],
+            [new PieceDto("text", "{n}", Literal: true)],
+            Rule: true);
+        var (bytes, _) = Export(model with { Sections = null, Page = model.Page with { Header = band, HeaderText = null } });
+
+        var read = OdtReader.Read(bytes);
+        var header = read.Model.Page.Header!;
+        static string Describe(PieceDto piece) => $"{piece.Kind}:{piece.Text}:{piece.Bold}:{piece.Literal}";
+        Assert.Equal(["text:Empresa:True:False"], header.Left.Select(Describe));
+        Assert.Equal(["pageNumber::False:False"], header.Center.Select(Describe));
+        Assert.Equal(["text:{n}:False:True"], header.Right.Select(Describe));
+        Assert.True(header.Rule);
+        Assert.DoesNotContain(read.Inventory.Invisible, notice => notice.Key == "sidecar.notice.bandFormatting");
+
+        var (saved, _) = OdtWriter.Write(bytes, read.Model);
+        Assert.Equal(Part(bytes, "styles.xml"), Part(saved, "styles.xml"));
     }
 
     [Fact]

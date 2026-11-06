@@ -21,6 +21,10 @@ internal static class OdtTemplateStyles
         ["eachSect"] = "chapter",
     };
 
+    /// <summary><c>text:start-numbering-at</c> → Word's restart; <c>document</c> is none.</summary>
+    public static string? RestartOf(string? startNumberingAt) =>
+        NoteRestarts.FirstOrDefault(entry => entry.Value == startNumberingAt).Key;
+
     public static XDocument Write(OdtCreateDto request, OdtPictures pictures)
     {
         var root = OdtTemplate.Root(Ns.Office + "document-styles");

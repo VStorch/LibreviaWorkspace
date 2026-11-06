@@ -8,6 +8,13 @@ internal sealed class OdtReadContext(OdtPackage package, OdtStyles styles, Inven
     public OdtPackage Package => package;
     public OdtStyles Styles => styles;
 
+    private OdtCommentReader? _comments;
+
+    public OdtCommentReader Comments => _comments ??= new(package.Content);
+
+    /// <summary>Inside a note's body, where ODF allows no other note.</summary>
+    public bool InNote { get; set; }
+
     /// <summary>The document's, or the block's being read: see <see cref="BeginBlock"/>.</summary>
     private readonly Inventory _document = inventory;
 

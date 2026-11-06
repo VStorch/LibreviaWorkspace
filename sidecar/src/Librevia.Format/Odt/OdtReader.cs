@@ -51,6 +51,11 @@ internal sealed class OdtSource
     public required StyleSheetDto Sheet { get; init; }
     public PropertiesDto? Properties { get; init; }
     public required Inventory Notices { get; init; }
+    public List<CommentDto>? Comments { get; init; }
+    public NotesDto? Notes { get; init; }
+
+    /// <summary>The <c>office:name</c> of each named comment, by its id in <see cref="Comments"/>.</summary>
+    public required IReadOnlyDictionary<string, string> CommentNames { get; init; }
 
     /// <summary>The master page of the first block, whose page setup the model carries.</summary>
     public string? MasterPage { get; init; }
@@ -75,10 +80,13 @@ internal sealed class OdtSource
             Text = text,
             Styles = styles,
             Blocks = blocks,
-            Page = OdtPageReader.Read(package.Styles, context.MasterPage, notices),
+            Page = OdtPageReader.Read(package, context.MasterPage, notices),
             Sheet = OdtStyleSheet.Read(styles),
             Properties = OdtProperties.Read(package.Meta, OdtPrivacyMark.IsSet(package.ReadXml(OdtPrivacyMark.SettingsPath))),
             Notices = notices,
+            Comments = context.Comments.Library,
+            CommentNames = context.Comments.Names,
+            Notes = OdtNoteCounter.Read(package.Styles),
             MasterPage = context.MasterPage,
             Elements = [.. text.Elements()],
         };
@@ -89,6 +97,6 @@ internal sealed class OdtSource
         var doc = Node.Of("doc");
         doc.Content = [.. Blocks.SelectMany(block => block.Nodes)];
         if (doc.Content.Count == 0) doc.Content.Add(OdtParagraphReader.Empty());
-        return new DocumentModelDto(Page, doc, Sheet, Properties: Properties);
+        return new DocumentModelDto(Page, doc, Sheet, Comments: Comments, Notes: Notes, Properties: Properties);
     }
 }

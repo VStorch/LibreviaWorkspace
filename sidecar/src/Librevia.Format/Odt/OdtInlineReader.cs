@@ -13,9 +13,10 @@ namespace Librevia.Format.Odt;
 internal sealed class OdtInlineReader(OdtReadContext context)
 {
     /// <summary>Against <c>text:c="2000000000"</c>.</summary>
-    private const int MaxSpaces = 1000;
+    internal const int MaxSpaces = 1000;
 
     private readonly OdtFrameReader _frames = new(context);
+    private OdtBodyReader? _noteBodies;
     private List<Node> _nodes = [];
     private CharacterFormat _inherited = CharacterFormat.Empty;
     private bool _afterSpace;
@@ -53,7 +54,13 @@ internal sealed class OdtInlineReader(OdtReadContext context)
             return;
         }
 
-        if (element.Name == Ns.Office + "annotation-end") return;
+        if (element.Name.Namespace == Ns.Office && ReadComment(element)) return;
+        if (element.Name == Ns.Text + "note" && !context.InNote)
+        {
+            ReadNote(element);
+            return;
+        }
+
         if (OdtNotices.DroppedInline(element) is { } key)
         {
             context.NoteLoss(key);
@@ -63,6 +70,40 @@ internal sealed class OdtInlineReader(OdtReadContext context)
         // Unknown: named in the inventory, and its text stays.
         OdtNotices.Element(context.Inventory, element);
         ReadChildren(element, run);
+    }
+
+    /// <summary>The anchors are zero-width: the white space around them collapses as if they were not there.</summary>
+    private bool ReadComment(XElement element)
+    {
+        if (element.Name.LocalName == "annotation-end")
+        {
+            if (context.Comments.End(element) is { } end) Add(end);
+            return true;
+        }
+
+        if (element.Name.LocalName != "annotation") return false;
+        var anchor = context.Comments.Annotation(element, out var rich);
+        if (rich) context.NoteLoss(Inventory.Comments);
+        if (anchor is not null) Add(anchor);
+        return true;
+    }
+
+    /// <summary>The body flattened, like a list or a cell, as the DOCX reader gives it.</summary>
+    private void ReadNote(XElement note)
+    {
+        var endnote = note.Attr(Ns.Text + "note-class") == OdtNoteCounter.Endnote;
+        var node = Node.Of("noteRef")
+            .With("kind", endnote ? OdtNoteCounter.Endnote : OdtNoteCounter.Footnote)
+            .With("nid", note.Attr(Ns.Text + "id"));
+        if (note.Element(Ns.Text + "note-citation")?.Attr(Ns.Text + "label") is { Length: > 0 } mark) node.With("mark", mark);
+
+        _noteBodies ??= new OdtBodyReader(context);
+        context.InNote = true;
+        var body = note.Element(Ns.Text + "note-body")?.Elements().SelectMany(child => _noteBodies.ReadBlock(child, flat: true)).ToList() ?? [];
+        context.InNote = false;
+        node.Content = body.Count == 0 ? [OdtParagraphReader.Empty()] : body;
+        Add(node);
+        _afterSpace = false;
     }
 
     /// <summary><c>false</c> for what is not a text construct this reader handles.</summary>
@@ -146,9 +187,10 @@ internal sealed class OdtInlineReader(OdtReadContext context)
         switch (element.Name.LocalName)
         {
             case "frame":
-                if (_frames.Read(element) is not { } image) return;
-                if (run.Href is { } href) image.Marks = [Mark.Of("link", "href", href)];
-                Add(image);
+                if (_frames.Read(element) is not { } framed) return;
+                if (framed.Type == "math") framed.Marks = OdtMarks.Of(run.Format, _inherited, run.Href, run.CharStyle);
+                else if (run.Href is { } href) framed.Marks = [Mark.Of("link", "href", href)];
+                Add(framed);
                 _afterSpace = false;
                 return;
             case "a":

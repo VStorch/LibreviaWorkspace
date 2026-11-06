@@ -15,6 +15,8 @@ internal sealed class OdtWriteContext(OdtStyles styles, OdtAutomaticStyles autom
 
     private readonly HashSet<string> _names = new(StringComparer.Ordinal);
     private readonly HashSet<string> _bookmarks = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _noteIds = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _reusedNoteIds = new(StringComparer.Ordinal);
 
     public OdtStyles Styles => styles;
     public OdtAutomaticStyles Automatic => automatic;
@@ -45,7 +47,12 @@ internal sealed class OdtWriteContext(OdtStyles styles, OdtAutomaticStyles autom
         {
             if (element.Attr(Ns.Table + "name") is { } table) _names.Add(table);
             if (element.Attr(Ns.Draw + "name") is { } frame) _names.Add(frame);
-            if (element.Name.LocalName == "note" && element.Attr(Ns.Text + "id") is { } note) _names.Add(note);
+            if (element.Name.LocalName == "note" && element.Attr(Ns.Text + "id") is { } note)
+            {
+                _names.Add(note);
+                _noteIds.Add(note);
+            }
+
             if (element.Name.LocalName == "section" && element.Attr(Ns.Text + "name") is { } section) _names.Add(section);
             if (element.Name.LocalName.StartsWith("bookmark", StringComparison.Ordinal) && element.Attr(Ns.Text + "name") is { } bookmark)
             {
@@ -77,6 +84,13 @@ internal sealed class OdtWriteContext(OdtStyles styles, OdtAutomaticStyles autom
     public string NewFrameName() => NewName(FramePrefix);
 
     public string NewNoteId() => NewName(NotePrefix);
+
+    /// <summary>
+    /// The note's own id, so a <c>text:note-ref</c> in a kept block still finds it, when the original
+    /// has it and the model holds it once (a kept block would be the other); otherwise a new one.
+    /// </summary>
+    public string NoteIdOf(string? nid) =>
+        nid is not null && _noteIds.Contains(nid) && Plan.NoteHeldOnce(nid) && _reusedNoteIds.Add(nid) ? nid : NewNoteId();
 
     public string NewSectionName() => NewName(SectionPrefix);
 

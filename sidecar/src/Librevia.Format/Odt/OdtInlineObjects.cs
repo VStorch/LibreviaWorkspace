@@ -11,7 +11,6 @@ namespace Librevia.Format.Odt;
 /// </summary>
 internal sealed partial class OdtInlineObjects(OdtWriteContext context, OdtBlockWriter blocks)
 {
-    private const string AnnotationPrefix = "__Annotation__";
     private const double MinFormulaWidthMm = 3;
     private const double MaxFormulaWidthMm = 170;
     private const double FormulaMmPerCharacter = 2.2;
@@ -55,7 +54,7 @@ internal sealed partial class OdtInlineObjects(OdtWriteContext context, OdtBlock
 
         return [new XElement(
             Ns.Text + "note",
-            new XAttribute(Ns.Text + "id", context.NewNoteId()),
+            new XAttribute(Ns.Text + "id", context.NoteIdOf(Attr.String(node, "nid"))),
             new XAttribute(Ns.Text + "note-class", endnote ? OdtNoteCounter.Endnote : OdtNoteCounter.Footnote),
             citation,
             body)];
@@ -64,24 +63,36 @@ internal sealed partial class OdtInlineObjects(OdtWriteContext context, OdtBlock
     private IEnumerable<XNode> CommentStart(Node node)
     {
         var id = Attr.String(node, "cid") ?? string.Empty;
+        var ranged = context.Plan.CommentEnds(id);
+        var written = Thread(id, ranged).ToList();
+        if (ranged && written.Count > 0) context.Plan.OpenComments.Add(id);
+        return written;
+    }
+
+    /// <summary>
+    /// The root, named when a range or a reply points to it, and its replies right after it, each
+    /// pointing to it by <c>loext:parent-name</c>, as LibreOffice threads them.
+    /// </summary>
+    private IEnumerable<XElement> Thread(string id, bool ranged)
+    {
         var plan = context.Plan;
         var root = plan.Comments.FirstOrDefault(comment => comment.Id == id);
-        if (root is null || plan.OpenComments.Contains(id))
+        if (root is null || !plan.WrittenComments.Add(id))
         {
             context.NoteLoss(Inventory.Comments);
             return [];
         }
 
-        var ranged = plan.CommentEnds(id);
-        if (ranged) plan.OpenComments.Add(id);
-        var replies = plan.Comments.Where(comment => comment.ParentId == id).Select(reply => Annotation(reply, root.Done, null));
-        return [Annotation(root, root.Done, ranged ? AnnotationPrefix + id : null), .. replies];
+        var replies = plan.Comments.Where(comment => comment.ParentId == id).ToList();
+        var name = ranged || replies.Count > 0 ? plan.NameOf(id) : null;
+        return [Annotation(root, root.Done, name, null), .. replies.Select(reply => Annotation(reply, root.Done, null, name))];
     }
 
-    private static XElement Annotation(CommentDto comment, bool resolved, string? name)
+    private static XElement Annotation(CommentDto comment, bool resolved, string? name, string? parentName)
     {
         var annotation = new XElement(Ns.Office + "annotation");
         if (name is not null) annotation.Add(new XAttribute(Ns.Office + "name", name));
+        if (parentName is not null) annotation.Add(new XAttribute(Ns.Loext + "parent-name", parentName));
         if (resolved) annotation.Add(new XAttribute(Ns.Loext + "resolved", "true"));
         annotation.Add(new XElement(Ns.Dc + "creator", comment.Author));
         if (IsoDate().IsMatch(comment.Date)) annotation.Add(new XElement(Ns.Dc + "date", comment.Date));
@@ -91,12 +102,17 @@ internal sealed partial class OdtInlineObjects(OdtWriteContext context, OdtBlock
         return annotation;
     }
 
+    /// <summary>
+    /// Closes the range opened here, or one whose start stayed as it was in the original; without a
+    /// start anywhere, the comment is a point and is written here.
+    /// </summary>
     private IEnumerable<XNode> CommentEnd(Node node)
     {
         var id = Attr.String(node, "cid") ?? string.Empty;
-        return context.Plan.OpenComments.Contains(id)
-            ? [new XElement(Ns.Office + "annotation-end", new XAttribute(Ns.Office + "name", AnnotationPrefix + id))]
-            : [];
+        var plan = context.Plan;
+        if (!plan.CommentStarts(id)) return Thread(id, ranged: false);
+        var name = plan.OpenComments.Contains(id) ? plan.NameOf(id) : plan.KeptNameOf(id);
+        return name is null ? [] : [new XElement(Ns.Office + "annotation-end", new XAttribute(Ns.Office + "name", name))];
     }
 
     private IEnumerable<XNode> BookmarkStart(Node node)

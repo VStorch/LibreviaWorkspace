@@ -166,8 +166,8 @@ const table = (): DocumentNode => ({
 })
 
 /**
- * The export test's rich model without what the reader leaves for later: notes, comments, fields,
- * bookmarks and sections.
+ * The export test's rich model without bookmarks and sections, which the reader does not keep, and
+ * without notes, comments and fields, whose round trips the sidecar tests cover.
  */
 const MODEL: DocumentModel = {
   page: {
