@@ -1,96 +1,97 @@
 # AGENTS.md
 
-Instruções para agentes de código que trabalham neste repositório. O contexto do projeto está no
-[README](README.md); os padrões, explicados para pessoas, no [CONTRIBUTING](CONTRIBUTING.md). Este
-arquivo é a versão curta e operacional.
+Instructions for coding agents working in this repository. The project context is in the
+[README](README.md); the standards, explained for people, are in [CONTRIBUTING](CONTRIBUTING.md).
+This file is the short, operational version.
 
-## O projeto
+## The project
 
-Editor de documentos e planilhas para desktop, offline. Electron 43 + React 19 + TypeScript
-estrito, com um serviço de formatos em .NET 10 (`sidecar/`) que lê e grava DOCX e XLSX. A promessa
-central: **salvar regrava só o que foi editado**; o resto do pacote volta byte a byte.
+Offline desktop editor for documents and spreadsheets. Electron 43 + React 19 + strict
+TypeScript, with a .NET 10 format service (`sidecar/`) that reads and writes DOCX and XLSX. The
+core promise: **saving rewrites only what was edited**; the rest of the package comes back byte
+for byte.
 
-## Comandos
+## Commands
 
-| Comando | Quando |
+| Command | When |
 | --- | --- |
-| `npm run typecheck` | depois de qualquer mudança em TypeScript |
-| `npm run lint` | idem; cobra as fronteiras entre camadas e os limites de função |
-| `npx vitest run <arquivo>` | testes de unidade do que você mexeu |
-| `npm run sidecar:test` | mudança em `sidecar/` |
-| `npm run sidecar:build` | antes de testes que falam com o sidecar publicado, e antes do e2e |
-| `npm run e2e` | build + sidecar + Playwright; só quando a mudança toca a interface |
-| `npm run format:check` / `npm run format` | conferir e corrigir a formatação |
-| `npm run verify` | tudo que o CI roda, menos a formatação |
+| `npm run typecheck` | after any TypeScript change |
+| `npm run lint` | same; enforces the layer boundaries and the function limits |
+| `npx vitest run <file>` | unit tests for what you touched |
+| `npm run sidecar:test` | changes in `sidecar/` |
+| `npm run sidecar:build` | before tests that talk to the published sidecar, and before e2e |
+| `npm run e2e` | build + sidecar + Playwright; only when the change touches the interface |
+| `npm run format:check` / `npm run format` | check and fix formatting |
+| `npm run verify` | everything CI runs, except formatting |
 
-Teste só o que a mudança tocou. Rodar a suíte inteira a cada passo é desperdício.
+Test only what the change touched. Running the whole suite at every step is waste.
 
-**Correção de bug começa pelo teste.** Antes de mexer no código, escreva um teste, na camada
-certa, que reproduz o bug, e rode-o para vê-lo falhar pelo motivo do bug. Só então corrija, e
-rode de novo para vê-lo passar. O teste entra no mesmo commit do `fix`.
+**A bug fix starts with the test.** Before touching the code, write a test, in the right layer,
+that reproduces the bug, and run it to watch it fail for the bug's reason. Only then fix it, and
+run it again to watch it pass. The test goes in the same commit as the `fix`.
 
-## Regras que o código cobra
+## Rules the code enforces
 
-- **Fronteiras:** `src/services/` e `src/shared/` não importam `electron`, `react`, `node:*`,
-  `@main/*` nem `@renderer/*`. O renderer não importa `electron`, `node:*` nem `@main/*`; fala com
-  o main só por `window.api`. O preload só importa de `@shared`.
-- **Limites de função** (em `src/`, fora dos testes): `complexity` 15,
-  `max-lines-per-function` 80, `max-depth` 4, `max-params` 5. Nenhuma função passa deles, e não
-  há lista de exceções: acima do limite, divida a função.
-- **`eslint-disable`** só na linha, com o motivo escrito acima, e só quando a causa é externa
-  (por exemplo, assinatura de callback do ProseMirror).
-- **IPC:** todo canal tem esquema Zod em `src/shared/`.
-- **Protocolo do sidecar:** `src/main/sidecar/protocol.ts` e
-  `sidecar/src/Librevia.Format/Protocol/Frame.cs` mudam juntos.
-- **Formatos próprios:** mudou o que o `.sdoc` ou o `.ssheet` guardam, suba `SDOC_VERSION` ou
-  `SSHEET_VERSION` e mantenha a leitura das versões antigas.
-- **Avisos de perda e erros do sidecar:** o sidecar manda a chave, nunca a frase. Use as
-  constantes de `sidecar/src/Librevia.Format/Docx/Inventory.cs`; chave nova vai em
-  `src/shared/i18n/catalog/sidecar.ts`, com `pt` e `en`.
-- **Textos da interface:** toda frase visível vai no catálogo `src/shared/i18n/catalog/`, com
-  `pt` e `en`. O `npm run i18n:check` acusa frase solta no código.
-- **Rede:** o aplicativo não acessa a internet. Não acrescente nada que busque algo fora.
-- **Servidor MCP:** as garantias estão em
-  [SECURITY.md](SECURITY.md#o-que-está-no-escopo) e não mudam sem o dono pedir. No dia a dia:
-  ferramenta nova só entra em `document-tools.ts` ou `sheet-tools.ts`, não lê arquivo, não acessa a
-  rede e não executa nada; toda escrita vira revisão controlada, comentário ou proposta na planilha,
-  nunca gravação direta.
-- **Dependência nova** precisa de licença permissiva; o portão de licenças reprova o resto.
+- **Boundaries:** `src/services/` and `src/shared/` do not import `electron`, `react`, `node:*`,
+  `@main/*` or `@renderer/*`. The renderer does not import `electron`, `node:*` or `@main/*`; it
+  talks to main only through `window.api`. The preload imports only from `@shared`.
+- **Function limits** (in `src/`, outside tests): `complexity` 15, `max-lines-per-function` 80,
+  `max-depth` 4, `max-params` 5. No function exceeds them, and there is no exceptions list: above
+  the limit, split the function.
+- **`eslint-disable`** only on the line, with the reason written above it, and only when the
+  cause is external (for example, a ProseMirror callback signature).
+- **IPC:** every channel has a Zod schema in `src/shared/`.
+- **Sidecar protocol:** `src/main/sidecar/protocol.ts` and
+  `sidecar/src/Librevia.Format/Protocol/Frame.cs` change together.
+- **Own formats:** if what `.sdoc` or `.ssheet` stores changes, bump `SDOC_VERSION` or
+  `SSHEET_VERSION` and keep reading the old versions.
+- **Loss warnings and sidecar errors:** the sidecar sends the key, never the sentence. Use the
+  constants in `sidecar/src/Librevia.Format/Docx/Inventory.cs`; a new key goes in
+  `src/shared/i18n/catalog/sidecar.ts`, with `pt` and `en`.
+- **Interface text:** every visible sentence goes in the `src/shared/i18n/catalog/` catalog, with
+  `pt` and `en`. `npm run i18n:check` flags loose sentences in the code.
+- **Network:** the application does not access the internet. Do not add anything that fetches
+  from outside.
+- **MCP server:** the guarantees are in [SECURITY.md](SECURITY.md#o-que-está-no-escopo) and do not
+  change unless the owner asks. Day to day: a new tool goes only in `document-tools.ts` or
+  `sheet-tools.ts`, does not read files, does not access the network and does not execute
+  anything; every write becomes a tracked change, a comment or a proposal on the sheet, never a
+  direct write.
+- **A new dependency** needs a permissive license; the license gate rejects the rest.
 
-## Estilo
+## Style
 
-- Os princípios (Clean Code, Clean Architecture, SOLID) estão no
-  [CONTRIBUTING](CONTRIBUTING.md#princípios); na prática, a regra de negócio mora em
-  `src/services/`, sem Electron nem React.
-- Identificadores, os raros comentários e os testes (nomes, descrições e comentários) em
-  **inglês**. Mensagens ao usuário em **português**.
-- **Evite comentários.** O código deve se explicar por nomes, funções pequenas e constantes
-  nomeadas; o porquê vai no nome do teste e no commit. Comentário só para o que o código não tem
-  como dizer (restrição externa, comportamento contraintuitivo do Word ou do Excel, motivo de um
-  `eslint-disable`), e sempre dizendo por quê, nunca o quê.
-- Ao mexer num trecho com comentário que só repete o código, troque o comentário por um nome
-  melhor.
-- **Procure antes de escrever um helper** (`git grep` pelo que ele faz); os comuns estão na tabela
-  de [Procure antes de escrever](CONTRIBUTING.md#procure-antes-de-escrever). Nada de cópia local; na
-  segunda ocorrência, extraia para a camada certa e apague as cópias no mesmo commit.
-- README e MANUAL: linguagem simples e exata, frases curtas, exemplos concretos, números medidos.
+- The principles (Clean Code, Clean Architecture, SOLID) are in
+  [CONTRIBUTING](CONTRIBUTING.md#principles); in practice, business rules live in `src/services/`,
+  without Electron or React.
+- Identifiers, the rare comments and tests (names, descriptions and comments) in **English**.
+  User-facing messages in **Portuguese**.
+- **Avoid comments.** The code should explain itself through names, small functions and named
+  constants; the why goes in the test name and the commit. A comment only for what the code
+  cannot say (an external constraint, counterintuitive Word or Excel behavior, the reason for an
+  `eslint-disable`), and always saying why, never what.
+- When touching code with a comment that only repeats it, replace the comment with a better name.
+- **Search before writing a helper** (`git grep` for what it does); the common ones are in the
+  table in [Search before you write](CONTRIBUTING.md#search-before-you-write). No local copies; on
+  the second occurrence, extract it to the right layer and delete the copies in the same commit.
+- README and MANUAL: simple, exact language, short sentences, concrete examples, measured numbers.
 
 ## Commits
 
-- [Conventional Commits](https://www.conventionalcommits.org) em inglês:
-  `type(scope): description`. Escopos vêm do código (`docx`, `xlsx`, `pagination`, `lists`,
+- [Conventional Commits](https://www.conventionalcommits.org) in English:
+  `type(scope): description`. Scopes come from the code (`docx`, `xlsx`, `pagination`, `lists`,
   `comments`, `revisions`, `notes`, `equations`, `sidecar`, `ui`…).
-- **Corpo curto ou nenhum:** uma ou duas frases com o porquê, só quando o título não basta.
-- **Nenhum rodapé de atribuição** — nem `Co-Authored-By` de agente, nem link de sessão, nem
-  "Generated with". Isso vale também para descrições de pull request.
-- **Autor e committer são sempre o dono do repositório**, pela configuração do git. Nunca use
-  `--author` nem variáveis `GIT_AUTHOR_*` / `GIT_COMMITTER_*`.
-- Não faça commit nem push sem que o dono peça.
+- **Short body or none:** one or two sentences with the why, only when the title is not enough.
+- **No attribution footer** — no agent `Co-Authored-By`, no session link, no "Generated with".
+  This also applies to pull request descriptions.
+- **Author and committer are always the repository owner**, from the git configuration. Never use
+  `--author` or `GIT_AUTHOR_*` / `GIT_COMMITTER_*` variables.
+- Do not commit or push unless the owner asks.
 
-## O que não entra no repositório
+## What stays out of the repository
 
-- Os documentos reais usados para calibrar o projeto (o "corpus"). Testes que dependem deles são
-  pulados sem `LIBREVIA_CORPUS_DOC`.
-- Scripts de comparação visual e de medição feitos durante uma tarefa: ficam fora da árvore.
-- A pasta `docs/`, que é ignorada pelo git. Não a cite em documentação publicada.
-- Binários do sidecar (`resources/sidecar/`, `bin/`, `obj/`) e saídas de build.
+- The real documents used to calibrate the project (the "corpus"). Tests that depend on them are
+  skipped without `LIBREVIA_CORPUS_DOC`.
+- Visual comparison and measurement scripts made during a task: they stay outside the tree.
+- The `docs/` folder, which git ignores. Do not mention it in published documentation.
+- Sidecar binaries (`resources/sidecar/`, `bin/`, `obj/`) and build outputs.
