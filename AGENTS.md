@@ -7,9 +7,9 @@ This file is the short, operational version.
 ## The project
 
 Offline desktop editor for documents and spreadsheets. Electron 43 + React 19 + strict
-TypeScript, with a .NET 10 format service (`sidecar/`) that reads and writes DOCX and XLSX. The
-core promise: **saving rewrites only what was edited**; the rest of the package comes back byte
-for byte.
+TypeScript, with a .NET 10 format service (`sidecar/`) that reads and writes DOCX, ODT and XLSX.
+The core promise: **saving rewrites only what was edited**; the rest of the package comes back
+byte for byte.
 
 ## Commands
 
@@ -75,8 +75,8 @@ run it again to watch it pass. The test goes in the same commit as the `fix`.
   table in [Search before you write](CONTRIBUTING.md#search-before-you-write). No local copies; on
   the second occurrence, extract it to the right layer and delete the copies in the same commit.
 - README and MANUAL: simple, exact language, short sentences, concrete examples, measured numbers.
-- `CONTRIBUTING.md` and `SECURITY.md` are the source of truth; each has a `.pt-BR.md`
-  translation. Changing one, update its translation in the same commit.
+- `README.md`, `MANUAL.md`, `CONTRIBUTING.md` and `SECURITY.md` are the source of truth; each
+  has a `.pt-BR.md` translation. Changing one, update its translation in the same commit.
 
 ## Commits
 
