@@ -50,21 +50,18 @@ rode de novo para vê-lo passar. O teste entra no mesmo commit do `fix`.
 - **Textos da interface:** toda frase visível vai no catálogo `src/shared/i18n/catalog/`, com
   `pt` e `en`. O `npm run i18n:check` acusa frase solta no código.
 - **Rede:** o aplicativo não acessa a internet. Não acrescente nada que busque algo fora.
-- **Servidor MCP:** desligado por padrão. Escuta só em socket Unix (pasta 700, socket 600) ou
-  named pipe, nunca em porta TCP. Toda conexão apresenta a chave da pasta de dados, comparada em
-  tempo constante e trocada a cada abertura do app e a cada vez que o servidor é ligado. Os
-  clientes só têm as ferramentas de `document-tools.ts` e `sheet-tools.ts`. Toda escrita entra como
-  revisão controlada ou comentário, com autor "<nome> (MCP)", e nunca salva, aceita ou rejeita
-  nada. Na planilha, que não tem revisões, a escrita só fica proposta na tela até a pessoa aplicar
-  ou descartar. Ferramenta nova não lê arquivo, não acessa a rede e não executa nada. Sessões
-  internas do Claude Code usam chave de um só pedido e leem só o instantâneo daquela mensagem.
+- **Servidor MCP:** as garantias estão em
+  [SECURITY.md](SECURITY.md#o-que-está-no-escopo) e não mudam sem o dono pedir. No dia a dia:
+  ferramenta nova só entra em `document-tools.ts` ou `sheet-tools.ts`, não lê arquivo, não acessa a
+  rede e não executa nada; toda escrita vira revisão controlada, comentário ou proposta na planilha,
+  nunca gravação direta.
 - **Dependência nova** precisa de licença permissiva; o portão de licenças reprova o resto.
 
 ## Estilo
 
-- Siga os [princípios do CONTRIBUTING](CONTRIBUTING.md#princípios): Clean Code (nomes claros,
-  funções pequenas, sem números mágicos, sem duplicação), Clean Architecture (dependências só para
-  dentro; regra de negócio em `src/services/`, sem Electron nem React) e SOLID.
+- Os princípios (Clean Code, Clean Architecture, SOLID) estão no
+  [CONTRIBUTING](CONTRIBUTING.md#princípios); na prática, a regra de negócio mora em
+  `src/services/`, sem Electron nem React.
 - Identificadores, os raros comentários e os testes (nomes, descrições e comentários) em
   **inglês**. Mensagens ao usuário em **português**.
 - **Evite comentários.** O código deve se explicar por nomes, funções pequenas e constantes
@@ -73,11 +70,9 @@ rode de novo para vê-lo passar. O teste entra no mesmo commit do `fix`.
   `eslint-disable`), e sempre dizendo por quê, nunca o quê.
 - Ao mexer num trecho com comentário que só repete o código, troque o comentário por um nome
   melhor.
-- **Procure antes de escrever um helper** (`git grep` pelo que ele faz). Os comuns estão listados
-  em [Procure antes de escrever](CONTRIBUTING.md#procure-antes-de-escrever): `escapeHtml`,
-  `units.ts`, `parseRef`/`columnIndex`, `export-common.ts`, `windowOf`, `Invariant`, e no e2e
-  `entryOf` e `external-tools.ts`. Nada de cópia local; na segunda ocorrência, extraia para a
-  camada certa e apague as cópias no mesmo commit.
+- **Procure antes de escrever um helper** (`git grep` pelo que ele faz); os comuns estão na tabela
+  de [Procure antes de escrever](CONTRIBUTING.md#procure-antes-de-escrever). Nada de cópia local; na
+  segunda ocorrência, extraia para a camada certa e apague as cópias no mesmo commit.
 - README e MANUAL: linguagem simples e exata, frases curtas, exemplos concretos, números medidos.
 
 ## Commits

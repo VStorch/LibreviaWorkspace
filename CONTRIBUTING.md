@@ -329,6 +329,9 @@ O teste acompanha a mudança, na camada certa:
 
 A regra de negócio mora em camada pura justamente para ser testada sem subir o Electron.
 
+Os documentos reais usados para calibrar o projeto **não entram no repositório**. Os testes que
+dependem deles são pulados quando a variável `LIBREVIA_CORPUS_DOC` não está definida.
+
 ### Correção de bugs
 
 Todo bug se corrige em dois passos, nesta ordem:
@@ -342,10 +345,7 @@ prova que a correção resolve aquele caso. Fica também como guarda: se o bug v
 acusa. O nome do teste descreve o comportamento certo, e o teste entra no mesmo commit do `fix`.
 
 Se o bug só aparece com um documento do corpus, reduza-o ao mínimo que o reproduz e monte esse
-mínimo no próprio teste, já que o corpus não entra no repositório.
-
-Os documentos reais usados para calibrar o projeto **não entram no repositório**. Os testes que
-dependem deles são pulados quando a variável `LIBREVIA_CORPUS_DOC` não está definida.
+mínimo no próprio teste.
 
 ---
 
