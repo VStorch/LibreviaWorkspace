@@ -75,6 +75,8 @@ run it again to watch it pass. The test goes in the same commit as the `fix`.
   table in [Search before you write](CONTRIBUTING.md#search-before-you-write). No local copies; on
   the second occurrence, extract it to the right layer and delete the copies in the same commit.
 - README and MANUAL: simple, exact language, short sentences, concrete examples, measured numbers.
+- `CONTRIBUTING.md` and `SECURITY.md` are the source of truth; each has a `.pt-BR.md`
+  translation. Changing one, update its translation in the same commit.
 
 ## Commits
 
