@@ -146,39 +146,10 @@ Ele também:
 | `.odt` | ✅ | ✅ | documento do LibreOffice; o que você não editou volta intacto |
 | `.ott` | ✅ | ✅ | modelo do LibreOffice; abrir cria um documento novo, sem título |
 
-<details>
-<summary><b>Como funciona o ODT, e por que o ODS não abre</b></summary>
-
-Um `.odt` abre como arquivo próprio: `Ctrl+S` grava nele. Como no `.docx`, cada parágrafo,
-título, lista e tabela recebe uma identificação ao abrir. Ao salvar, o bloco que você não
-editou volta com o texto exato que tinha no `content.xml`. Só o bloco editado é escrito de
-novo.
-
-O resto do arquivo também fica onde estava:
-
-- `styles.xml` só muda se você alterou um estilo, as margens, o papel, o cabeçalho ou o rodapé;
-- `meta.xml` só muda se você alterou as propriedades;
-- configurações, miniatura e objetos voltam iguais.
-
-Notas, comentários, alterações controladas, equações, seções, cabeçalho e rodapé abrem e voltam
-ao arquivo. Algumas coisas o Librevia não mostra: mudança de formatação controlada, indicador,
-seção sem colunas ou dentro de outra, caixa de texto, desenho e formulário. Elas continuam no
-arquivo enquanto você não edita o bloco onde estão, e o app avisa ao abrir. Se você editar esse
-bloco, elas se perdem nele, e o app avisa ao salvar.
-
-Os campos de número de página, total de páginas, data, hora, título e autor abrem como os do
-`.docx` e voltam ao arquivo como campos do LibreOffice. Outro campo mostra o texto que tinha; se
-você editar o bloco onde está, ele vira texto comum.
-
-Qualquer documento salva em `.odt` pelo "Salvar como": um documento novo, um `.sdoc` ou um
-`.docx` vão para um pacote ODT novo, inteiro. Depois disso, o `.odt` é o arquivo aberto, e
-`Ctrl+S` grava nele. **Arquivo → Exportar como → ODT** faz uma cópia em `.odt` e deixa o documento
-onde está.
-
-Planilhas `.ods` não abrem. O LibreOffice grava `.xlsx` pelo "Salvar como", e esse arquivo
-abre aqui normalmente.
-
-</details>
+O `.odt` segue a mesma gravação cirúrgica do `.docx`: cada bloco do `content.xml` recebe uma
+identificação ao abrir, e o bloco que você não editou volta com o texto exato que tinha. O que o
+Librevia mostra e o que só preserva estão no [manual](MANUAL.md#os-arquivos-que-ele-abre). Planilhas
+`.ods` não abrem: a biblioteca de planilha do sidecar não lê o formato.
 
 ---
 
@@ -264,20 +235,12 @@ editável sem ninguém perceber. Como são constantes, o compilador não deixa.
 <details>
 <summary><b>O inspetor de dados pessoais segue a mesma regra</b></summary>
 
-**Arquivo → Inspecionar documento** acha o que o arquivo revela além do conteúdo: os nomes das
-propriedades e dos autores de comentários e alterações, a pasta do modelo anexado (no Excel, a
-última pasta onde a planilha foi salva), as propriedades personalizadas, a miniatura e o EXIF das
-fotos, que pode trazer o local GPS.
-
 A limpeza trabalha parte por parte no pacote: um documento sem miniatura nem nomes em
 `word/document.xml` sai com essa parte idêntica byte a byte. Numa foto, sai o EXIF, o XMP e os
-comentários; os pixels, o perfil de cor e a orientação ficam. Os autores viram "Autor", como no
-Word, e o arquivo guarda o pedido de não gravar nomes (`w:removePersonalInformation` no Word,
-`filterPrivacy` no Excel), que o Word, o Excel e o Librevia respeitam nas próximas gravações.
-
-Num `.odt`, o inspetor procura os mesmos dados no `meta.xml`, nos comentários, nas alterações, na
-miniatura e nas fotos. O ODF não tem o pedido de não gravar nomes. O Librevia grava o seu no
-`settings.xml` e o respeita; o LibreOffice o ignora.
+comentários; os pixels, o perfil de cor e a orientação ficam. O arquivo passa a guardar o pedido de
+não gravar nomes (`w:removePersonalInformation` no Word, `filterPrivacy` no Excel), que o Word, o
+Excel e o Librevia respeitam. O ODF não tem esse pedido; o Librevia grava o seu no `settings.xml`.
+O que o inspetor procura está no [manual](MANUAL.md#inspecionar-documento).
 
 </details>
 
@@ -290,9 +253,6 @@ Mudar só o status regrava só o `core.xml`; as outras duas voltam byte a byte.
 
 As estatísticas (páginas, palavras, caracteres e parágrafos) só são gravadas quando o texto mudou.
 Se você só trocou o título, o `app.xml` fica como estava, com os números que o Word escreveu.
-
-Um campo `DOCPROPERTY "Cliente"` no texto mostra o valor da propriedade. Ao clicar em **Aplicar**
-nas propriedades, o Librevia atualiza esses campos, e o Word faz o mesmo com `F9`.
 
 </details>
 
@@ -464,8 +424,8 @@ teste trava essas opções: se alguém desligar uma delas, `security-policy.test
 
 ## 🗺️ Mapa do código
 
-São cerca de 96 mil linhas de TypeScript e C#, um terço delas de testes. Com esse tamanho, é
-fácil se perder. Esta é a lista das pastas que importam e do que cada uma guarda.
+O código é TypeScript e C#, e cerca de um terço dele é de testes. Esta é a lista das pastas que
+importam e do que cada uma guarda.
 
 ### Raiz
 
@@ -490,13 +450,15 @@ fácil se perder. Esta é a lista das pastas que importam e do que cada uma guar
 | [`ipc/`](src/main/ipc) | um arquivo por grupo de canais: arquivo, edição, exportação, impressão, PDF, dados pessoais, rascunhos, modelos, janela |
 | [`fs/`](src/main/fs) | autorização de caminhos, gravação atômica, recentes, rascunhos, limite de 20 MB |
 | [`sidecar/`](src/main/sidecar) | localiza o executável .NET, sobe o processo e fala o protocolo de quadros |
-| [`docx/`](src/main/docx), [`xlsx/`](src/main/xlsx) | o lado TypeScript de cada formato, incluindo a tradução das fórmulas |
+| [`docx/`](src/main/docx), [`odt/`](src/main/odt), [`xlsx/`](src/main/xlsx) | o lado TypeScript de cada formato, incluindo a tradução das fórmulas |
+| [`opened-original.ts`](src/main/opened-original.ts) | os bytes do arquivo aberto, com que a gravação cirúrgica compara |
 | [`print/`](src/main/print), [`pdf-metadata.ts`](src/main/pdf-metadata.ts) | PDF pelo `printToPDF`, depois as propriedades gravadas nele |
 | [`pdf-scheme.ts`](src/main/pdf-scheme.ts), [`pdf-viewer.ts`](src/main/pdf-viewer.ts) | o leitor de PDF na sua origem própria, e a janela de impressão de um PDF |
 | [`privacy.ts`](src/main/privacy.ts) | o inspetor de dados pessoais, que lê o arquivo gravado no disco |
 | [`preferences.ts`](src/main/preferences.ts), [`i18n.ts`](src/main/i18n.ts) | idioma e tema guardados, e a tradução do menu nativo |
 | [`security.ts`](src/main/security.ts), [`security-policy.ts`](src/main/security-policy.ts) | preferências da janela e política de navegação |
 | [`spellcheck.ts`](src/main/spellcheck.ts), [`fonts.ts`](src/main/fonts.ts), [`system-fonts.ts`](src/main/system-fonts.ts) | ortografia offline e lista de fontes |
+| [`log.ts`](src/main/log.ts) | o registro de erros, `librevia.log`, que fica só no computador |
 | [`ai/`](src/main/ai) | o assistente de IA: provedores, chaves cifradas, consentimento, cancelamento e o servidor MCP local. É a única pasta que acessa a rede |
 
 ### Interface — `src/renderer/`
@@ -512,6 +474,7 @@ fácil se perder. Esta é a lista das pastas que importam e do que cada uma guar
 | [`components/`](src/renderer/components) | peças comuns: barra de status, faixas de aviso, galeria de modelos, propriedades, inspetor de dados pessoais |
 | [`pdf/`](src/renderer/pdf) | o quadro do leitor de PDF e a barra de busca dele |
 | [`pdf-viewer/`](src/renderer/pdf-viewer) | a página isolada que desenha o PDF com o pdf.js |
+| [`ai/`](src/renderer/ai) | o painel do assistente de IA, a conversa, as propostas na folha e as respostas aos programas MCP |
 
 ### Lógica pura — `src/services/`
 
@@ -531,7 +494,8 @@ fácil se perder. Esta é a lista das pastas que importam e do que cada uma guar
 | --- | --- |
 | [`Program.cs`](sidecar/src/Librevia.Format/Program.cs), [`Server.cs`](sidecar/src/Librevia.Format/Server.cs) | laço que recebe pedidos pelo stdin e responde pelo stdout |
 | [`Protocol/`](sidecar/src/Librevia.Format/Protocol) | formato dos quadros e das mensagens |
-| [`Docx/`](sidecar/src/Librevia.Format/Docx) | 50 arquivos: leitores (`DocxReader`, `BodyReader`, `StyleReader`, `NotesReader`…), escritores (`DocxWriter`, `ParagraphWriter`, `SectionWriter`…), equações (`OmmlMath`), revisões, modelos, propriedades (`DocumentProperties`, `CustomProperties`) e o `Inventory` |
+| [`Docx/`](sidecar/src/Librevia.Format/Docx) | leitores (`DocxReader`, `BodyReader`, `StyleReader`, `NotesReader`…), escritores (`DocxWriter`, `ParagraphWriter`, `SectionWriter`…), equações (`OmmlMath`), revisões, modelos, propriedades (`DocumentProperties`, `CustomProperties`) e o `Inventory` |
+| [`Odt/`](sidecar/src/Librevia.Format/Odt) | leitura e gravação cirúrgica de `.odt` e `.ott`, e a criação de um pacote ODT novo |
 | [`Xlsx/`](sidecar/src/Librevia.Format/Xlsx) | leitura e escrita de planilhas e formatos numéricos |
 | [`Pdf/`](sidecar/src/Librevia.Format/Pdf) | leitura da estrutura de um PDF e atualização incremental do título, autor, assunto e palavras-chave |
 | [`Privacy/`](sidecar/src/Librevia.Format/Privacy) | o inspetor de dados pessoais: acha e remove nomes, pastas, propriedades personalizadas, a miniatura e os metadados das imagens de um DOCX, ODT ou XLSX |
@@ -799,11 +763,13 @@ npm run dev
 
 São três camadas, e cada uma prova algo que a anterior não alcança:
 
-| Camada | Ferramenta | O que prova | Quantos |
-| --- | --- | --- | --- |
-| **Unidade** | Vitest | lógica pura, processo principal, contratos de IPC | 1.441 |
-| **Sidecar** | xUnit (.NET) | leitura e escrita de DOCX, XLSX e PDF, ida e volta byte a byte | 499 |
-| **Ponta a ponta** | Playwright + Electron | o aplicativo montado, com o preload isolado e o sidecar publicado | 214 |
+| Camada | Ferramenta | O que prova |
+| --- | --- | --- |
+| **Unidade** | Vitest | lógica pura, processo principal, contratos de IPC |
+| **Sidecar** | xUnit (.NET) | leitura e escrita de DOCX, ODT, XLSX e PDF, ida e volta byte a byte |
+| **Ponta a ponta** | Playwright + Electron | o aplicativo montado, com o preload isolado e o sidecar publicado |
+
+Somadas, são mais de 2 mil.
 
 Alguns testes de ponta a ponta usam documentos reais, que não entram no repositório. Eles são
 **pulados** quando a variável `LIBREVIA_CORPUS_DOC` não aponta para um desses arquivos.
@@ -890,43 +856,16 @@ O ícone é desenhado em `build/icon.svg`. `npm run icon` gera o `build/icon.png
 
 ## 📐 Regras do código
 
-As regras abaixo aplicam três ideias, descritas com exemplos no
-[CONTRIBUTING](CONTRIBUTING.pt-BR.md#princípios): **Clean Code**, código que se entende na primeira
-leitura; **Clean Architecture**, regras do negócio que não dependem de detalhes técnicos; e
-**SOLID**, cinco princípios para que cada parte mude por um motivo só.
+O código segue **Clean Code**, **Clean Architecture** e **SOLID**, e a maior parte das regras é
+conferida por máquina. O `npm run verify` reprova:
 
-### Fronteiras entre as camadas
+- um `import` que atravesse as fronteiras entre as camadas (o renderer importando `electron`, por
+  exemplo);
+- uma função acima dos limites de tamanho e complexidade;
+- tipos que não fecham, testes que falham, texto da interface fora do catálogo;
+- uma dependência sem licença permissiva declarada.
 
-1. **`src/services/` e `src/shared/` não importam `electron`, `react`, `node:*`, `@main/*` nem
-   `@renderer/*`.** São camadas puras: rodam dos dois lados e se testam sem o Electron.
-2. **O renderer não importa `electron`, `node:*` nem `@main/*`.** Fala com o resto só por
-   `window.api`.
-3. **O preload importa só o `electron` e o `@shared`.** Ele encaminha e nada mais.
-
-Quem quebrar uma delas é barrado pelo `npm run lint`, antes de qualquer revisão.
-
-### Contratos
-
-- **Todo canal de IPC tem um esquema Zod**, conferido nas duas pontas, em
-  [`src/shared/schemas.ts`](src/shared/schemas.ts) e [`ipc.ts`](src/shared/ipc.ts).
-- **O protocolo do sidecar muda dos dois lados ao mesmo tempo**: TypeScript e C#.
-- **Os formatos próprios têm versão.** O `.sdoc` está na versão 14 e o `.ssheet`, na 5. As
-  versões antigas continuam abrindo; um arquivo de versão mais nova que a do aplicativo é
-  recusado com uma mensagem clara, em vez de aberto pela metade.
-
-### Portões de qualidade
-
-O `npm run verify` reprova o código se:
-
-- os tipos não fecharem (TypeScript estrito, com `noUncheckedIndexedAccess`);
-- as fronteiras acima forem violadas;
-- uma função passar dos limites de tamanho e complexidade (complexidade 15, 80 linhas,
-  4 níveis de aninhamento, 5 parâmetros) — ver
-  [CONTRIBUTING](CONTRIBUTING.pt-BR.md#tamanho-e-complexidade-das-funções);
-- algum teste falhar, incluindo os que travam as opções de segurança da janela;
-- houver texto da interface fora do catálogo de traduções;
-- alguma dependência trouxer licença fora da lista permitida (MIT, BSD, Apache-2.0, ISC e
-  parecidas).
+Os detalhes, com exemplos, estão no [CONTRIBUTING](CONTRIBUTING.pt-BR.md#princípios).
 
 <details>
 <summary><b>Por que o portão de licenças reprova quem não declara licença</b></summary>
@@ -941,34 +880,15 @@ troca dessas chegando.
 
 </details>
 
-### Idioma e commits
-
-Identificadores, os raros comentários e os testes em inglês; mensagens ao usuário em
-português; commits em inglês, no padrão
-[Conventional Commits](https://www.conventionalcommits.org). Os detalhes estão no
-[CONTRIBUTING](CONTRIBUTING.pt-BR.md#commits).
-
 ---
 
 <a id="limites-conhecidos"></a>
 
 ## 🚧 Limites conhecidos
 
-| Limite | Situação |
-| --- | --- |
-| **ODS** | não abre |
-| **Macros** | um `.dotm` abre, mas sem as macros |
-| **Mesclar células na planilha** | ainda não existe |
-| **Filtros de planilha** | preservados no arquivo, mas sem tela para criar ou alterar |
-| **Fórmulas** | sem matrizes dinâmicas, referências de coluna inteira (`A:A`) ou intervalos nomeados |
-| **Tamanho** | arquivos acima de 20 MB não abrem |
-| **Comentários** | o texto do comentário é só texto puro; formatação nele vira perda declarada se editado |
-| **Controle de alterações** | mudanças de formatação são preservadas, mas não registradas como revisão |
-| **Campos de propriedade** | atualizados só no corpo do texto; no cabeçalho e no rodapé, ainda não |
-| **Equações** | usam a fonte de matemática do sistema; alguns comandos LaTeX, como `\,` e `aligned`, não voltam iguais do formato do Word |
-
-A lista completa de diferenças conhecidas, com o que fazer em cada caso, está no
-[manual](MANUAL.md#limites-conhecidos).
+Os principais: `.ods` não abre, macros de um `.dotm` ficam de fora, a planilha ainda não mescla
+células e arquivos acima de 20 MB não abrem. A lista completa, com o que fazer em cada caso, está
+no [manual](MANUAL.md#limites-conhecidos).
 
 ---
 
@@ -979,8 +899,8 @@ A lista completa de diferenças conhecidas, com o que fazer em cada caso, está 
 | Onde | O que tem |
 | --- | --- |
 | [`MANUAL.md`](MANUAL.md) | como usar: atalhos, formatação, fórmulas, avisos, exportação |
-| [`CONTRIBUTING.md`](CONTRIBUTING.md) | como relatar um problema e preparar uma mudança, e os padrões do código |
-| [`SECURITY.md`](SECURITY.md) | como relatar uma falha de segurança em particular |
+| [`CONTRIBUTING.md`](CONTRIBUTING.pt-BR.md) | como relatar um problema e preparar uma mudança, e os padrões do código |
+| [`SECURITY.md`](SECURITY.pt-BR.md) | como relatar uma falha de segurança em particular |
 | [`AGENTS.md`](AGENTS.md) | instruções curtas para agentes de código que trabalham no repositório |
 | `git log` | o motivo de cada decisão, com as medições |
 
@@ -993,14 +913,10 @@ A lista completa de diferenças conhecidas, com o que fazer em cada caso, está 
 O Librevia é **open source**, sob licença MIT. Pode usar, estudar, modificar e redistribuir.
 Issues, ideias, relatos de arquivo que abriu errado e pull requests são bem-vindos.
 
-**O relato mais útil é um arquivo que não abriu direito.** O projeto é calibrado com
-documentos reais, e cada `.docx` ou `.xlsx` que se comporta de um jeito inesperado ensina mais
-que uma função nova. Se puder, anexe o arquivo. Se ele for confidencial, descreva o que o Word
-ou o LibreOffice mostram e o que o Librevia mostrou.
-
-Antes de abrir uma issue ou um pull request, leia o [CONTRIBUTING](CONTRIBUTING.md): ele diz
-como montar o ambiente, o que o `npm run verify` confere e quais padrões o código segue. Falhas
-de segurança não vão em issue pública; veja a [política de segurança](SECURITY.md).
+O relato mais útil é **um arquivo que não abriu direito**: cada `.docx` ou `.xlsx` real que se
+comporta de um jeito inesperado ensina mais que uma função nova. Antes de abrir uma issue ou um
+pull request, leia o [CONTRIBUTING](CONTRIBUTING.pt-BR.md). Falhas de segurança não vão em issue
+pública; veja a [política de segurança](SECURITY.pt-BR.md).
 
 ---
 
