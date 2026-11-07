@@ -52,7 +52,7 @@ run it again to watch it pass. The test goes in the same commit as the `fix`.
   `pt` and `en`. `npm run i18n:check` flags loose sentences in the code.
 - **Network:** the application does not access the internet. Do not add anything that fetches
   from outside.
-- **MCP server:** the guarantees are in [SECURITY.md](SECURITY.md#o-que-está-no-escopo) and do not
+- **MCP server:** the guarantees are in [SECURITY.md](SECURITY.md#in-scope) and do not
   change unless the owner asks. Day to day: a new tool goes only in `document-tools.ts` or
   `sheet-tools.ts`, does not read files, does not access the network and does not execute
   anything; every write becomes a tracked change, a comment or a proposal on the sheet, never a

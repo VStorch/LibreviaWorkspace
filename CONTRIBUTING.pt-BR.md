@@ -40,7 +40,7 @@ quais padrões o código segue. A maior parte desses padrões é conferida por m
 Use o modelo **"Arquivo que abriu errado"** ao abrir a issue. Se puder, anexe o arquivo. Se ele
 for confidencial, descreva o que o Word ou o LibreOffice mostram e o que o Librevia mostrou.
 
-Falhas de segurança **não** vão em issue pública: veja a [política de segurança](SECURITY.md).
+Falhas de segurança **não** vão em issue pública: veja a [política de segurança](SECURITY.pt-BR.md).
 
 ---
 

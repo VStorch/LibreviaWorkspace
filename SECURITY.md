@@ -1,66 +1,66 @@
-# Política de segurança
+# Security policy
 
-O Librevia abre arquivos que vêm de outras pessoas. Um `.docx` ou um `.xlsx` pode ter sido feito
-de propósito para travar o aplicativo ou para tentar sair do lugar onde ele roda. Por isso,
-relatos de segurança são levados a sério e tratados em particular.
+**English** · [Português (Brasil)](SECURITY.pt-BR.md)
 
-## Versões que recebem correção
+Librevia opens files that come from other people. A `.docx` or an `.xlsx` may have been crafted
+on purpose to crash the application or to try to escape the place where it runs. That is why
+security reports are taken seriously and handled privately.
 
-Só a **versão mais recente**. O projeto ainda não mantém versões antigas em paralelo; a correção
-sai numa versão nova.
+## Supported versions
 
-## Como relatar
+Only the **latest version**. The project does not yet maintain old versions in parallel; the fix
+ships in a new version.
 
-**Não abra uma issue pública.** Uma falha descrita em público fica à vista de quem quer
-explorá-la antes de haver correção.
+## How to report
 
-Use o **relato privado de vulnerabilidade** do GitHub:
+**Do not open a public issue.** A flaw described in public is visible to whoever wants to exploit
+it before there is a fix.
 
-1. abra a aba **Security** do repositório;
-2. clique em **Report a vulnerability**;
-3. descreva o problema.
+Use GitHub's **private vulnerability reporting**:
 
-Ajuda muito incluir:
+1. open the repository's **Security** tab;
+2. click **Report a vulnerability**;
+3. describe the problem.
 
-- a versão do Librevia e o sistema operacional;
-- os passos para reproduzir;
-- o arquivo que provoca o problema, se houver um, ou uma descrição de como montá-lo;
-- o que acontece, e o que você esperava que acontecesse.
+It helps a lot to include:
 
-## O que acontece depois
+- the Librevia version and the operating system;
+- the steps to reproduce;
+- the file that triggers the problem, if there is one, or a description of how to build it;
+- what happens, and what you expected to happen.
 
-- Você recebe uma resposta confirmando o recebimento.
-- O problema é reproduzido e avaliado.
-- A correção sai numa versão nova, e o aviso de segurança é publicado junto, com o seu nome nos
-  créditos, se você quiser.
+## What happens next
 
-O projeto é mantido por uma pessoa só, então os prazos são de boa-fé, e não contratuais.
+- You receive a reply confirming receipt.
+- The problem is reproduced and assessed.
+- The fix ships in a new version, and the security advisory is published with it, with your name
+  in the credits, if you wish.
 
-## O que está no escopo
+The project is maintained by a single person, so the timelines are good-faith, not contractual.
 
-O aplicativo foi desenhado com algumas promessas. Quebrar qualquer uma delas é uma falha de
-segurança:
+## In scope
 
-| Promessa | Exemplo de falha |
+The application was designed around a few promises. Breaking any of them is a security flaw:
+
+| Promise | Example of a flaw |
 | --- | --- |
-| **Um arquivo não derruba o aplicativo** | um `.docx` ou `.xlsx` que trava o serviço de formatos, esgota a memória ou abre um ZIP que se expande sem fim |
-| **A interface roda isolada** | um documento que consegue executar código fora da sandbox do renderer, ou acessar Node.js |
-| **Um PDF fica no visualizador** | um PDF que, aberto, alcança a página ou as funções do aplicativo, abre uma janela, tira a janela do aplicativo ou lê outro arquivo além dele |
-| **Um link só sai com confirmação** | um link num arquivo que abre o navegador sem que o usuário veja o endereço e aceite |
-| **Só se grava onde o usuário escolheu** | gravar ou ler um caminho que não passou por um diálogo do sistema nem pela lista de recentes, furando a trava `PATH_NOT_AUTHORIZED` |
-| **O aplicativo só usa a rede para o assistente de IA** | um documento que faz o aplicativo buscar algo na internet sozinho, ao abrir ou ao imprimir; qualquer conexão sem um assistente configurado, salvo a consulta a `localhost` quando a pessoa clica em "Procurar assistentes" |
-| **O assistente envia só o documento aberto ou a planilha ativa, e só com permissão** | texto de outro arquivo, de outra aba da planilha, o nome do arquivo ou as propriedades indo para o assistente; um envio para fora do computador sem a confirmação feita pelo processo principal, que diz que o documento aberto ou a planilha ativa vai junto como contexto; uma ferramenta da conversa que mude o documento sem o clique da pessoa ou que leia algo além do texto enviado com a mensagem: as ferramentas só leem esse texto e propõem |
-| **O Librevia não dá ao agente de IA acesso ao computador** | o Claude Code rodando com alguma ferramenta própria ou com outro servidor MCP (ele é chamado com `--tools ""` e `--strict-mcp-config`, e só recebe as quatro ferramentas do documento); o Librevia oferecendo a um agente ACP arquivos ou terminal, ou aceitando um pedido de permissão dele; o agente rodando fora de uma pasta temporária vazia; o programa do agente vindo de um caminho escolhido pela interface, sem passar por diálogo do sistema; o processo ou os filhos dele seguindo vivos depois de parar ou de fechar a janela. As ferramentas próprias de um agente ACP (as do Gemini CLI, do Codex, do Claude Agent…) seguem a configuração dele, não a do Librevia: quem quiser restringi-las configura o agente |
-| **O servidor MCP só atende o próprio usuário, e só propõe** | o servidor escutando numa porta TCP, ou ligado sem a pessoa ter ligado a caixa; o socket ou a pasta dele com permissão para outro usuário (a pasta é 700, o socket 600); uma conexão atendida sem a chave correta, depois do prazo de 2 segundos, com a chave antiga depois de o app reabrir ou de a caixa ser religada, ou depois de desligada; mais de 2 programas conectados; um programa conectado lendo arquivo, caminho, nome do arquivo, propriedades ou PDF, salvando, aceitando ou rejeitando revisões, mudando o documento sem ser por alteração controlada ou comentário com o autor terminado em "(MCP)", ou mudando uma célula da planilha sem a pessoa clicar em Aplicar na proposta; a chave de uma mensagem do Claude Code valendo depois que a resposta acaba ou alcançando o documento vivo |
-| **A chave do assistente não vaza** | a chave voltando para a interface, aparecendo em log ou gravada sem cifra no disco |
-| **O serviço de formatos não grava nada** | o sidecar .NET escrevendo no disco ou abrindo conexão |
-| **As propriedades de um PDF só acrescentam** | gravar as propriedades de um PDF muda algum byte do que já estava no arquivo, ou grava num PDF que não foi o aberto |
+| **A file does not bring the application down** | a `.docx` or `.xlsx` that crashes the format service, exhausts memory or opens a ZIP that expands without end |
+| **The interface runs isolated** | a document that manages to run code outside the renderer sandbox, or to reach Node.js |
+| **A PDF stays in the viewer** | a PDF that, when opened, reaches the application's page or functions, opens a window, navigates the application window away or reads any file other than itself |
+| **A link only leaves with confirmation** | a link in a file that opens the browser without the user seeing the address and accepting |
+| **Writes only go where the user chose** | writing or reading a path that went through neither a system dialog nor the recent files list, bypassing the `PATH_NOT_AUTHORIZED` lock |
+| **The application uses the network only for the AI assistant** | a document that makes the application fetch something from the internet on its own, on opening or on printing; any connection without an assistant configured, except the `localhost` query when the person clicks "Find assistants" |
+| **The assistant sends only the open document or the active sheet, and only with permission** | text from another file, from another sheet tab, the file name or the properties going to the assistant; a send outside the computer without the confirmation made by the main process, which says the open document or the active sheet goes along as context; a conversation tool that changes the document without the person's click or that reads anything beyond the text sent with the message: the tools only read that text and propose |
+| **Librevia does not give the AI agent access to the computer** | Claude Code running with any tool of its own or with another MCP server (it is called with `--tools ""` and `--strict-mcp-config`, and only receives the four document tools); Librevia offering an ACP agent files or a terminal, or accepting a permission request from it; the agent running outside an empty temporary folder; the agent's program coming from a path chosen by the interface, without going through a system dialog; the process or its children staying alive after stopping or after the window closes. An ACP agent's own tools (those of Gemini CLI, Codex, Claude Agent…) follow its configuration, not Librevia's: whoever wants to restrict them configures the agent |
+| **The MCP server serves only its own user, and only proposes** | the server listening on a TCP port, or turned on without the person having ticked the box; the socket or its folder with permission for another user (the folder is 700, the socket 600); a connection served without the correct key, after the 2-second deadline, with the old key after the app reopens or the box is ticked again, or after it is turned off; more than 2 programs connected; a connected program reading a file, path, file name, properties or PDF, saving, accepting or rejecting revisions, changing the document other than through a tracked change or a comment whose author ends in "(MCP)", or changing a spreadsheet cell without the person clicking Apply on the proposal; the key of a Claude Code message staying valid after the reply ends or reaching the live document |
+| **The assistant's key does not leak** | the key going back to the interface, showing up in a log or stored unencrypted on disk |
+| **The format service writes nothing** | the .NET sidecar writing to disk or opening a connection |
+| **A PDF's properties only append** | writing a PDF's properties changes some byte of what was already in the file, or writes to a PDF other than the one opened |
 
-## O que fica fora do escopo
+## Out of scope
 
-- Arquivos acima de 20 MB, que o aplicativo já recusa antes de ler.
-- Macros de um `.dotm`: elas não são executadas nem copiadas para o documento novo.
-- Problemas que exigem que alguém já tenha controle do computador do usuário.
-- Falhas no Electron, no Chromium ou no .NET que já tenham correção publicada por eles. Nesse
-  caso, avise que o Librevia está com uma versão desatualizada; isso é bem-vindo, mas como issue
-  comum.
+- Files over 20 MB, which the application already refuses before reading.
+- Macros in a `.dotm`: they are neither run nor copied into the new document.
+- Problems that require someone to already have control of the user's computer.
+- Flaws in Electron, Chromium or .NET that already have a fix published by them. In that case,
+  let us know that Librevia is on an outdated version; that is welcome, but as a regular issue.
