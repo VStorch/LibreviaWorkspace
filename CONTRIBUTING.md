@@ -1,136 +1,140 @@
-# Contribuindo com o Librevia
+# Contributing to Librevia
 
-Obrigado pelo interesse. Este guia diz como relatar um problema, como preparar uma mudança e
-quais padrões o código segue. A maior parte desses padrões é conferida por máquina: se o
-`npm run verify` passa, a mudança já está quase toda dentro deles.
+**English** · [Português (Brasil)](CONTRIBUTING.pt-BR.md)
+
+Thanks for your interest. This guide explains how to report a problem, how to prepare a change
+and which standards the code follows. Most of these standards are checked by machine: if
+`npm run verify` passes, the change is already almost entirely within them.
 
 ---
 
-## 📑 Índice
+## 📑 Index
 
-- [O relato mais útil](#o-relato-mais-útil)
-- [Preparar o ambiente](#preparar-o-ambiente)
-- [Antes de abrir o pull request](#antes-de-abrir-o-pull-request)
-- [Princípios](#princípios)
+- [The most useful report](#the-most-useful-report)
+- [Set up the environment](#set-up-the-environment)
+- [Before opening the pull request](#before-opening-the-pull-request)
+- [Principles](#principles)
   - [Clean Code](#clean-code)
   - [Clean Architecture](#clean-architecture)
   - [SOLID](#solid)
-  - [Outras boas práticas](#outras-boas-práticas)
-- [Fronteiras entre as camadas](#fronteiras-entre-as-camadas)
-- [Tamanho e complexidade das funções](#tamanho-e-complexidade-das-funções)
-- [Procure antes de escrever](#procure-antes-de-escrever)
-- [Contratos que mudam juntos](#contratos-que-mudam-juntos)
-- [Textos da interface](#textos-da-interface)
-- [Testes](#testes)
-- [Dependências](#dependências)
-- [Idioma](#idioma)
+  - [Other good practices](#other-good-practices)
+- [Layer boundaries](#layer-boundaries)
+- [Function size and complexity](#function-size-and-complexity)
+- [Search before you write](#search-before-you-write)
+- [Contracts that change together](#contracts-that-change-together)
+- [Interface text](#interface-text)
+- [Tests](#tests)
+- [Dependencies](#dependencies)
+- [Language](#language)
 - [Commits](#commits)
 
 ---
 
-## O relato mais útil
+## The most useful report
 
-**É um arquivo que não abriu direito.** O projeto é calibrado com documentos reais, e cada
-`.docx` ou `.xlsx` que se comporta de um jeito inesperado ensina mais que uma função nova.
+**It is a file that did not open right.** The project is calibrated with real documents, and
+every `.docx` or `.xlsx` that behaves unexpectedly teaches more than a new feature.
 
-Use o modelo **"Arquivo que abriu errado"** ao abrir a issue. Se puder, anexe o arquivo. Se ele
-for confidencial, descreva o que o Word ou o LibreOffice mostram e o que o Librevia mostrou.
+Use the **"Arquivo que abriu errado"** (file that opened wrong) template when opening the issue.
+If you can, attach the file. If it is confidential, describe what Word or LibreOffice shows and
+what Librevia showed.
 
-Falhas de segurança **não** vão em issue pública: veja a [política de segurança](SECURITY.md).
+Security flaws do **not** go in a public issue: see the [security policy](SECURITY.md).
 
 ---
 
-## Preparar o ambiente
+## Set up the environment
 
-Você precisa do **Node.js 22** ou mais novo e do **.NET SDK 10**.
+You need **Node.js 22** or newer and the **.NET 10 SDK**.
 
 ```bash
 git clone https://github.com/VStorch/LibreviaWorkspace.git
 cd LibreviaWorkspace
 npm install
-npm run sidecar:build   # publica o serviço de formatos .NET
-npm run dev             # abre o aplicativo com recarga automática
+npm run sidecar:build   # publishes the .NET format service
+npm run dev             # opens the application with automatic reload
 ```
 
-A lista completa de comandos está no [README](README.md#rodando-localmente).
+The full list of commands is in the [README](README.md#rodando-localmente).
 
 ---
 
-## Antes de abrir o pull request
+## Before opening the pull request
 
 ```bash
 npm run format:check
 npm run verify
 ```
 
-São as mesmas verificações que o CI roda: formatação, tipos, lint, testes do TypeScript e do
-.NET, licenças e traduções. Se passam na sua máquina, passam no CI. Para corrigir a formatação,
+These are the same checks CI runs: formatting, types, lint, TypeScript and .NET tests, licenses
+and translations. If they pass on your machine, they pass in CI. To fix formatting,
 `npm run format`.
 
-Se a mudança mexe na interface, rode também os testes de ponta a ponta:
+If the change touches the interface, also run the end-to-end tests:
 
 ```bash
 npm run e2e
 ```
 
-O modelo de pull request traz uma lista curta do que conferir.
+The pull request template has a short checklist.
 
 ---
 
-## Princípios
+## Principles
 
-Por que um projeto pessoal se preocupa tanto com a forma do código? Porque um editor de
-documentos é grande e vive muito tempo. A maior parte do trabalho nele não é escrever código
-novo: é **ler** código que já existe para mudar uma parte sem quebrar outra. Código fácil de ler é código barato de mudar.
+Why does a personal project care so much about the shape of the code? Because a document editor
+is large and lives a long time. Most of the work on it is not writing new code: it is **reading**
+existing code to change one part without breaking another. Code that is easy to read is cheap to
+change.
 
-Os princípios abaixo são a forma de manter isso. Cada um vem com o que significa e com o lugar
-onde ele aparece no Librevia. As regras práticas das seções seguintes são a aplicação deles.
+The principles below are how that is kept. Each comes with what it means and where it shows up in
+Librevia. The practical rules in the following sections are their application.
 
 ### Clean Code
 
-"Código limpo" é código que outra pessoa entende na primeira leitura, sem precisar perguntar a
-quem escreveu. Não é uma regra só, mas um conjunto de hábitos:
+"Clean code" is code another person understands on the first read, without having to ask whoever
+wrote it. It is not a single rule, but a set of habits:
 
-| Hábito | O que significa | Como aparece aqui |
+| Habit | What it means | How it shows up here |
 | --- | --- | --- |
-| **Nomes que dizem o que a coisa é** | quem lê o nome não precisa abrir a função para saber o que ela faz; nada de `data`, `tmp`, `x2` ou abreviação que só o autor entende | `recalculate`, `discardDraft`, `MAX_FILE_BYTES`, `PATH_NOT_AUTHORIZED` |
-| **Funções pequenas, que fazem uma coisa** | se a descrição de uma função precisa de um "e", provavelmente são duas funções | os [limites de tamanho e complexidade](#tamanho-e-complexidade-das-funções), cobrados pelo lint |
-| **Poucos parâmetros** | uma chamada com sete argumentos posicionais obriga quem lê a contar vírgulas; um objeto com nomes se explica sozinho | `max-params` 5; acima disso, objeto de opções, como em `usePagination` |
-| **Sem números mágicos** | um `20971520` solto não diz nada; `MAX_FILE_BYTES` diz o que é e muda num lugar só | constantes nomeadas para limites, versões de formato e rótulos de aviso |
-| **O código se explica sozinho** | se um trecho precisa de comentário para ser entendido, o trecho é que precisa melhorar: um nome melhor, uma função extraída, uma constante com nome. Comentário envelhece sem que o compilador perceba; o código, não | o *porquê* mora no nome, no teste e no commit. Um comportamento copiado do Excel vira um teste cujo nome o descreve, por exemplo "`=-2^2` is 4, as in Excel" |
-| **Sem efeito escondido** | uma função chamada `formatCell` não grava nada no disco; o nome promete, e o corpo cumpre | a lógica pura em `src/services/` não toca disco, rede nem tela |
-| **Erro tratado de propósito** | o erro tem tipo e mensagem que a pessoa entende, em vez de uma exceção genérica engolida ou propagada sem contexto | `AppError` com `ErrorCode`; na planilha, erro é valor (`#DIV/0!`) e se propaga sem derrubar o cálculo |
-| **Sem duplicação** | a mesma regra escrita em dois lugares diverge na primeira mudança feita às pressas | os rótulos de `Inventory.cs` são constantes; os textos da interface vivem num catálogo só; [procure antes de escrever](#procure-antes-de-escrever) |
-| **Deixe melhor do que encontrou** | ao mexer num arquivo, arrume o que estiver ao alcance — um nome ruim, um comentário que só repete o código | o lint de tamanho e complexidade não tem lista de exceções |
-| **Formatação que ninguém discute** | o formatador decide espaços e quebras, e a revisão fala do que importa | Prettier, conferido no CI |
+| **Names that say what the thing is** | whoever reads the name does not need to open the function to know what it does; no `data`, `tmp`, `x2` or abbreviations only the author understands | `recalculate`, `discardDraft`, `MAX_FILE_BYTES`, `PATH_NOT_AUTHORIZED` |
+| **Small functions that do one thing** | if a function's description needs an "and", it is probably two functions | the [size and complexity limits](#function-size-and-complexity), enforced by lint |
+| **Few parameters** | a call with seven positional arguments makes the reader count commas; an object with names explains itself | `max-params` 5; above that, an options object, as in `usePagination` |
+| **No magic numbers** | a loose `20971520` says nothing; `MAX_FILE_BYTES` says what it is and changes in one place only | named constants for limits, format versions and warning labels |
+| **The code explains itself** | if a passage needs a comment to be understood, it is the passage that needs to improve: a better name, an extracted function, a named constant. A comment ages without the compiler noticing; the code does not | the *why* lives in the name, the test and the commit. A behavior copied from Excel becomes a test whose name describes it, for example "`=-2^2` is 4, as in Excel" |
+| **No hidden effects** | a function called `formatCell` writes nothing to disk; the name promises, and the body delivers | the pure logic in `src/services/` does not touch the disk, the network or the screen |
+| **Errors handled on purpose** | the error has a type and a message the person understands, instead of a generic exception swallowed or propagated without context | `AppError` with `ErrorCode`; in the spreadsheet, an error is a value (`#DIV/0!`) and propagates without bringing down the calculation |
+| **No duplication** | the same rule written in two places diverges on the first rushed change | the `Inventory.cs` labels are constants; the interface text lives in a single catalog; [search before you write](#search-before-you-write) |
+| **Leave it better than you found it** | when touching a file, fix what is within reach — a bad name, a comment that only repeats the code | the size and complexity lint has no exceptions list |
+| **Formatting nobody argues about** | the formatter decides spaces and line breaks, and the review talks about what matters | Prettier, checked in CI |
 
-#### Quando um comentário ainda cabe
+#### When a comment still belongs
 
-Comentário é a exceção, para o que o código **não tem como dizer**:
+A comment is the exception, for what the code **cannot say**:
 
-- uma restrição de fora, como a assinatura de um callback que a biblioteca impõe;
-- um comportamento contraintuitivo que o Word, o Excel ou o formato exigem, quando nem o nome
-  nem o teste deixam isso claro para quem lê aquele trecho;
-- o motivo de um `eslint-disable`.
+- an outside constraint, such as a callback signature the library imposes;
+- counterintuitive behavior that Word, Excel or the format requires, when neither the name nor
+  the test makes it clear to whoever reads that passage;
+- the reason for an `eslint-disable`.
 
-Nesses casos, o comentário diz **por quê**, nunca **o quê**. Comentário que repete o código,
-narra a história da mudança ou guarda código desligado é apagado.
+In these cases, the comment says **why**, never **what**. A comment that repeats the code,
+narrates the history of the change or keeps disabled code is deleted.
 
 ### Clean Architecture
 
-"Arquitetura limpa" é uma forma de organizar o código em camadas, de modo que **as regras do
-negócio não dependam dos detalhes técnicos**. Imagine círculos, um dentro do outro:
+"Clean architecture" is a way of organizing code in layers so that **business rules do not
+depend on technical details**. Picture circles, one inside the other:
 
 ```mermaid
 flowchart TB
-    subgraph F["Frameworks e drivers"]
+    subgraph F["Frameworks and drivers"]
         direction TB
-        subgraph A["Adaptadores"]
+        subgraph A["Adapters"]
             direction TB
-            subgraph D["Regras do negócio"]
-                SV["src/services · src/shared<br/><i>modelos, fórmulas, paginação,<br/>formatos, contratos</i>"]
+            subgraph D["Business rules"]
+                SV["src/services · src/shared<br/><i>models, formulas, pagination,<br/>formats, contracts</i>"]
             end
-            AD["src/main/ipc · src/preload<br/>cliente do sidecar · componentes React"]
+            AD["src/main/ipc · src/preload<br/>sidecar client · React components"]
         end
         FW["Electron · React · TipTap<br/>Chromium · OpenXml · ClosedXML"]
     end
@@ -143,244 +147,247 @@ flowchart TB
     class FW fw
 ```
 
-- **No centro ficam as regras do negócio**: como uma fórmula é calculada, onde uma página quebra,
-  o que um `.sdoc` guarda. É a parte que dá valor ao programa e a que menos deveria mudar por
-  motivo técnico.
-- **Em volta ficam os adaptadores**, que traduzem entre o centro e o mundo de fora: o canal de
-  IPC, o preload, o cliente do sidecar, os componentes de tela.
-- **Na borda ficam os frameworks**: Electron, React, TipTap, as bibliotecas de formato.
+- **The business rules sit at the center**: how a formula is calculated, where a page breaks,
+  what a `.sdoc` stores. It is the part that gives the program its value and the one that should
+  change least for technical reasons.
+- **Around it are the adapters**, which translate between the center and the outside world: the
+  IPC channel, the preload, the sidecar client, the screen components.
+- **At the edge are the frameworks**: Electron, React, TipTap, the format libraries.
 
-A regra que segura tudo é a **regra da dependência**: o código só pode depender de quem está
-**mais para dentro**. O centro não sabe que existe Electron, React ou disco. Por isso:
+The rule that holds everything together is the **dependency rule**: code may only depend on what
+is **further in**. The center does not know Electron, React or the disk exist. That is why:
 
-- **as regras do negócio se testam sem nada em volta.** Os testes de unidade rodam em poucos
-  segundos, sem abrir janela;
-- **trocar um detalhe técnico não mexe no centro.** O cálculo das fórmulas não sabe se a
-  planilha veio de um `.xlsx` ou de um `.ssheet`, nem se vai para a tela ou para o papel;
-- **os dados atravessam as fronteiras em formatos simples e validados**: objetos conferidos por
-  esquemas Zod no IPC, JSON e bytes no protocolo do sidecar.
+- **business rules are tested with nothing around them.** Unit tests run in a few seconds,
+  without opening a window;
+- **swapping a technical detail does not touch the center.** The formula engine does not know
+  whether the spreadsheet came from an `.xlsx` or an `.ssheet`, nor whether it goes to the screen
+  or to paper;
+- **data crosses the boundaries in simple, validated formats**: objects checked by Zod schemas
+  over IPC, JSON and bytes in the sidecar protocol.
 
-No Librevia essa regra **não depende de boa vontade**: o lint reprova um `import` que aponte para
-fora. A tabela de [fronteiras entre as camadas](#fronteiras-entre-as-camadas) é a regra da
-dependência escrita como configuração.
+In Librevia this rule **does not depend on goodwill**: lint rejects an `import` that points
+outward. The [layer boundaries](#layer-boundaries) table is the dependency rule written as
+configuration.
 
-Há uma concessão consciente: as extensões do editor (`src/renderer/document/extensions/`) vivem
-coladas ao ProseMirror, porque é ele quem chama o código delas. O que é regra de verdade — numerar
-uma lista, decidir uma quebra de página — sai dali para `src/services/` sempre que dá.
+There is one deliberate concession: the editor extensions (`src/renderer/document/extensions/`)
+live attached to ProseMirror, because it is ProseMirror that calls their code. What is a real
+rule — numbering a list, deciding a page break — moves from there to `src/services/` whenever
+possible.
 
 ### SOLID
 
-Cinco princípios de design, conhecidos pelas iniciais em inglês:
+Five design principles, known by their initials:
 
-| Princípio | O que significa | Como aparece aqui |
+| Principle | What it means | How it shows up here |
 | --- | --- | --- |
-| **S** — Responsabilidade única | uma parte do código tem um só motivo para mudar | o sidecar só lê e escreve formatos; quem grava no disco é o main; quem desenha é o renderer |
-| **O** — Aberto/fechado | dá para acrescentar comportamento sem reescrever o que já funciona | uma função de planilha nova é uma definição a mais no catálogo; o avaliador de fórmulas não muda |
-| **L** — Substituição de Liskov | quem implementa um contrato pode entrar no lugar de outro sem surpresa | toda função de planilha segue o mesmo contrato (`FunctionDefinition`), e o avaliador chama `SOMA` e `PROCV` do mesmo jeito |
-| **I** — Segregação de interfaces | ninguém depende do que não usa | o preload expõe só `window.api`, com os canais que a tela precisa, e não o Electron inteiro |
-| **D** — Inversão de dependência | a regra recebe de fora o que é detalhe, em vez de buscá-lo sozinha | `recalculate` recebe o relógio (`now`) como parâmetro, e por isso `HOJE()` se testa com uma data fixa |
+| **S** — Single responsibility | a part of the code has only one reason to change | the sidecar only reads and writes formats; main writes to disk; the renderer draws |
+| **O** — Open/closed | behavior can be added without rewriting what already works | a new spreadsheet function is one more definition in the catalog; the formula evaluator does not change |
+| **L** — Liskov substitution | whoever implements a contract can stand in for another without surprises | every spreadsheet function follows the same contract (`FunctionDefinition`), and the evaluator calls `SOMA` and `PROCV` the same way |
+| **I** — Interface segregation | nobody depends on what they do not use | the preload exposes only `window.api`, with the channels the screen needs, not all of Electron |
+| **D** — Dependency inversion | the rule receives the details from outside instead of fetching them itself | `recalculate` receives the clock (`now`) as a parameter, which is why `HOJE()` is tested with a fixed date |
 
-### Outras boas práticas
+### Other good practices
 
-- **Simples antes de esperto (KISS).** A solução mais simples que resolve o problema é a melhor
-  até que se prove o contrário.
-- **Só o que é preciso agora (YAGNI).** Não se escreve código para um uso que talvez venha. Uma
-  abstração nasce quando o segundo caso aparece, e não antes.
-- **Validar na fronteira, confiar dentro.** Tudo que chega de fora — IPC, arquivo, protocolo — é
-  conferido ao entrar. Lá dentro, o tipo garante o resto.
-- **Falhar cedo e com clareza.** Um `.sdoc` de versão mais nova que o aplicativo é recusado com
-  uma mensagem, em vez de aberto pela metade.
-- **Tipos estritos.** TypeScript em modo estrito, com `noUncheckedIndexedAccess`, e sem `any`.
-  O compilador é o primeiro revisor.
-- **Imutável por padrão.** Modelos com campos `readonly`: quem recebe um modelo não o altera por
-  baixo dos panos. `recalculate`, por exemplo, devolve uma planilha nova.
-- **Seguro por padrão.** Sandbox ligada, caminhos autorizados, nenhum acesso à rede. Cada
-  permissão é concedida, nunca presumida.
-- **Medir antes de otimizar.** As decisões de desempenho do README vieram de medições, e não de
-  palpites.
-- **Mudança pequena, com teste.** Um commit faz uma coisa e chega com o teste que a prova.
+- **Simple before clever (KISS).** The simplest solution that solves the problem is the best one
+  until proven otherwise.
+- **Only what is needed now (YAGNI).** No code is written for a use that might come. An
+  abstraction is born when the second case shows up, not before.
+- **Validate at the boundary, trust inside.** Everything that comes from outside — IPC, file,
+  protocol — is checked on the way in. Inside, the type guarantees the rest.
+- **Fail early and clearly.** A `.sdoc` from a version newer than the application is refused with
+  a message, instead of half-opened.
+- **Strict types.** TypeScript in strict mode, with `noUncheckedIndexedAccess`, and no `any`. The
+  compiler is the first reviewer.
+- **Immutable by default.** Models with `readonly` fields: whoever receives a model does not
+  change it behind the scenes. `recalculate`, for example, returns a new spreadsheet.
+- **Secure by default.** Sandbox on, authorized paths, no network access. Every permission is
+  granted, never assumed.
+- **Measure before optimizing.** The performance decisions in the README came from measurements,
+  not guesses.
+- **Small change, with a test.** A commit does one thing and arrives with the test that proves it.
 
 ---
 
-## Fronteiras entre as camadas
+## Layer boundaries
 
-O código tem quatro partes, e cada uma só pode importar o que precisa:
+The code has four parts, and each may only import what it needs:
 
-| Pasta | Pode importar | Não pode importar |
+| Folder | May import | May not import |
 | --- | --- | --- |
-| `src/services/`, `src/shared/` | só código puro | `electron`, `react`, `node:*`, `@main/*`, `@renderer/*` |
+| `src/services/`, `src/shared/` | only pure code | `electron`, `react`, `node:*`, `@main/*`, `@renderer/*` |
 | `src/renderer/` | React, `@services/*`, `@shared/*` | `electron`, `node:*`, `@main/*` |
-| `src/preload/` | `electron`, `@shared/*` | todo o resto |
-| `src/main/` | tudo | — |
+| `src/preload/` | `electron`, `@shared/*` | everything else |
+| `src/main/` | everything | — |
 
-Por quê? `services` e `shared` rodam dos dois lados e se testam sem o Electron. O renderer roda
-isolado e só fala com o resto por `window.api`.
+Why? `services` and `shared` run on both sides and are tested without Electron. The renderer runs
+isolated and talks to the rest only through `window.api`.
 
-**O lint cobra isso.** Quem esquecer recebe o erro no `npm run lint`, antes de qualquer revisão.
+**Lint enforces this.** Whoever forgets gets the error from `npm run lint`, before any review.
 
 ---
 
-## Tamanho e complexidade das funções
+## Function size and complexity
 
-Uma função muito longa ou com muitos caminhos é difícil de ler e de testar. Os limites abaixo
-saíram da medição do próprio código e são conferidos pelo ESLint em `src/` (os testes ficam de
-fora):
+A very long function, or one with many paths, is hard to read and to test. The limits below came
+from measuring the project's own code and are checked by ESLint in `src/` (tests are left out):
 
-| Regra | Limite | O que mede |
+| Rule | Limit | What it measures |
 | --- | --- | --- |
-| `complexity` | 15 | caminhos possíveis pela função: cada `if`, `case`, `&&`, `??` e laço soma um |
-| `max-lines-per-function` | 80 | linhas de código, sem contar comentários e linhas em branco |
-| `max-depth` | 4 | blocos aninhados uns dentro dos outros |
-| `max-params` | 5 | parâmetros; acima disso, use um objeto de opções |
+| `complexity` | 15 | possible paths through the function: each `if`, `case`, `&&`, `??` and loop adds one |
+| `max-lines-per-function` | 80 | lines of code, not counting comments and blank lines |
+| `max-depth` | 4 | blocks nested inside one another |
+| `max-params` | 5 | parameters; above that, use an options object |
 
-Para comparar: a função típica do projeto tem complexidade 3 e 7 linhas.
+For comparison: the project's typical function has complexity 3 and 7 lines.
 
-### Sem lista de exceções
+### No exceptions list
 
-Nenhuma função passa dos limites, e não há lista de exceções: código acima deles reprova, e a
-saída é dividir a função.
+No function exceeds the limits, and there is no exceptions list: code above them fails, and the
+way out is to split the function.
 
-### Quando a exceção à regra é legítima
+### When an exception is legitimate
 
-Às vezes a assinatura não é nossa. Um callback do ProseMirror, por exemplo, recebe seis
-parâmetros porque a biblioteca manda seis. Nesse caso, desligue a regra **só naquela linha** e
-escreva o motivo:
+Sometimes the signature is not ours. A ProseMirror callback, for example, takes six parameters
+because the library passes six. In that case, turn the rule off **only on that line** and write
+the reason:
 
 ```ts
-// A assinatura é a do ProseMirror, e não nossa.
+// The signature is ProseMirror's, not ours.
 // eslint-disable-next-line max-params
 handleDoubleClickOn(view, _pos, node, nodePos, _event, direct) {
 ```
 
 ---
 
-## Procure antes de escrever
+## Search before you write
 
-A mesma lógica não deve existir em dois lugares. Uma cópia funciona no dia em que é feita, mas
-na primeira correção uma delas fica para trás, e as duas passam a se comportar de modos
-diferentes sem que ninguém perceba.
+The same logic should not exist in two places. A copy works on the day it is made, but on the
+first fix one of them falls behind, and the two start behaving differently without anyone
+noticing.
 
-Antes de escrever uma função auxiliar, procure com `git grep` se ela já existe. Busque pelo que a
-função **faz**, não só pelo nome que você daria a ela.
+Before writing a helper function, search with `git grep` whether it already exists. Search for
+what the function **does**, not only for the name you would give it.
 
-### Onde mora o que é comum
+### Where shared code lives
 
-| Para | Use | Em |
+| To | Use | In |
 | --- | --- | --- |
-| escapar texto para HTML | `escapeHtml` | `src/services/html.ts` |
-| converter unidades (mm, pt, px, twips) | as funções e constantes | `src/services/units.ts` |
-| referência de célula (`B12`) e letra de coluna | `parseRef`, `cellRef`, `columnIndex`, `columnName` | `src/services/spreadsheet/model.ts` |
-| percorrer o documento numa exportação | `plainText`, `walk`, `prepareExport` | `src/services/document/export-common.ts` |
-| a janela de quem chamou um canal IPC | `windowOf` | `src/main/ipc/sender-window.ts` |
-| unidades do OOXML no sidecar | `Unit` | `sidecar/src/Librevia.Format/Unit.cs` |
-| número sem a vírgula do idioma, no XML | `Invariant` | `sidecar/src/Librevia.Format/Docx/InvariantText.cs` |
-| ler uma parte de um `.docx`, `.xlsx` ou `.odt` no e2e | `entryOf` | `e2e/fixtures.ts` |
-| `pdftotext`, `pdfinfo` e `soffice` no e2e | `hasPdftotext`, `pdfText`, `hasSoffice`… | `e2e/external-tools.ts` |
+| escape text for HTML | `escapeHtml` | `src/services/html.ts` |
+| convert units (mm, pt, px, twips) | the functions and constants | `src/services/units.ts` |
+| cell reference (`B12`) and column letter | `parseRef`, `cellRef`, `columnIndex`, `columnName` | `src/services/spreadsheet/model.ts` |
+| walk the document in an export | `plainText`, `walk`, `prepareExport` | `src/services/document/export-common.ts` |
+| the window of whoever called an IPC channel | `windowOf` | `src/main/ipc/sender-window.ts` |
+| OOXML units in the sidecar | `Unit` | `sidecar/src/Librevia.Format/Unit.cs` |
+| a number without the locale's decimal comma, in XML | `Invariant` | `sidecar/src/Librevia.Format/Docx/InvariantText.cs` |
+| read a part of a `.docx`, `.xlsx` or `.odt` in e2e | `entryOf` | `e2e/fixtures.ts` |
+| `pdftotext`, `pdfinfo` and `soffice` in e2e | `hasPdftotext`, `pdfText`, `hasSoffice`… | `e2e/external-tools.ts` |
 
-### Quando a função não existe
+### When the function does not exist
 
-- **Na segunda vez que for preciso, extraia.** A primeira cópia é o sinal de que a função tem
-  dono. Mova-a para o módulo da camada mais interna que todos os usuários podem importar (veja
-  as [fronteiras](#fronteiras-entre-as-camadas)) e apague as cópias no mesmo commit.
-- **Os testes também.** Uma função auxiliar repetida em vários specs vai para um módulo comum
-  da pasta de testes, como `e2e/external-tools.ts`.
-- **Mesmo nome não quer dizer mesma função.** Duas funções com o mesmo nome que fazem coisas
-  diferentes não são duplicação. Duplicação é a mesma lógica em dois lugares.
-
----
-
-## Contratos que mudam juntos
-
-- **IPC:** todo canal tem um esquema Zod em `src/shared/`, conferido nas duas pontas. Canal
-  novo, esquema novo.
-- **Protocolo do sidecar:** os dois lados, `src/main/sidecar/protocol.ts` e
-  `sidecar/src/Librevia.Format/Protocol/Frame.cs`, mudam no mesmo commit. O teste
-  `sidecar-real.test.ts` conversa com o executável de verdade e pega a diferença.
-- **Formatos próprios:** `.sdoc` e `.ssheet` têm número de versão. Mudou o que eles guardam,
-  suba a versão e mantenha a leitura das versões antigas.
-- **Avisos de perda:** os rótulos do `Inventory.cs` são constantes com a chave do catálogo
-  `sidecar.ts`. Use a constante; a frase, em português e em inglês, mora só no catálogo.
+- **The second time it is needed, extract it.** The first copy is the sign that the function has
+  an owner. Move it to the module of the innermost layer that all its users can import (see the
+  [boundaries](#layer-boundaries)) and delete the copies in the same commit.
+- **Tests too.** A helper function repeated across several specs goes to a shared module in the
+  test folder, such as `e2e/external-tools.ts`.
+- **Same name does not mean same function.** Two functions with the same name that do different
+  things are not duplication. Duplication is the same logic in two places.
 
 ---
 
-## Textos da interface
+## Contracts that change together
 
-Toda frase que a pessoa lê vem do catálogo em `src/shared/i18n/catalog/`, com as duas línguas lado
-a lado:
+- **IPC:** every channel has a Zod schema in `src/shared/`, checked at both ends. New channel, new
+  schema.
+- **Sidecar protocol:** both sides, `src/main/sidecar/protocol.ts` and
+  `sidecar/src/Librevia.Format/Protocol/Frame.cs`, change in the same commit. The
+  `sidecar-real.test.ts` test talks to the real executable and catches the difference.
+- **Own formats:** `.sdoc` and `.ssheet` have a version number. If what they store changes, bump
+  the version and keep reading the old versions.
+- **Loss warnings:** the `Inventory.cs` labels are constants holding the key in the `sidecar.ts`
+  catalog. Use the constant; the sentence, in Portuguese and English, lives only in the catalog.
+
+---
+
+## Interface text
+
+Every sentence the person reads comes from the catalog in `src/shared/i18n/catalog/`, with both
+languages side by side:
 
 ```ts
 'comments.action.reply': { pt: 'Responder', en: 'Reply' },
 ```
 
-O compilador acusa uma entrada sem uma das línguas. O `npm run i18n:check` acusa uma frase
-escrita direto no código, fora do catálogo.
+The compiler flags an entry missing one of the languages. `npm run i18n:check` flags a sentence
+written directly in the code, outside the catalog.
 
 ---
 
-## Testes
+## Tests
 
-O teste acompanha a mudança, na camada certa:
+The test comes with the change, in the right layer:
 
-| O que mudou | Onde testar |
+| What changed | Where to test |
 | --- | --- |
-| regra de negócio, modelo, fórmula, formato | Vitest, ao lado do arquivo (`*.test.ts`) |
-| leitura ou escrita de DOCX e XLSX | xUnit, em `sidecar/tests/` |
-| o que só aparece com o aplicativo montado | Playwright, em `e2e/` |
+| business rule, model, formula, format | Vitest, next to the file (`*.test.ts`) |
+| reading or writing DOCX and XLSX | xUnit, in `sidecar/tests/` |
+| what only shows up with the application assembled | Playwright, in `e2e/` |
 
-A regra de negócio mora em camada pura justamente para ser testada sem subir o Electron.
+Business rules live in a pure layer precisely so they can be tested without starting Electron.
 
-Os documentos reais usados para calibrar o projeto **não entram no repositório**. Os testes que
-dependem deles são pulados quando a variável `LIBREVIA_CORPUS_DOC` não está definida.
+The real documents used to calibrate the project **do not go into the repository**. Tests that
+depend on them are skipped when the `LIBREVIA_CORPUS_DOC` variable is not set.
 
-### Correção de bugs
+### Fixing bugs
 
-Todo bug se corrige em dois passos, nesta ordem:
+Every bug is fixed in two steps, in this order:
 
-1. **Reproduza num teste.** Escreva, na camada da tabela acima, um teste que mostra o bug, e
-   rode-o: ele precisa falhar, e pelo motivo do bug, não por um erro de montagem do teste.
-2. **Corrija.** Mude o código até o teste passar, sem alterar o que o teste espera.
+1. **Reproduce it in a test.** Write, in the layer from the table above, a test that shows the
+   bug, and run it: it must fail, and for the bug's reason, not because the test is set up wrong.
+2. **Fix it.** Change the code until the test passes, without changing what the test expects.
 
-Por quê? O teste que falhou antes prova que reproduz o bug de verdade, e o que passa depois
-prova que a correção resolve aquele caso. Fica também como guarda: se o bug voltar, o teste
-acusa. O nome do teste descreve o comportamento certo, e o teste entra no mesmo commit do `fix`.
+Why? The test that failed first proves it really reproduces the bug, and the one that passes
+afterward proves the fix solves that case. It also stays as a guard: if the bug comes back, the
+test catches it. The test name describes the correct behavior, and the test goes in the same
+commit as the `fix`.
 
-Se o bug só aparece com um documento do corpus, reduza-o ao mínimo que o reproduz e monte esse
-mínimo no próprio teste.
-
----
-
-## Dependências
-
-Antes de acrescentar uma, pese o que ela traz junto. Toda dependência de produção passa pelo
-portão de licenças (`npm run licenses:check` e `npm run sidecar:licenses`), que só aceita licenças
-permissivas — MIT, BSD, Apache-2.0, ISC e parecidas — e reprova o pacote que não declara licença.
+If the bug only shows up with a corpus document, reduce it to the minimum that reproduces it and
+build that minimum inside the test itself.
 
 ---
 
-## Idioma
+## Dependencies
 
-- **Identificadores em inglês:** nomes de arquivo, função, variável e tipo.
-- **Os raros comentários em inglês**, como os identificadores que eles acompanham.
-- **Testes em inglês:** nomes, descrições e comentários.
-- **Mensagens ao usuário em português.**
-- **Commits em inglês.**
+Before adding one, weigh what it brings along. Every production dependency goes through the
+license gate (`npm run licenses:check` and `npm run sidecar:licenses`), which only accepts
+permissive licenses — MIT, BSD, Apache-2.0, ISC and similar — and rejects a package that declares
+no license.
+
+---
+
+## Language
+
+- **Identifiers in English:** file, function, variable and type names.
+- **The rare comments in English**, like the identifiers they accompany.
+- **Tests in English:** names, descriptions and comments.
+- **User-facing messages in Portuguese.**
+- **Commits in English.**
 
 ---
 
 ## Commits
 
-[Conventional Commits](https://www.conventionalcommits.org), com escopo sempre que houver um:
+[Conventional Commits](https://www.conventionalcommits.org), with a scope whenever there is one:
 
 ```text
 type(scope): description
 ```
 
-- **Tipos em uso:** `feat`, `fix`, `refactor`, `perf`, `test`, `docs`, `build`, `ci`, `chore`
-  e `revert`.
-- **Escopos:** vêm do próprio código, como `docx`, `xlsx`, `styles`, `pagination`, `lists`,
-  `sections`, `comments`, `revisions`, `notes`, `equations`, `sidecar`, `print` e `ui`.
-- **O corpo é curto, ou não existe.** Uma ou duas frases dizendo *por quê*, quando o título não
-  basta. Se o título já diz tudo, não escreva corpo.
+- **Types in use:** `feat`, `fix`, `refactor`, `perf`, `test`, `docs`, `build`, `ci`, `chore`
+  and `revert`.
+- **Scopes:** come from the code itself, such as `docx`, `xlsx`, `styles`, `pagination`, `lists`,
+  `sections`, `comments`, `revisions`, `notes`, `equations`, `sidecar`, `print` and `ui`.
+- **The body is short, or there is none.** One or two sentences saying *why*, when the title is
+  not enough. If the title already says it all, do not write a body.
 
 ```text
 fix(docx): line height multiplies the font's height, not its size
@@ -388,5 +395,4 @@ fix(docx): line height multiplies the font's height, not its size
 LibreOffice puts 12.98 pt in Arial 10 pt; we were applying the factor to the size.
 ```
 
-- **Sem rodapé:** nada de `Co-Authored-By` de ferramentas ou de assinatura automática no fim da
-  mensagem.
+- **No footer:** no tool `Co-Authored-By` or automatic signature at the end of the message.

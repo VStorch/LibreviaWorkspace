@@ -891,7 +891,7 @@ O ícone é desenhado em `build/icon.svg`. `npm run icon` gera o `build/icon.png
 ## 📐 Regras do código
 
 As regras abaixo aplicam três ideias, descritas com exemplos no
-[CONTRIBUTING](CONTRIBUTING.md#princípios): **Clean Code**, código que se entende na primeira
+[CONTRIBUTING](CONTRIBUTING.pt-BR.md#princípios): **Clean Code**, código que se entende na primeira
 leitura; **Clean Architecture**, regras do negócio que não dependem de detalhes técnicos; e
 **SOLID**, cinco princípios para que cada parte mude por um motivo só.
 
@@ -922,7 +922,7 @@ O `npm run verify` reprova o código se:
 - as fronteiras acima forem violadas;
 - uma função passar dos limites de tamanho e complexidade (complexidade 15, 80 linhas,
   4 níveis de aninhamento, 5 parâmetros) — ver
-  [CONTRIBUTING](CONTRIBUTING.md#tamanho-e-complexidade-das-funções);
+  [CONTRIBUTING](CONTRIBUTING.pt-BR.md#tamanho-e-complexidade-das-funções);
 - algum teste falhar, incluindo os que travam as opções de segurança da janela;
 - houver texto da interface fora do catálogo de traduções;
 - alguma dependência trouxer licença fora da lista permitida (MIT, BSD, Apache-2.0, ISC e
@@ -946,7 +946,7 @@ troca dessas chegando.
 Identificadores, os raros comentários e os testes em inglês; mensagens ao usuário em
 português; commits em inglês, no padrão
 [Conventional Commits](https://www.conventionalcommits.org). Os detalhes estão no
-[CONTRIBUTING](CONTRIBUTING.md#commits).
+[CONTRIBUTING](CONTRIBUTING.pt-BR.md#commits).
 
 ---
 
