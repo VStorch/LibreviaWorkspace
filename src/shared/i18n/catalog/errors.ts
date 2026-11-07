@@ -144,6 +144,27 @@ export const ERRORS = {
     pt: 'docx.open fora do contrato',
     en: 'docx.open out of contract',
   },
+  'errors.odt.cannotRead': {
+    pt: 'Não foi possível ler este documento ODT. O arquivo pode estar danificado.',
+    en: 'Could not read this ODT document. The file may be damaged.',
+  },
+  'errors.odt.openContract': {
+    pt: 'odt.open fora do contrato',
+    en: 'odt.open out of contract',
+  },
+  'errors.odt.cannotSave': {
+    pt: 'Não foi possível gravar o documento ODT. O arquivo original não foi alterado.',
+    en: 'Could not save the ODT document. The original file was not modified.',
+  },
+  'errors.odt.saveContract': {
+    pt: 'odt.save fora do contrato',
+    en: 'odt.save out of contract',
+  },
+  'errors.odt.cannotCreate': {
+    pt: 'Não foi possível criar o documento ODT. Nada foi gravado.',
+    en: 'Could not create the ODT document. Nothing was saved.',
+  },
+  'errors.odt.createContract': { pt: 'odt.create sem pacote', en: 'odt.create returned no package' },
   'errors.docx.saveOnlyFromDocx': {
     pt: 'Só é possível salvar em .docx um documento que foi aberto a partir de um arquivo .docx. Salve como .sdoc ou abra um documento do Word primeiro.',
     en: 'You can only save to .docx a document that was opened from a .docx file. Save as .sdoc or open a Word document first.',
@@ -198,8 +219,8 @@ export const ERRORS = {
   },
   'errors.privacy.contract': { pt: 'package.* fora do contrato', en: 'package.* out of contract' },
   'errors.privacy.onlyPackages': {
-    pt: 'Só documentos do Word e planilhas do Excel passam pelo inspetor.',
-    en: 'Only Word documents and Excel spreadsheets go through the inspector.',
+    pt: 'Só documentos do Word e do OpenDocument e planilhas do Excel passam pelo inspetor.',
+    en: 'Only Word and OpenDocument documents and Excel spreadsheets go through the inspector.',
   },
 
   'errors.xlsx.cannotRead': {

@@ -57,7 +57,8 @@ public sealed class ParagraphWriter
         bool flatten = false,
         bool references = true,
         bool revisions = true,
-        OpenXmlPart? owner = null)
+        OpenXmlPart? owner = null,
+        bool verticalMerges = true)
     {
         _part = part;
         _owner = owner ?? part;
@@ -66,7 +67,7 @@ public sealed class ParagraphWriter
         _styles = new StyleResolver(part);
         _format = new ParagraphFormat(inventory, headings ?? new HeadingStyles(part, null), _styles, flatten, revisions);
         var usable = usableWidthPx > 0 ? usableWidthPx : ImageWriter.DefaultWidthPx;
-        _tables = new TableWriter(inventory, (node, original) => Write(node, null, original), usable, revisions);
+        _tables = new TableWriter(inventory, (node, original) => Write(node, null, original), usable, revisions, verticalMerges);
         _images = new ImageWriter(part, inventory, usable, _owner);
         _usableTwips = usable * Unit.TwipsPerPixel;
     }
@@ -242,10 +243,7 @@ public sealed class ParagraphWriter
     }
 
     private static string PlainTextOf(List<Node> content) =>
-        string.Join("\n", content.Select(TextOfNode));
-
-    private static string TextOfNode(Node node) =>
-        node.Text ?? string.Concat((node.Content ?? []).Select(TextOfNode));
+        string.Join("\n", content.Select(node => node.PlainText()));
 
     /// <summary>
     /// By direct children: a box's text is also <c>w:t</c>, and in depth it would reject exactly

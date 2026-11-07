@@ -57,8 +57,8 @@ sudo apt install ./librevia_0.5.0_amd64.deb
 Execute o instalador. Ele instala **só para o seu usuário** e não pede senha de administrador.
 O instalador ainda não é assinado, então o Windows pode mostrar "O Windows protegeu o computador":
 clique em **Mais informações** e depois em **Executar assim mesmo**.
-Depois disso, um `.docx`, um `.dotx` ou um `.xlsx` pode ser aberto com o Librevia pelo botão
-direito do Explorador de Arquivos.
+Depois disso, um `.docx`, `.dotx`, `.odt`, `.ott` ou `.xlsx` pode ser aberto com o Librevia pelo
+botão direito do Explorador de Arquivos.
 
 ---
 
@@ -72,6 +72,8 @@ direito do Explorador de Arquivos.
 | `.dotx` | modelo do Word | abrir cria um documento novo a partir dele; "Salvar como" também grava modelo |
 | `.dotm` | modelo do Word com macros | abre como o `.dotx`, mas as macros ficam de fora, e o aplicativo avisa |
 | `.xlsx` | planilha do Excel | abre e grava |
+| `.odt` | documento do LibreOffice | abre e grava; o que você não editou volta intacto |
+| `.ott` | modelo do LibreOffice | abrir cria um documento novo a partir dele; "Salvar como" também grava modelo |
 | `.sdoc` | documento do Librevia | guarda tudo, sem perda nenhuma |
 | `.ssheet` | planilha do Librevia | guarda tudo, sem perda nenhuma |
 | `.txt` | texto puro | abre e grava; salvar nele descarta a formatação, e o aplicativo avisa antes |
@@ -84,8 +86,12 @@ E estes, o Librevia **cria**. O `.pdf` também abre para leitura, como mostra a 
 | `.pdf` | **Arquivo → Exportar para PDF…**, para documentos e planilhas |
 | `.html`, `.md`, `.odt` | **Arquivo → Exportar como**, só para documentos |
 
-> ℹ️ **`.odt` e `.ods` não abrem.** Se você recebe arquivos assim, peça a quem enviou que salve
-> como `.docx` ou `.xlsx`. O LibreOffice faz isso pelo "Salvar como".
+> ℹ️ **Um `.odt` abre e salva como o `.docx`.** Só o bloco que você editou é escrito de novo; o
+> resto volta como estava. O "Salvar como" oferece `.odt` para qualquer documento: um documento
+> novo, um `.sdoc` ou um `.docx` vão inteiros para um `.odt` novo, que passa a ser o arquivo aberto.
+>
+> **Planilhas `.ods` não abrem.** Peça a quem enviou que salve como `.xlsx`. O LibreOffice faz
+> isso pelo "Salvar como".
 
 ### Modelos
 
@@ -94,13 +100,16 @@ Um modelo é um documento pronto para servir de ponto de partida, como um papel 
 **Arquivo → Novo a partir de modelo…** mostra os modelos que vêm com o aplicativo — documento em
 branco, carta, relatório com capa e sumário, e ata de reunião — e também os seus, que ficam na
 pasta de modelos. O botão **Abrir pasta de modelos** mostra essa pasta, e **Procurar…** aceita
-qualquer `.dotx` do computador.
+qualquer `.dotx` ou `.ott` do computador.
 
 O documento criado é novo e sem título. Estilos, cabeçalho, rodapé e tamanho de página vêm do
 modelo. Ao salvar, o aplicativo pergunta onde gravar, e **o modelo nunca é sobrescrito**.
 
-Para criar um modelo seu, use **Salvar como → Modelo do Word (.dotx)** e grave na pasta de
-modelos.
+Para criar um modelo seu, use **Salvar como → Modelo do Word (.dotx)** ou **Modelo ODT (.ott)** e
+grave na pasta de modelos.
+
+Um documento criado de um `.ott` recebe o nome `.odt`. Salvo em `.odt`, ele grava sobre o pacote
+do modelo: o que você não editou volta como estava no modelo.
 
 ### Propriedades do documento
 
@@ -147,9 +156,12 @@ revela além do conteúdo, e remove o que você marcar:
   às vezes com o local GPS. A imagem e a orientação ficam.
 
 Remover marca o arquivo como alterado: só **Salvar** grava a versão limpa, e fechar sem salvar
-deixa o arquivo como estava. Num `.docx` ou `.xlsx` com alterações não salvas, o inspetor pede
-para salvar antes, porque ele lê o arquivo como está gravado. Num `.sdoc` ou `.ssheet` só há
+deixa o arquivo como estava. Num `.docx`, `.odt` ou `.xlsx` com alterações não salvas, o inspetor
+pede para salvar antes, porque ele lê o arquivo como está gravado. Num `.sdoc` ou `.ssheet` só há
 nomes para remover.
+
+Num `.odt`, o inspetor procura os mesmos dados. O formato não tem um pedido de não gravar nomes;
+o Librevia grava o seu no arquivo e o respeita, mas o LibreOffice o ignora.
 
 Num PDF, o inspetor só mostra: o autor das propriedades e quantas versões anteriores o arquivo
 guarda. Cada alteração de um PDF, feita aqui ou em outro programa, é acrescentada no fim e deixa a
@@ -1111,10 +1123,28 @@ exatamente como estava.
 | --- | --- |
 | Documento de 105 blocos, salvo sem editar | **nenhum** bloco reescrito |
 | O mesmo, com um parágrafo editado | **um** bloco reescrito |
+| Documento do LibreOffice (`.odt`), com um parágrafo editado | **um** bloco reescrito; só o `content.xml` muda |
 | Planilha do LibreOffice, aberta e salva sem editar | **nenhuma** célula escrita |
 
 Na prática: fonte, alinhamento, bordas, gráficos, tabelas dinâmicas, comentários e filtros
 continuam no arquivo depois que você corrige uma vírgula.
+
+**No `.odt`.** Notas de rodapé e de fim, comentários com respostas, equações, cabeçalho e rodapé
+(com colunas, número de página e versões para a primeira página e para as páginas pares) abrem
+como no `.docx` e voltam ao arquivo quando você salva. As alterações controladas também: texto
+inserido, texto excluído e parágrafo unido aparecem com autor e data, e o controle de alterações
+continua ligado ou desligado como no arquivo. As seções também: cada estilo de página que o texto
+abre vira uma seção, com papel, margens e numeração próprios, e uma seção do LibreOffice com colunas
+vira uma seção contínua com colunas. O que o Librevia não mostra (mudança de formatação
+controlada, indicador, seção sem colunas ou dentro de outra, caixa de texto, desenho, formulário)
+fica no arquivo enquanto você não edita o bloco onde está. Ao abrir, o aplicativo avisa que
+existe. Se você editar esse bloco, ele se perde ali, e o aviso aparece ao salvar.
+
+Número de página, total de páginas, data, hora, título e autor aparecem como campos, iguais aos do
+`.docx`, e voltam ao arquivo como os campos do LibreOffice, com o mesmo formato de data. Outro
+campo mostra o texto que tinha; se você editar o bloco onde está, ele vira texto comum. Estilos,
+página, cabeçalho e rodapé só mudam no `styles.xml` se você os alterou; as propriedades, no
+`meta.xml`, idem.
 
 **Documento novo em `.docx`.** Em "Salvar como", escolha "Documento do Word". Como não há arquivo
 de origem, o aplicativo cria um pacote mínimo, com estilos, página e propriedades, mas sem o seu
@@ -1158,9 +1188,12 @@ O documento passa a ser o `.docx`, e o próximo **Salvar** grava nele.
   Markdown não tem como mesclar.
 - **ODT** abre no LibreOffice e em outros editores que leem OpenDocument, com os estilos, as listas
   numeradas, as tabelas, as imagens, as notas, os marcadores e os links. Cada seção leva o próprio
-  papel, margens, colunas, cabeçalho e rodapé, e os comentários vão como anotações.
-- As **revisões** saem já aceitas. As **equações** vão junto. No HTML e no Markdown os
-  **comentários** ficam de fora.
+  papel, margens, colunas, cabeçalho e rodapé, e os comentários vão como anotações. Para trabalhar
+  no próprio `.odt`, use **Salvar como**.
+- No ODT, as **revisões** vão como alterações controladas: texto inserido, texto excluído e
+  parágrafo unido, com autor e data. O LibreOffice as mostra para você aceitar ou rejeitar. No HTML
+  e no Markdown, as revisões saem já aceitas e os **comentários** ficam de fora.
+- As **equações** vão junto em todos os formatos.
 
 ---
 
@@ -1171,7 +1204,7 @@ O documento passa a ser o `.docx`, e o próximo **Salvar** grava nele.
 | Limite | O que acontece |
 | --- | --- |
 | **Arquivos acima de 20 MB** | não abrem |
-| **`.odt` e `.ods`** | não abrem; o documento pode ser **exportado** para `.odt` |
+| **`.ods`** | não abre |
 | **Macros** | um `.dotm` abre, mas sem as macros |
 | **Mesclar células na planilha** | ainda não existe |
 | **Filtros de planilha** | são preservados no arquivo, mas não há tela para criar ou alterar |

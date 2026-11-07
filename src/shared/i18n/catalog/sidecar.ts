@@ -25,6 +25,26 @@ export const SIDECAR = {
     pt: 'Não foi possível abrir este arquivo. Ele pode estar danificado ou não ser um documento do Word.',
     en: 'This file could not be opened. It may be damaged or not be a Word document.',
   },
+  'sidecar.error.odtUnreadable': {
+    pt: 'Não foi possível abrir este arquivo. Ele pode estar danificado ou não ser um documento ODT.',
+    en: 'This file could not be opened. It may be damaged or not be an ODT document.',
+  },
+  'sidecar.error.odtEncrypted': {
+    pt: 'Este documento ODT está protegido por senha. Abra-o no LibreOffice, remova a senha e tente de novo.',
+    en: 'This ODT document is password protected. Open it in LibreOffice, remove the password and try again.',
+  },
+  'sidecar.error.odtWithoutContent': {
+    pt: 'O arquivo não contém o texto de um documento ODT.',
+    en: 'The file does not contain the text of an ODT document.',
+  },
+  'sidecar.error.odtNotText': {
+    pt: 'Este arquivo não é um documento de texto ODT (pode ser uma planilha ou apresentação).',
+    en: 'This file is not an ODT text document (it may be a spreadsheet or presentation).',
+  },
+  'sidecar.error.odtTooLarge': {
+    pt: 'Uma parte deste documento ODT é grande demais para abrir com segurança.',
+    en: 'A part of this ODT document is too large to open safely.',
+  },
   'sidecar.error.originalDamaged': {
     pt: 'O arquivo original está vazio ou danificado.',
     en: 'The original file is empty or damaged.',
@@ -111,6 +131,10 @@ export const SIDECAR = {
     pt: 'campos calculados (como sumário e número de página)',
     en: 'calculated fields (such as table of contents and page number)',
   },
+  'sidecar.notice.plainFields': {
+    pt: 'campos calculados que o editor não tem (o texto atual fica)',
+    en: 'calculated fields the editor does not have (their current text stays)',
+  },
   'sidecar.notice.headerFields': {
     pt: 'campos calculados no cabeçalho',
     en: 'calculated fields in the header',
@@ -121,6 +145,30 @@ export const SIDECAR = {
   'sidecar.notice.drawings': { pt: 'desenhos', en: 'drawings' },
   'sidecar.notice.smartTags': { pt: 'marcações inteligentes', en: 'smart tags' },
   'sidecar.notice.element': { pt: '{value}', en: '{value}' },
+  'sidecar.notice.revisions': { pt: 'revisões controladas', en: 'tracked changes' },
+  'sidecar.notice.bookmarks': { pt: 'indicadores e referências', en: 'bookmarks and references' },
+  'sidecar.notice.sections': {
+    pt: 'seções (colunas e mudanças de página)',
+    en: 'sections (columns and page changes)',
+  },
+  'sidecar.notice.textBoxes': { pt: 'caixas de texto', en: 'text boxes' },
+  'sidecar.notice.forms': { pt: 'campos de formulário', en: 'form fields' },
+  'sidecar.notice.indexes': {
+    pt: 'sumários e índices (ficam como texto)',
+    en: 'tables of contents and indexes (kept as text)',
+  },
+  'sidecar.notice.imagePosition': {
+    pt: 'posição de imagem flutuante (fica na linha do texto)',
+    en: 'floating image position (placed in line with the text)',
+  },
+  'sidecar.notice.paperSizeChanged': {
+    pt: 'tamanho de papel diferente de A4 e Carta (o documento passa a usar A4)',
+    en: 'paper size other than A4 and Letter (the document now uses A4)',
+  },
+  'sidecar.notice.bandFormatting': {
+    pt: 'formatação, tabela ou imagem do cabeçalho ou rodapé (fica só o texto)',
+    en: 'formatting, table or image in the header or footer (only the text is kept)',
+  },
   'sidecar.notice.foreignBands': {
     pt: 'cabeçalho e rodapé do arquivo .docx de origem',
     en: 'header and footer from the original .docx file',
@@ -314,10 +362,6 @@ export const SIDECAR = {
   'sidecar.notice.shiftedTablePart': {
     pt: 'largura, mesclagem ou sombreamento de parte de uma tabela que você editou',
     en: 'width, merge or shading of part of a table you edited',
-  },
-  'sidecar.notice.editorVerticalMerge': {
-    pt: 'mesclagem vertical de células feita no editor',
-    en: 'vertical cell merge made in the editor',
   },
   'sidecar.notice.editedCellSpecialContent': {
     pt: 'conteúdo especial de uma célula que você editou',

@@ -206,6 +206,18 @@ describe('styles in the internal format', () => {
     expect(parseDocument(serializeDocument({ ...richDocument, properties })).properties).toEqual(properties)
   })
 
+  it('marks a version 14 file as predating vertical merges, and the current one not', () => {
+    // Before version 15 a merge's lower cells were ordinary cells: saving to DOCX reads the
+    // original the same way, or every merged table would look edited.
+    const v14 = JSON.stringify({ ...JSON.parse(v2(BUILTIN_STYLES)), version: 14 })
+    expect(parseDocument(v14).beforeVerticalMerges).toBe(true)
+    expect(parseDocument(v14).beforeMath).toBeUndefined()
+    expect(parseDocument(serializeDocument(richDocument)).beforeVerticalMerges).toBeUndefined()
+
+    const legacy = parseDocument(serializeDocument({ ...richDocument, beforeVerticalMerges: true }))
+    expect(legacy.beforeVerticalMerges).toBe(true)
+  })
+
   it('marks a version 10 file as predating equations, and the current one not', () => {
     // Before equations there is no `math` node, and editing the paragraph loses the equation:
     // saving to DOCX says so.

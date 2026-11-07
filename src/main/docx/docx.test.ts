@@ -11,7 +11,8 @@ import { inflateRawSync } from 'node:zlib'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { SidecarClient } from '../sidecar/client.js'
 import { sidecarPathIn } from '../sidecar/locate.js'
-import { adoptDocxOriginal, followDocxOriginal, forgetOpenedDocx, openDocx, saveDocx } from './index.js'
+import { adoptOriginal, followOriginal, forgetOpenedOriginal, OriginalFormat } from '../opened-original.js'
+import { openDocx, saveDocx } from './index.js'
 
 const corpusDirectory = process.env['LIBREVIA_CORPUS_DIR']
 
@@ -89,7 +90,7 @@ describe.skipIf(documents.length === 0)('real corpus', () => {
 
   it.each(documents)('saves %s without rewriting anything when nothing was edited', async (path) => {
     // Opening and saving by reflex costs nothing.
-    forgetOpenedDocx()
+    forgetOpenedOriginal()
     const opened = await openDocx(client, path)
     const saved = await saveDocx(client, opened.content, { origin: path, destination: path })
 
@@ -99,7 +100,7 @@ describe.skipIf(documents.length === 0)('real corpus', () => {
 
   it('keeps every package part except the body', async () => {
     const path = documents[0]!
-    forgetOpenedDocx()
+    forgetOpenedOriginal()
 
     const original = await readFile(path)
     const opened = await openDocx(client, path)
@@ -117,7 +118,7 @@ describe.skipIf(documents.length === 0)('real corpus', () => {
   it('does not lend the open package to a document from another origin', async () => {
     // A new document after opening a `.docx` does not write over its bytes.
     const path = documents[0]!
-    forgetOpenedDocx()
+    forgetOpenedOriginal()
     await openDocx(client, path)
 
     const saved = await saveDocx(client, newDocument('Outro documento.'), {
@@ -153,9 +154,9 @@ describe.skipIf(!published)('new document in .docx', () => {
 
   it('the second save to the same file starts from the same package as the first', async () => {
     const destination = '/tmp/novo-duas-vezes.docx'
-    forgetOpenedDocx()
+    forgetOpenedOriginal()
     const first = await saveDocx(client, newDocument('Same version.'), { origin: null, destination })
-    followDocxOriginal(null, destination, first)
+    followOriginal(null, destination, { original: first.original, format: OriginalFormat.Docx })
 
     const second = await saveDocx(client, newDocument('Same version.'), {
       origin: destination,
@@ -171,7 +172,7 @@ describe.skipIf(!published)('new document in .docx', () => {
     // Always starting from the minimal package, saving again adds no numbering or image to what was
     // there.
     const destination = '/tmp/novo-cinco-vezes.docx'
-    forgetOpenedDocx()
+    forgetOpenedOriginal()
 
     const counted: { media: number; numbering: number }[] = []
     for (let round = 0; round < 5; round++) {
@@ -180,7 +181,7 @@ describe.skipIf(!published)('new document in .docx', () => {
         origin,
         destination,
       })
-      followDocxOriginal(origin, destination, saved)
+      followOriginal(origin, destination, { original: saved.original, format: OriginalFormat.Docx })
 
       const parts = await listParts(Buffer.from(saved.bytes))
       const numbering = parts.get('word/numbering.xml')?.toString('utf8') ?? ''
@@ -198,7 +199,7 @@ describe.skipIf(!published)('new document in .docx', () => {
   it('declares the loss of the source package when the model has an oid and the original is not here', async () => {
     // A model with `oid` saved without its package loses styles, notes and comments: the user has
     // to read that on screen.
-    forgetOpenedDocx()
+    forgetOpenedOriginal()
     const content = JSON.stringify({
       page,
       doc: {
@@ -248,7 +249,7 @@ describe.skipIf(!published)('the original package path', () => {
   /** Written by the writer itself. */
   async function docxOnDisk(name: string): Promise<string> {
     const path = join(directory, name)
-    forgetOpenedDocx()
+    forgetOpenedOriginal()
     const created = await saveDocx(client, newDocument('Documento de origem.'), {
       origin: null,
       destination: path,
@@ -264,7 +265,7 @@ describe.skipIf(!published)('the original package path', () => {
 
   it('recognizes the original when it was opened through a differently written path', async () => {
     const path = await docxOnDisk('aberto.docx')
-    forgetOpenedDocx()
+    forgetOpenedOriginal()
 
     const opened = await openDocx(client, detoured(path))
     const saved = await saveDocx(client, opened.content, { origin: path, destination: path })
@@ -275,7 +276,7 @@ describe.skipIf(!published)('the original package path', () => {
 
   it('recognizes the original when the save origin is written differently', async () => {
     const path = await docxOnDisk('gravado.docx')
-    forgetOpenedDocx()
+    forgetOpenedOriginal()
 
     const opened = await openDocx(client, path)
     const saved = await saveDocx(client, opened.content, {
@@ -290,13 +291,13 @@ describe.skipIf(!published)('the original package path', () => {
   it('rebinds the recovered original through a differently written path', async () => {
     // Recovery rereads the bytes from disk through the draft's path.
     const path = await docxOnDisk('recuperado.docx')
-    forgetOpenedDocx()
+    forgetOpenedOriginal()
 
     // The model comes from the draft; here, from a read that is forgotten right away.
     const opened = await openDocx(client, path)
-    forgetOpenedDocx()
+    forgetOpenedOriginal()
 
-    expect(await adoptDocxOriginal(detoured(path))).toBe(true)
+    expect(await adoptOriginal(detoured(path), OriginalFormat.Docx)).toBe(true)
     const saved = await saveDocx(client, opened.content, { origin: path, destination: path })
 
     expect(saved.inventory.lost).toEqual([])

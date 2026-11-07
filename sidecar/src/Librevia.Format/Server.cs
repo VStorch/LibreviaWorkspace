@@ -32,6 +32,22 @@ public sealed class Server(Stream input, Stream output)
                              ?? throw new Docx.DocxException("sidecar.error.pageMissing");
                 return Task.FromResult(new Reply(null, Docx.DocxTemplate.Create(create.Page, create.Styles)));
             },
+            ["odt.create"] = static (request, _, _) =>
+            {
+                var create = request.Params.Deserialize<Odt.OdtCreateDto>(JsonOptions.Default)
+                             ?? throw new Docx.DocxException("sidecar.error.pageMissing");
+                return Task.FromResult(new Reply(null, Odt.OdtTemplate.Create(create)));
+            },
+            ["odt.open"] = static (_, binary, _) =>
+                Task.FromResult(Reply.Of(Odt.OdtReader.Read(binary.ToArray()))),
+            // As `docx.save`: the binary is the opened `.odt`, which main kept.
+            ["odt.save"] = static (request, binary, _) =>
+            {
+                var model = request.Params.Deserialize<Docx.DocumentModelDto>(JsonOptions.Default)
+                            ?? throw new Docx.DocxException("sidecar.error.documentMissing");
+                var (bytes, result) = Odt.OdtWriter.Write(binary.ToArray(), model);
+                return Task.FromResult(new Reply(result, bytes));
+            },
             ["xlsx.open"] = static (_, binary, _) =>
                 Task.FromResult(Reply.Of(Xlsx.XlsxReader.Read(binary.ToArray()))),
             // An empty binary is a new spreadsheet, without an original.
@@ -127,6 +143,13 @@ public sealed class Server(Stream input, Stream output)
             await RespondErrorAsync(
                 request?.Id ?? 0,
                 new ErrorPayload("DOCX_INVALID", problem.Message),
+                cancellation).ConfigureAwait(false);
+        }
+        catch (Odt.OdtException problem)
+        {
+            await RespondErrorAsync(
+                request?.Id ?? 0,
+                new ErrorPayload("ODT_INVALID", problem.Message),
                 cancellation).ConfigureAwait(false);
         }
         catch (Xlsx.XlsxException problem)

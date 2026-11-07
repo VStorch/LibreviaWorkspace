@@ -79,6 +79,8 @@ export interface WorkspaceState {
   beforeNotes: boolean
   /** The draft predates equations; see `DocumentModel.beforeMath`. */
   beforeMath: boolean
+  /** The draft predates vertical merges as `rowspan`; see `DocumentModel.beforeVerticalMerges`. */
+  beforeVerticalMerges: boolean
   properties: DocumentProperties | undefined
   workbook: WorkbookModel | null
   /** Changes on every new/open: the editor is remounted, with no leftover state. */
@@ -146,7 +148,7 @@ export interface WorkspaceState {
   inspectPersonalData: () => Promise<PrivacyReport | null>
   /** Marks the file modified: only saving writes the clean version. */
   removePersonalData: (categories: readonly PrivacyCategory[]) => Promise<boolean>
-  /** `null` browses for a `.dotx`. Returns whether the new document reached the screen. */
+  /** `null` browses for a `.dotx` or `.ott`. Returns whether the new document reached the screen. */
   newFromTemplate: (
     template: { readonly source: 'builtin' | 'user'; readonly id: string } | null,
   ) => Promise<boolean>

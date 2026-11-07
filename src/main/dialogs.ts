@@ -3,6 +3,8 @@ import { DiscardChoice, DocumentKind, PlainTextChoice } from '@shared/types.js'
 import {
   DOCUMENT_EXTENSION,
   EXCEL_EXTENSION,
+  ODT_EXTENSION,
+  ODT_TEMPLATE_EXTENSION,
   PLAIN_TEXT_EXTENSION,
   SPREADSHEET_EXTENSION,
   OPENABLE_EXTENSIONS,
@@ -20,6 +22,7 @@ function getFilters() {
     { name: t('dialog.filter.allSupported'), extensions: OPENABLE_EXTENSIONS.map(bare) },
     { name: t('dialog.filter.wordDocs'), extensions: [bare(WORD_EXTENSION)] },
     { name: t('dialog.filter.wordTemplates'), extensions: templateExtensions() },
+    { name: t('dialog.filter.odtDocs'), extensions: [bare(ODT_EXTENSION), bare(ODT_TEMPLATE_EXTENSION)] },
     { name: t('dialog.filter.excelSheets'), extensions: [bare(EXCEL_EXTENSION)] },
     { name: t('dialog.filter.documents'), extensions: [bare(DOCUMENT_EXTENSION)] },
     { name: t('dialog.filter.spreadsheets'), extensions: [bare(SPREADSHEET_EXTENSION)] },
@@ -43,7 +46,9 @@ function getSaveFilters(kind: DocumentKind) {
     ? [
         { name: t('dialog.filter.document'), extensions: [bare(DOCUMENT_EXTENSION)] },
         wordDocFilter(),
+        { name: t('dialog.filter.odt'), extensions: [bare(ODT_EXTENSION)] },
         { name: t('dialog.filter.wordTemplate'), extensions: [bare(WORD_TEMPLATE_EXTENSION)] },
+        { name: t('dialog.filter.odtTemplate'), extensions: [bare(ODT_TEMPLATE_EXTENSION)] },
         { name: t('dialog.filter.plainText'), extensions: [bare(PLAIN_TEXT_EXTENSION)] },
       ]
     : [
@@ -78,18 +83,25 @@ export async function showTemplatePickerDialog(
     defaultPath,
     properties: ['openFile'],
     filters: [
-      { name: t('dialog.filter.wordTemplates'), extensions: templateExtensions() },
+      {
+        name: t('dialog.filter.documentTemplates'),
+        extensions: [...templateExtensions(), bare(ODT_TEMPLATE_EXTENSION)],
+      },
       { name: t('dialog.filter.allFiles'), extensions: ['*'] },
     ],
   })
   return result.canceled ? null : (result.filePaths[0] ?? null)
 }
 
+export interface SaveDialogOptions {
+  readonly wordOnly?: boolean
+}
+
 export async function showSaveFileDialog(
   window: BrowserWindow,
   suggestedName: string,
   kind: DocumentKind,
-  wordOnly = false,
+  { wordOnly = false }: SaveDialogOptions = {},
 ): Promise<string | null> {
   const result = await dialog.showSaveDialog(window, {
     title: t('dialog.save.title'),

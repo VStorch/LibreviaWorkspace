@@ -1,16 +1,10 @@
-import { readFile } from 'node:fs/promises'
-import { AppError, ErrorCode, fromFileSystemError } from '@shared/errors.js'
+import { AppError, ErrorCode } from '@shared/errors.js'
 import { t } from '../i18n.js'
-import { editorPreferences } from '../preferences.js'
+import { readFileBytes } from './read-bytes.js'
 
 /** With a BOM, for Windows Notepad files. Without one, UTF-8. */
 export async function readTextFile(path: string): Promise<string> {
-  let bytes: Buffer
-  try {
-    bytes = await readFile(path)
-  } catch (cause) {
-    throw fromFileSystemError(cause, 'read', editorPreferences().language)
-  }
+  const bytes = await readFileBytes(path)
 
   if (startsWith(bytes, [0xef, 0xbb, 0xbf])) {
     return bytes.subarray(3).toString('utf8')

@@ -84,7 +84,9 @@ public static class Fixtures
             new DocumentFormat.OpenXml.Office2013.Word.CommentEx { ParaId = "10000000", Done = false },
             new DocumentFormat.OpenXml.Office2013.Word.CommentEx
             {
-                ParaId = "10000001", ParaIdParent = "10000000", Done = false,
+                ParaId = "10000001",
+                ParaIdParent = "10000000",
+                Done = false,
             },
             new DocumentFormat.OpenXml.Office2013.Word.CommentEx { ParaId = "10000002", Done = true },
             new DocumentFormat.OpenXml.Office2013.Word.CommentEx { ParaId = "10000003", Done = false });
@@ -739,7 +741,8 @@ public static class Fixtures
         section.AppendChild(new Columns(
             new Column { Width = "2000", Space = "400" },
             new Column { Width = "3000", Space = "400" },
-            new Column { Width = "3226" }) { ColumnCount = 3, EqualWidth = false });
+            new Column { Width = "3226" })
+        { ColumnCount = 3, EqualWidth = false });
     });
 
     /// <summary>
@@ -1069,11 +1072,13 @@ public static class Fixtures
         numbering.Numbering = new Numbering(
             new AbstractNum(
                 Level(0, NumberFormatValues.Decimal, "%1.", 360),
-                Level(1, NumberFormatValues.LowerLetter, "%1.%2)", 720)) { AbstractNumberId = 3 },
+                Level(1, NumberFormatValues.LowerLetter, "%1.%2)", 720))
+            { AbstractNumberId = 3 },
             new NumberingInstance(new AbstractNumId { Val = 3 }) { NumberID = 5 },
             new NumberingInstance(
                 new AbstractNumId { Val = 3 },
-                new LevelOverride(new StartOverrideNumberingValue { Val = 10 }) { LevelIndex = 0 }) { NumberID = 6 });
+                new LevelOverride(new StartOverrideNumberingValue { Val = 10 }) { LevelIndex = 0 })
+            { NumberID = 6 });
 
         body.AppendChild(Paragraph("Introdução."));
         body.AppendChild(NumberedParagraph("Um", 5));
@@ -1222,6 +1227,25 @@ public static class Fixtures
             Paragraph("Continuação")));
         row.AppendChild(new TableCell(Paragraph("Dado B")));
         table.AppendChild(row);
+
+        body.AppendChild(table);
+    });
+
+    /// <summary>A vertical merge in the middle column, continued in a row that starts one column ahead.</summary>
+    public static byte[] WithMergeAfterGridBefore() => Build((body, _) =>
+    {
+        var table = new Table(
+            new TableProperties(new TableWidth { Width = "9000", Type = TableWidthUnitValues.Dxa }),
+            new TableGrid(new GridColumn { Width = "3000" }, new GridColumn { Width = "3000" }, new GridColumn { Width = "3000" }));
+
+        table.AppendChild(new TableRow(
+            new TableCell(Paragraph("Esquerda")),
+            new TableCell(new TableCellProperties(new VerticalMerge { Val = MergedCellValues.Restart }), Paragraph("Mesclada")),
+            new TableCell(Paragraph("Direita"))));
+        table.AppendChild(new TableRow(
+            new TableRowProperties(new GridBefore { Val = 1 }),
+            new TableCell(new TableCellProperties(new VerticalMerge { Val = MergedCellValues.Continue }), Paragraph("Continuação")),
+            new TableCell(Paragraph("Dado B"))));
 
         body.AppendChild(table);
     });
@@ -1507,7 +1531,8 @@ public static class Fixtures
                     new NumberingFormat { Val = NumberFormatValues.LowerLetter },
                     new LevelText { Val = "%2." },
                     new PreviousParagraphProperties(new Indentation { Left = "1440", Hanging = "360" }))
-                { LevelIndex = 1 }) { AbstractNumberId = 4 },
+                { LevelIndex = 1 })
+            { AbstractNumberId = 4 },
             new NumberingInstance(new AbstractNumId { Val = 4 }) { NumberID = 1 });
 
         body.AppendChild(NumberedParagraph("Primeiro", 1));

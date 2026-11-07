@@ -202,6 +202,27 @@ public class DocxTemplateTests
     }
 
     [Fact]
+    public void PlainTextHeaderOfANewDocumentWithSectionsReachesTheLastSection()
+    {
+        var page = A4() with { HeaderText = "Relatório anual" };
+        var first = Text("paragraph", "Primeira seção.", ("sectionBreak", "s1"));
+        var model = new DocumentModelDto(
+            page with { Orientation = "landscape" },
+            Node.Of("doc", first, Text("paragraph", "Segunda seção.")),
+            Sections: [page with { Id = "s1" }]);
+
+        var (saved, _) = Roundtrip.Save(DocxTemplate.Create(page), model);
+
+        var header = Assert.Single(
+            Roundtrip.PartsOf(saved).Keys,
+            name => name.StartsWith("word/header", StringComparison.Ordinal));
+        Assert.Contains("Relatório anual", Roundtrip.XmlOf(saved, header), StringComparison.Ordinal);
+        var body = Roundtrip.XmlOf(saved);
+        var lastSection = body[body.LastIndexOf("<w:sectPr", StringComparison.Ordinal)..];
+        Assert.Contains("w:headerReference", lastSection, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void BandFromAnotherPackageDoesNotBreakTheWriteAndEntersTheInventory()
     {
         // A `.sdoc` that was a `.docx` keeps the band with relationship ids from the source package

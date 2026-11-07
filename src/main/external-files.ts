@@ -1,5 +1,6 @@
-import { extname, resolve } from 'node:path'
+import { resolve } from 'node:path'
 import type { BrowserWindow } from 'electron'
+import { isOpenableExtension } from '@services/file/formats.js'
 import { MenuCommand } from '@shared/types.js'
 import { normalizePath } from './fs/paths.js'
 import { sendMenuCommand } from './window.js'
@@ -8,16 +9,12 @@ const requested = new Set<string>()
 const pending: string[] = []
 let target: BrowserWindow | null = null
 
-const ARGUMENT_EXTENSIONS = ['.docx', '.dotx', '.dotm', '.pdf']
-
 /**
- * Only native open arguments grant access to a file outside the recent list. A `.dotx` or `.dotm`
- * from the command line creates a new document, as in Word; a `.pdf` opens in the viewer.
+ * The first openable path among the arguments, resolved against `cwd`. Only native open arguments
+ * grant access to a file outside the recent list.
  */
 export function fileFromArguments(args: readonly string[], cwd: string): string | undefined {
-  const path = args.find(
-    (arg) => !arg.startsWith('-') && ARGUMENT_EXTENSIONS.includes(extname(arg).toLowerCase()),
-  )
+  const path = args.find((arg) => !arg.startsWith('-') && isOpenableExtension(arg))
   return path === undefined ? undefined : resolve(cwd, path)
 }
 

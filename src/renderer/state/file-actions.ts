@@ -228,9 +228,7 @@ function createSaveActions(
       const wordOnly = options?.wordOnly === true
       if (wordOnly && file.kind !== DocumentKind.Document) return refuseWordExport(set)
 
-      const chosen = await ctx.call(() =>
-        window.api.file.chooseSavePath({ suggestedName: file.name, kind: file.kind, wordOnly }),
-      )
+      const chosen = await ctx.call(() => chooseSavePath(file, wordOnly))
       if (chosen === null || chosen.canceled) return false
 
       // Before writing: giving up here writes no byte.
@@ -260,6 +258,13 @@ function createSaveActions(
       await get().refreshRecents()
     },
   }
+}
+
+function chooseSavePath(
+  file: OpenFile,
+  wordOnly: boolean,
+): ReturnType<typeof window.api.file.chooseSavePath> {
+  return window.api.file.chooseSavePath({ suggestedName: file.name, kind: file.kind, wordOnly })
 }
 
 /**
@@ -322,7 +327,7 @@ export function openedNotice(
 /** `.xlsx` arrives converted in the `.ssheet` envelope: the extension picks the editor. */
 export function interpret(opened: OpenedFile): LoadedFile {
   const kind = kindFromPath(opened.path)
-  // A Word template opens without a path, so "save" never writes over it.
+  // A template opens without a path, so "save" never writes over it.
   const file: OpenFile =
     opened.template === true
       ? { path: null, name: opened.name, kind, origin: opened.path }

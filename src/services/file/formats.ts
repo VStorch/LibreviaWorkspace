@@ -12,6 +12,12 @@ export const EXCEL_EXTENSION = '.xlsx'
 /** `.dotm` is only opened: its macros do not travel, so it is never a destination. */
 export const WORD_TEMPLATE_EXTENSION = '.dotx'
 export const WORD_MACRO_TEMPLATE_EXTENSION = '.dotm'
+/**
+ * A destination for any document: the sidecar writes into the `.odt` it came from, or into a
+ * minimal package for any other.
+ */
+export const ODT_EXTENSION = '.odt'
+export const ODT_TEMPLATE_EXTENSION = '.ott'
 export const SUPPORTED_EXTENSIONS = [
   DOCUMENT_EXTENSION,
   SPREADSHEET_EXTENSION,
@@ -19,6 +25,8 @@ export const SUPPORTED_EXTENSIONS = [
   WORD_TEMPLATE_EXTENSION,
   WORD_MACRO_TEMPLATE_EXTENSION,
   EXCEL_EXTENSION,
+  ODT_EXTENSION,
+  ODT_TEMPLATE_EXTENSION,
   PLAIN_TEXT_EXTENSION,
 ] as const
 /** Only viewed, never a save destination: that is why it stays out of `SUPPORTED_EXTENSIONS`. */
@@ -31,6 +39,25 @@ export function isPlainTextPath(path: string): boolean {
 
 export function isPdfPath(path: string): boolean {
   return extensionOf(path) === PDF_EXTENSION
+}
+
+export function isOdtPath(path: string): boolean {
+  return extensionOf(path) === ODT_EXTENSION
+}
+
+/** Opening creates a new document from the template, as for a Word template. */
+export function isOdtTemplatePath(path: string): boolean {
+  return extensionOf(path) === ODT_TEMPLATE_EXTENSION
+}
+
+/** Any ODF text package the sidecar reads and writes: document or template. */
+export function isOdtPackagePath(path: string): boolean {
+  return isOdtPath(path) || isOdtTemplatePath(path)
+}
+
+/** What the personal data inspector reads: an Office package or an ODF text package. */
+export function isInspectablePackagePath(path: string): boolean {
+  return isOfficePackagePath(path) || isOdtPackagePath(path)
 }
 
 export function isWordPath(path: string): boolean {
@@ -73,8 +100,13 @@ export function fileNameFromPath(path: string): string {
   return lastSeparator === -1 ? path : path.slice(lastSeparator + 1)
 }
 
+/** What main reads into the editor, and saves to. */
 export function isSupportedExtension(path: string): boolean {
   return (SUPPORTED_EXTENSIONS as readonly string[]).includes(extensionOf(path))
+}
+
+export function isOpenableExtension(path: string): boolean {
+  return (OPENABLE_EXTENSIONS as readonly string[]).includes(extensionOf(path))
 }
 
 export function kindFromPath(path: string): DocumentKind {

@@ -5,11 +5,18 @@ import {
   ensureSupportedExtension,
   extensionOf,
   fileNameFromPath,
+  isInspectablePackagePath,
+  isOdtPackagePath,
+  isOdtPath,
+  isOdtTemplatePath,
+  isOfficePackagePath,
   isPdfPath,
+  isOpenableExtension,
   kindFromPath,
   isSupportedExtension,
   isWordPackagePath,
   isWordTemplatePath,
+  OPENABLE_EXTENSIONS,
 } from './formats.js'
 
 describe('fileNameFromPath', () => {
@@ -66,6 +73,62 @@ describe('PDF', () => {
     // Only viewed: saving text into a `.pdf` would produce a file no reader opens.
     expect(isSupportedExtension('/a/b.pdf')).toBe(false)
     expect(ensureSupportedExtension('/a/b.pdf')).toBe('/a/b.pdf.sdoc')
+  })
+})
+
+describe('ODT', () => {
+  it.each(['/a/b.odt', '/a/b.ODT'])('%s is read into a document', (path) => {
+    expect(isOdtPath(path)).toBe(true)
+    expect(isSupportedExtension(path)).toBe(true)
+    expect(kindFromPath(path)).toBe(DocumentKind.Document)
+    expect(OPENABLE_EXTENSIONS).toContain('.odt')
+  })
+
+  it('is a save target for any document', () => {
+    expect(isSupportedExtension('/a/b.odt')).toBe(true)
+    expect(isWordPackagePath('/a/b.odt')).toBe(false)
+    expect(ensureSupportedExtension('/a/b.odt')).toBe('/a/b.odt')
+  })
+
+  it('a PDF is only viewed, not read into the editor', () => {
+    expect(isSupportedExtension('/a/b.pdf')).toBe(false)
+  })
+
+  it.each(['/a/b.odt', '/a/b.PDF', '/a/b.xlsx', '/a/b.dotm'])('%s can be opened', (path) => {
+    expect(isOpenableExtension(path)).toBe(true)
+  })
+
+  it.each(['/a/b.exe', '/a/odt', '/a/b.html'])('%s cannot be opened', (path) => {
+    expect(isOpenableExtension(path)).toBe(false)
+  })
+})
+
+describe('ODT templates', () => {
+  it.each(['/a/b.ott', '/a/b.OTT'])('%s is an ODT template and package, and a save target', (path) => {
+    expect(isOdtTemplatePath(path)).toBe(true)
+    expect(isOdtPackagePath(path)).toBe(true)
+    expect(isOdtPath(path)).toBe(false)
+    expect(isSupportedExtension(path)).toBe(true)
+    expect(ensureSupportedExtension(path)).toBe(path)
+    expect(kindFromPath(path)).toBe(DocumentKind.Document)
+  })
+
+  it('.odt is an ODT package, but not a template', () => {
+    expect(isOdtTemplatePath('/a/b.odt')).toBe(false)
+    expect(isOdtPackagePath('/a/b.odt')).toBe(true)
+  })
+
+  it.each(['/a/b.odt', '/a/b.ott', '/a/b.docx', '/a/b.dotx', '/a/b.xlsx'])(
+    '%s goes through the personal data inspector',
+    (path) => {
+      expect(isInspectablePackagePath(path)).toBe(true)
+    },
+  )
+
+  it('ODF packages stay out of the Office packages', () => {
+    expect(isOfficePackagePath('/a/b.odt')).toBe(false)
+    expect(isOfficePackagePath('/a/b.ott')).toBe(false)
+    expect(isInspectablePackagePath('/a/b.sdoc')).toBe(false)
   })
 })
 

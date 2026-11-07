@@ -55,8 +55,8 @@ export interface DocumentProperties {
   /** `TotalTime` from `app.xml`, in minutes. Read only: the editor does not measure it. */
   readonly totalTime?: number
   /**
-   * Word's `w:removePersonalInformation`, Excel's `filterPrivacy`: saving signs nothing with the
-   * person's name. Set by the personal data inspector.
+   * Word's `w:removePersonalInformation`, Excel's `filterPrivacy`, the ODT mark in `settings.xml`:
+   * saving signs nothing with the person's name. Set by the personal data inspector.
    */
   readonly removePersonalInformation?: boolean
   /** Absent leaves the file's as they are; a list replaces them. */

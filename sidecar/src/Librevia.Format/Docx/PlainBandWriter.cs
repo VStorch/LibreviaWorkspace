@@ -1,3 +1,4 @@
+using System.Globalization;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
@@ -13,6 +14,11 @@ internal static class PlainBandWriter
 {
     private const string HeaderId = "LibreviaHeader";
     private const string FooterId = "LibreviaFooter";
+
+    /// <summary>The plain band's look, as the editor draws it: 9 pt grey Calibri, centered.</summary>
+    internal const string BandColor = "444444";
+
+    internal const int BandSizePt = 9;
 
     public static void Apply(
         MainDocumentPart part,
@@ -80,29 +86,38 @@ internal static class PlainBandWriter
 
         var paragraph = Paragraph(text);
 
-        if (existing is not null)
+        // With sections, the last `w:sectPr` may be a new one that lost the reference to our part.
+        if (part.TryGetPartById(ownId, out var found))
         {
-            if (!part.TryGetPartById(ownId, out var found) || found is not TPart owned ||
-                owned.RootElement is not { } current)
-            {
-                return false;
-            }
-
-            // The read part carries namespace declarations the built one lacks.
-            if (Signature(current) == Signature(paragraph)) return false;
-
-            current.RemoveAllChildren();
-            current.AppendChild(paragraph);
-            current.Save();
-            touched?.Add(owned.Uri.OriginalString.TrimStart('/'));
-            return false;
+            if (found is not TPart owned || owned.RootElement is not { } current) return false;
+            Refresh(owned, current, paragraph, touched);
+        }
+        else
+        {
+            if (existing is not null) return false;
+            var created = part.AddNewPart<TPart>(ownId);
+            using var stream = created.GetStream(FileMode.Create);
+            root(paragraph).Save(stream);
         }
 
-        var created = part.AddNewPart<TPart>(ownId);
-        using (var stream = created.GetStream(FileMode.Create)) root(paragraph).Save(stream);
-
+        if (existing is not null) return false;
         section.PrependChild(new TReference { Type = HeaderFooterValues.Default, Id = ownId });
         return true;
+    }
+
+    private static void Refresh(
+        OpenXmlPart owned,
+        OpenXmlPartRootElement current,
+        Paragraph paragraph,
+        HashSet<string>? touched)
+    {
+        // The read part carries namespace declarations the built one lacks.
+        if (Signature(current) == Signature(paragraph)) return;
+
+        current.RemoveAllChildren();
+        current.AppendChild(paragraph);
+        current.Save();
+        touched?.Add(owned.Uri.OriginalString.TrimStart('/'));
     }
 
     private static string Signature(OpenXmlElement element) => string.Concat(element.Descendants().Select(child =>
@@ -146,8 +161,8 @@ internal static class PlainBandWriter
     private static Run Run(string text) => new(
         new RunProperties(
             new RunFonts { Ascii = TemplateStyles.BandFont, HighAnsi = TemplateStyles.BandFont },
-            new Color { Val = "444444" },
-            new FontSize { Val = "18" }),
+            new Color { Val = BandColor },
+            new FontSize { Val = (BandSizePt * 2).ToString(CultureInfo.InvariantCulture) }),
         new Text(text) { Space = SpaceProcessingModeValues.Preserve });
 
     /// <summary>

@@ -135,6 +135,7 @@ function modelOf(state: WorkspaceState, read: WorkspaceState['initialDoc']): Doc
     ...onlyDefined('notes', state.notes),
     ...onlyTrue('beforeNotes', state.beforeNotes),
     ...onlyTrue('beforeMath', state.beforeMath),
+    ...onlyTrue('beforeVerticalMerges', state.beforeVerticalMerges),
     ...onlyDefined('properties', state.properties),
   }
 }
@@ -173,6 +174,7 @@ export function loadedState(
     notes: model.notes,
     beforeNotes: model.beforeNotes === true,
     beforeMath: model.beforeMath === true,
+    beforeVerticalMerges: model.beforeVerticalMerges === true,
     properties: workbook?.properties ?? model.properties,
     generation: generation + 1,
     isDirty: false,

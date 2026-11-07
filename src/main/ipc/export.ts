@@ -1,18 +1,19 @@
 import { mkdir } from 'node:fs/promises'
 import { basename, dirname, extname, join } from 'node:path'
-import { deflateRawSync } from 'node:zlib'
 import { Language } from '@shared/i18n/language.js'
 import { IpcChannel } from '@shared/ipc-channels.js'
 import { exportHtml } from '@services/document/export-html.js'
 import { exportMarkdown } from '@services/document/export-markdown.js'
-import { exportOdt } from '@services/document/export-odt.js'
 import { parseDocument } from '@services/document/serialize.js'
-import { fileNameFromPath } from '@services/file/formats.js'
+import { fileNameFromPath, isOdtTemplatePath } from '@services/file/formats.js'
 import { showExportSaveDialog } from '../dialogs.js'
 import { writeFileAtomic } from '../fs/atomic-write.js'
 import { authorizePath } from '../fs/paths.js'
 import { t } from '../i18n.js'
+import { odtGenerator } from '../odt/generator.js'
+import { exportOdt } from '../odt/index.js'
 import { editorPreferences } from '../preferences.js'
+import { sidecar } from '../sidecar/index.js'
 import { handle } from './registry.js'
 import { windowOf } from './sender-window.js'
 
@@ -30,7 +31,6 @@ export function assetFolderOf(path: string): string {
 
 export function registerExportHandlers(): void {
   handle(IpcChannel.FileExport, async (payload, event) => {
-    const html = payload.format === 'html'
     const extension = { html: 'html', markdown: 'md', odt: 'odt' }[payload.format]
     const chosen = await showExportSaveDialog(
       windowOf(event),
@@ -39,34 +39,46 @@ export function registerExportHandlers(): void {
     )
     if (chosen === null) return { canceled: true as const }
 
-    const language = editorPreferences().language
-    const model = parseDocument(payload.content, language)
     const path = authorizePath(chosen)
-
     if (payload.format === 'odt') {
-      const bytes = exportOdt(model, {}, (data) => deflateRawSync(data))
-      await writeFileAtomic(path, Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength))
-    } else if (html) {
-      const text = exportHtml(model, {
-        fileName: payload.suggestedName,
-        lang: language === Language.Portuguese ? 'pt-BR' : 'en',
-        labels: { notes: t('dialog.export.notes'), backToText: t('dialog.export.backToText') },
+      const bytes = await exportOdt(sidecar(), payload.content, {
+        generator: odtGenerator(),
+        template: isOdtTemplatePath(path),
       })
-      await writeFileAtomic(path, text)
+      await writeFileAtomic(path, Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength))
     } else {
-      const folder = assetFolderOf(path)
-      const { markdown, assets } = exportMarkdown(model, { assetFolder: folder })
-      // The folder only appears when there are images.
-      if (assets.length > 0) {
-        const directory = join(dirname(path), folder)
-        await mkdir(directory, { recursive: true })
-        for (const asset of assets) {
-          await writeFileAtomic(join(directory, asset.name), Buffer.from(asset.base64, 'base64'))
-        }
-      }
-      await writeFileAtomic(path, markdown)
+      await writeTextExport(path, payload.format, payload)
     }
 
     return { canceled: false as const, path, name: fileNameFromPath(path) }
   })
+}
+
+async function writeTextExport(
+  path: string,
+  format: 'html' | 'markdown',
+  payload: { readonly content: string; readonly suggestedName: string },
+): Promise<void> {
+  const language = editorPreferences().language
+  const model = parseDocument(payload.content, language)
+  if (format === 'html') {
+    const text = exportHtml(model, {
+      fileName: payload.suggestedName,
+      lang: language === Language.Portuguese ? 'pt-BR' : 'en',
+      labels: { notes: t('dialog.export.notes'), backToText: t('dialog.export.backToText') },
+    })
+    await writeFileAtomic(path, text)
+    return
+  }
+
+  const folder = assetFolderOf(path)
+  const { markdown, assets } = exportMarkdown(model, { assetFolder: folder })
+  if (assets.length > 0) {
+    const directory = join(dirname(path), folder)
+    await mkdir(directory, { recursive: true })
+    for (const asset of assets) {
+      await writeFileAtomic(join(directory, asset.name), Buffer.from(asset.base64, 'base64'))
+    }
+  }
+  await writeFileAtomic(path, markdown)
 }

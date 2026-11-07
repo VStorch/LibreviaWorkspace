@@ -99,7 +99,7 @@ Ele também:
 | **Notas** | notas de rodapé e de fim, editadas no pé da própria folha |
 | **Revisão** | comentários com resposta e resolução; controle de alterações enquanto você digita; aceitar e rejeitar |
 | **Equações** | mostra as equações do Word e permite escrever novas em LaTeX |
-| **Modelos** | cria documentos a partir de modelos do Word (`.dotx`); quatro vêm com o aplicativo |
+| **Modelos** | cria documentos a partir de modelos do Word (`.dotx`) e do ODF (`.ott`); quatro vêm com o aplicativo |
 | **Ferramentas** | ortografia em português sem internet, localizar e substituir, contar palavras, caracteres especiais, autocorreção tipográfica |
 | **Assistente de IA** | opcional e desligado de fábrica: reescreve, resume, revisa ou traduz o trecho selecionado, com o documento aberto como contexto e com permissão para os que ficam fora do computador; a resposta chega formatada (negrito, títulos, listas) e entra como alteração controlada. Na planilha, explica e cria fórmulas e preenche colunas, com prévia antes de gravar. Funciona com Ollama e LM Studio, neste computador, com o Claude Code, com agentes que falam o protocolo ACP (Gemini CLI, Codex e outros) ou com um serviço na nuvem. Programas externos, como o Claude Code, podem ler o documento aberto e deixar revisões e comentários pelo protocolo MCP, sem usar a rede; na planilha, leem as células e propõem escritas, que você aplica ou descarta |
 
@@ -119,7 +119,7 @@ Ele também:
 | **PDF e impressão** | documentos e planilhas, com cabeçalho, rodapé, numeração, margens e orientação; o PDF exportado leva as propriedades |
 | **Leitor de PDF** | abre PDFs, inclusive protegidos por senha; edita as propriedades e avisa quantas versões anteriores o arquivo guarda |
 | **Propriedades** | resumo, propriedades personalizadas e estatísticas, em documentos e planilhas |
-| **Dados pessoais** | o inspetor acha e remove nomes, pastas, miniatura e metadados das fotos de um `.docx` ou `.xlsx` |
+| **Dados pessoais** | o inspetor acha e remove nomes, pastas, miniatura e metadados das fotos de um `.docx`, `.odt` ou `.xlsx` |
 | **Exportar** | documento para PDF, HTML, Markdown e ODT |
 | **Recuperação** | rascunho a cada oito segundos, oferecido de volta depois de uma queda |
 | **Somente leitura** | só trava o arquivo quando editar pode apagar algo importante dele |
@@ -143,21 +143,40 @@ Ele também:
 | `.txt` | ✅ | ✅ | só texto; salvar nele descarta a formatação, e o app avisa antes |
 | `.pdf` | ✅ | exporta | abre só para ler; título, autor, assunto e palavras-chave se alteram; documentos e planilhas exportam para ele |
 | `.html`, `.md` | — | exporta | documento numa página só, ou em Markdown com as imagens numa pasta ao lado |
-| `.odt` | — | exporta | documento no formato do LibreOffice |
+| `.odt` | ✅ | ✅ | documento do LibreOffice; o que você não editou volta intacto |
+| `.ott` | ✅ | ✅ | modelo do LibreOffice; abrir cria um documento novo, sem título |
 
 <details>
-<summary><b>Por que o Librevia exporta ODT mas não abre ODT nem ODS</b></summary>
+<summary><b>Como funciona o ODT, e por que o ODS não abre</b></summary>
 
-**Escrever** um `.odt` novo é simples: o Librevia conhece o próprio documento e só precisa
-descrevê-lo no formato do LibreOffice. Não há nada a preservar.
+Um `.odt` abre como arquivo próprio: `Ctrl+S` grava nele. Como no `.docx`, cada parágrafo,
+título, lista e tabela recebe uma identificação ao abrir. Ao salvar, o bloco que você não
+editou volta com o texto exato que tinha no `content.xml`. Só o bloco editado é escrito de
+novo.
 
-**Abrir** e salvar de volta é outra coisa. Para não estragar o arquivo, seria preciso fazer
-com o ODT a mesma gravação cuidadosa que existe para o DOCX, e isso pede uma biblioteca que
-entenda o formato inteiro. Não há biblioteca madura com licença permissiva para isso, em
-nenhuma linguagem.
+O resto do arquivo também fica onde estava:
 
-Na prática isso pouco aparece. O LibreOffice grava `.docx` e `.xlsx` pelo "Salvar como", e
-esses arquivos abrem aqui normalmente.
+- `styles.xml` só muda se você alterou um estilo, as margens, o papel, o cabeçalho ou o rodapé;
+- `meta.xml` só muda se você alterou as propriedades;
+- configurações, miniatura e objetos voltam iguais.
+
+Notas, comentários, alterações controladas, equações, seções, cabeçalho e rodapé abrem e voltam
+ao arquivo. Algumas coisas o Librevia não mostra: mudança de formatação controlada, indicador,
+seção sem colunas ou dentro de outra, caixa de texto, desenho e formulário. Elas continuam no
+arquivo enquanto você não edita o bloco onde estão, e o app avisa ao abrir. Se você editar esse
+bloco, elas se perdem nele, e o app avisa ao salvar.
+
+Os campos de número de página, total de páginas, data, hora, título e autor abrem como os do
+`.docx` e voltam ao arquivo como campos do LibreOffice. Outro campo mostra o texto que tinha; se
+você editar o bloco onde está, ele vira texto comum.
+
+Qualquer documento salva em `.odt` pelo "Salvar como": um documento novo, um `.sdoc` ou um
+`.docx` vão para um pacote ODT novo, inteiro. Depois disso, o `.odt` é o arquivo aberto, e
+`Ctrl+S` grava nele. **Arquivo → Exportar como → ODT** faz uma cópia em `.odt` e deixa o documento
+onde está.
+
+Planilhas `.ods` não abrem. O LibreOffice grava `.xlsx` pelo "Salvar como", e esse arquivo
+abre aqui normalmente.
 
 </details>
 
@@ -202,6 +221,8 @@ Os números abaixo foram medidos:
 | Documento de 105 blocos, salvo sem editar | **0** blocos reescritos |
 | O mesmo documento, com um parágrafo editado | **1** bloco reescrito |
 | Partes do pacote que mudam | só `word/document.xml`; as outras 25 saem idênticas byte a byte |
+| Documento do LibreOffice (`.odt`, 7 blocos), salvo sem editar | **0** blocos reescritos; as 9 partes saem idênticas |
+| O mesmo `.odt`, com um parágrafo editado | **1** bloco reescrito; só `content.xml` muda |
 | Planilha do LibreOffice, aberta e salva sem editar | **0** células escritas, 18 preservadas |
 | A mesma planilha, com uma quantidade alterada | **4** células: a digitada e as três fórmulas que dependiam dela |
 
@@ -253,6 +274,10 @@ A limpeza trabalha parte por parte no pacote: um documento sem miniatura nem nom
 comentários; os pixels, o perfil de cor e a orientação ficam. Os autores viram "Autor", como no
 Word, e o arquivo guarda o pedido de não gravar nomes (`w:removePersonalInformation` no Word,
 `filterPrivacy` no Excel), que o Word, o Excel e o Librevia respeitam nas próximas gravações.
+
+Num `.odt`, o inspetor procura os mesmos dados no `meta.xml`, nos comentários, nas alterações, na
+miniatura e nas fotos. O ODF não tem o pedido de não gravar nomes. O Librevia grava o seu no
+`settings.xml` e o respeita; o LibreOffice o ignora.
 
 </details>
 
@@ -364,7 +389,7 @@ flowchart LR
     end
 
     subgraph S["🧩 Sidecar · .NET 10"]
-        FMT["Librevia.Format<br/><i>DOCX e XLSX</i>"]
+        FMT["Librevia.Format<br/><i>DOCX, ODT e XLSX</i>"]
     end
 
     SV[["📚 src/services<br/>lógica pura, usada<br/>pelos dois lados"]]
@@ -392,7 +417,7 @@ flowchart LR
 | **Renderer** | desenha a interface e edita | tocar no disco ou importar `electron` e `node:*` |
 | **Preload** | expõe `window.api` | ter lógica; ele só encaminha |
 | **Main** | abre janelas, lê e grava arquivos, imprime | aceitar caminho que o usuário não escolheu; acessar a rede fora de `src/main/ai/` |
-| **Sidecar** | lê e escreve DOCX e XLSX | acessar rede ou gravar no disco |
+| **Sidecar** | lê e escreve DOCX, ODT e XLSX | acessar rede ou gravar no disco |
 
 ### Uma abertura e um salvamento, passo a passo
 
@@ -492,7 +517,7 @@ fácil se perder. Esta é a lista das pastas que importam e do que cada uma guar
 
 | Pasta | Conteúdo |
 | --- | --- |
-| [`document/`](src/services/document) | modelo do documento, `.sdoc`, estilos, paginação, listas, campos, notas, equações (LaTeX e MathML), exportação HTML, Markdown e ODT, leitura do Markdown das respostas do assistente |
+| [`document/`](src/services/document) | modelo do documento, `.sdoc`, estilos, paginação, listas, campos, notas, equações (LaTeX e MathML), exportação HTML e Markdown, leitura do Markdown das respostas do assistente |
 | [`spreadsheet/`](src/services/spreadsheet) | modelo da planilha, `.ssheet`, edição, preenchimento, formatação, estrutura |
 | [`spreadsheet/formula/`](src/services/spreadsheet/formula) | fórmulas: leitura, avaliação, recálculo, ajuste de referências e as 52 funções |
 | [`file/`](src/services/file) | extensões aceitas, propriedades do documento, dados pessoais e o inventário do que um arquivo pode perder |
@@ -509,7 +534,7 @@ fácil se perder. Esta é a lista das pastas que importam e do que cada uma guar
 | [`Docx/`](sidecar/src/Librevia.Format/Docx) | 50 arquivos: leitores (`DocxReader`, `BodyReader`, `StyleReader`, `NotesReader`…), escritores (`DocxWriter`, `ParagraphWriter`, `SectionWriter`…), equações (`OmmlMath`), revisões, modelos, propriedades (`DocumentProperties`, `CustomProperties`) e o `Inventory` |
 | [`Xlsx/`](sidecar/src/Librevia.Format/Xlsx) | leitura e escrita de planilhas e formatos numéricos |
 | [`Pdf/`](sidecar/src/Librevia.Format/Pdf) | leitura da estrutura de um PDF e atualização incremental do título, autor, assunto e palavras-chave |
-| [`Privacy/`](sidecar/src/Librevia.Format/Privacy) | o inspetor de dados pessoais: acha e remove nomes, pastas, propriedades personalizadas, a miniatura e os metadados das imagens de um DOCX ou XLSX |
+| [`Privacy/`](sidecar/src/Librevia.Format/Privacy) | o inspetor de dados pessoais: acha e remove nomes, pastas, propriedades personalizadas, a miniatura e os metadados das imagens de um DOCX, ODT ou XLSX |
 
 ---
 
@@ -849,8 +874,8 @@ instalador leva, além do aplicativo:
 
 O sidecar fica **fora** do asar. Um executável dentro de um arquivo compactado não roda.
 
-No Linux, o aplicativo se registra para `.docx`, `.dotx`, `.xlsx`, `.txt` e `.pdf`; no Windows,
-para `.docx`, `.dotx` e `.xlsx`.
+No Linux, o aplicativo se registra para `.docx`, `.dotx`, `.odt`, `.ott`, `.xlsx`, `.txt` e
+`.pdf`; no Windows, para `.docx`, `.dotx`, `.odt`, `.ott` e `.xlsx`.
 
 `npm run notices` gera o `THIRD-PARTY-NOTICES.md`. Ele cobre **três** conjuntos: as
 dependências npm de produção, o Electron inteiro (com Chromium e Node.js) e os pacotes NuGet
@@ -931,7 +956,7 @@ português; commits em inglês, no padrão
 
 | Limite | Situação |
 | --- | --- |
-| **ODT e ODS** | não abrem; o documento pode ser **exportado** para ODT |
+| **ODS** | não abre |
 | **Macros** | um `.dotm` abre, mas sem as macros |
 | **Mesclar células na planilha** | ainda não existe |
 | **Filtros de planilha** | preservados no arquivo, mas sem tela para criar ou alterar |

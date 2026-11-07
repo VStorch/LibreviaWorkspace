@@ -6,7 +6,7 @@ import { AppError, ErrorCode } from '@shared/errors.js'
 import { IpcChannel } from '@shared/ipc-channels.js'
 import type { MessageKey } from '@shared/i18n/index.js'
 import type { TemplateEntry } from '@shared/types.js'
-import { isWordTemplatePath } from '@services/file/formats.js'
+import { extensionOf, isOdtTemplatePath, isWordTemplatePath } from '@services/file/formats.js'
 import { showTemplatePickerDialog } from '../dialogs.js'
 import { normalizePath } from '../fs/paths.js'
 import { t } from '../i18n.js'
@@ -72,15 +72,17 @@ function builtinEntries(): TemplateEntry[] {
   }))
 }
 
+function isTemplatePath(path: string): boolean {
+  return isWordTemplatePath(path) || isOdtTemplatePath(path)
+}
+
 /** Without descending into subfolders. */
 async function userEntries(): Promise<TemplateEntry[]> {
   const folder = userTemplatesFolder()
   let names: string[]
   try {
     const entries = await readdir(folder, { withFileTypes: true })
-    names = entries
-      .filter((entry) => entry.isFile() && isWordTemplatePath(entry.name))
-      .map((entry) => entry.name)
+    names = entries.filter((entry) => entry.isFile() && isTemplatePath(entry.name)).map((entry) => entry.name)
   } catch {
     // Nobody has saved a template yet.
     return []
@@ -92,8 +94,10 @@ async function userEntries(): Promise<TemplateEntry[]> {
     .map((name) => ({
       source: 'user',
       id: join(folder, name),
-      name: name.replace(/\.dot[xm]$/i, ''),
-      description: t('shell.template.userTemplate'),
+      name: name.slice(0, name.length - extensionOf(name).length),
+      description: t(
+        isOdtTemplatePath(name) ? 'shell.template.userOdtTemplate' : 'shell.template.userTemplate',
+      ),
     }))
 }
 
@@ -122,7 +126,7 @@ export function registerTemplateHandlers(): void {
   handle(IpcChannel.TemplateBrowse, async (_payload, event) => {
     const path = await showTemplatePickerDialog(windowOf(event), userTemplatesFolder())
     if (path === null) return { canceled: true as const }
-    if (!isWordTemplatePath(path)) {
+    if (!isTemplatePath(path)) {
       throw new AppError(ErrorCode.UnsupportedFormat, t('errors.paths.unsupportedType'))
     }
     return { canceled: false as const, file: await loadFile(path) }

@@ -5,7 +5,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
-import { launch, menu, stubDialogs, selectionSettled, type Session } from './app.js'
+import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithLongTable, docxWithStretchedImage, docxWithTable, entryOf } from './fixtures.js'
 
 /**
@@ -76,35 +76,21 @@ test.describe('editable tables and images', () => {
 
   /** What is lost on save shows in the same banner as what is lost on open. */
   test('the loss on save shows in the notice banner', async () => {
-    // Saving to `.docx` needs a source `.docx`, where the merged table goes in.
-    const sourceFile = join(directory, 'mesclada.docx')
+    // A row inserted in the middle of the file's table shifts the structure each row carried.
+    const sourceFile = join(directory, 'linha-no-meio.docx')
     await writeFile(sourceFile, await docxWithTable())
     await stubDialogs(session.app, { open: sourceFile, messageBox: 1 })
     await menu(session, 'open')
-    await session.window.getByText('Antes da tabela.').click()
-    await selectionSettled(session)
-    await session.window.keyboard.press('End')
-    await menu(session, 'table-insert')
-    await session.window
-      .getByRole('dialog', { name: 'Inserir tabela' })
-      .getByRole('button', { name: 'Inserir' })
-      .click()
-
-    const lines = session.window.locator('.page__content table').first().locator('tr')
-    await lines.nth(1).locator('td').first().click()
-    await lines
-      .nth(2)
-      .locator('td')
-      .first()
-      .click({ modifiers: ['Shift'] })
-    await lines.nth(2).locator('td').first().click({ button: 'right' })
-    await session.window.getByRole('menuitem', { name: 'Mesclar células' }).click()
-    await expect(session.window.locator('.page__content td[rowspan="2"]')).toHaveCount(1)
+    await session.window.getByText('Dado B').click({ button: 'right' })
+    await session.window.getByRole('menuitem', { name: 'Inserir linha acima' }).click()
+    await expect(
+      session.window.locator('.page__content table').first().locator(':scope > tbody > tr'),
+    ).toHaveCount(3)
 
     await menu(session, 'save')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
 
-    const band = session.window.getByRole('status').filter({ hasText: 'mesclagem vertical' })
+    const band = session.window.getByRole('status').filter({ hasText: 'parte de uma tabela que você editou' })
     await expect(band).toBeVisible()
     await expect(band).toContainText('Nesta gravação, isto não chegou ao arquivo')
   })

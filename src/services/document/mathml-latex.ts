@@ -1,4 +1,5 @@
 import { MATH_BOX_CLASS, sanitizeMathMl, type MathChild, type MathElement } from './mathml.js'
+import type { DocumentNode } from './model.js'
 
 /**
  * The equation editor needs text to edit an equation from a `.docx`. The target is LaTeX that Temml
@@ -668,4 +669,11 @@ function operator(text: string): string {
 
 function escapeText(text: string): string {
   return text.replace(/[\\{}$&#^_%~]/g, (char) => (char === '\\' ? '\\textbackslash ' : `\\${char}`))
+}
+
+/** Each equation with the LaTeX it shows, for a format that keeps it as the formula's description. */
+export function withEquationLatex(node: DocumentNode): DocumentNode {
+  const own =
+    node.type === 'math' ? { ...node, attrs: { ...node.attrs, latex: latexOfEquation(node.attrs) } } : node
+  return node.content === undefined ? own : { ...own, content: node.content.map(withEquationLatex) }
 }

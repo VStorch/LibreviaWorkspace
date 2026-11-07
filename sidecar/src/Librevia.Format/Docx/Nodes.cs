@@ -27,6 +27,9 @@ public sealed class Node
     public static Node Of(string type, params Node[] children) =>
         new() { Type = type, Content = children.Length == 0 ? null : [.. children] };
 
+    /// <summary>The text of the node and of everything inside it, in order.</summary>
+    public string PlainText() => Text ?? string.Concat((Content ?? []).Select(child => child.PlainText()));
+
     public Node With(string name, JsonNode? value)
     {
         (Attrs ??= [])[name] = value;

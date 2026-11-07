@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { mathMlToString, mathText, sanitizeMathMl } from './mathml.js'
+import { mathMlToString, sanitizeMathMl } from './mathml.js'
 import { DOCUMENT_CONTENT_CSS, PRINT_ONLY_CSS } from './content-styles.js'
 import { latexOfEquation } from './mathml-latex.js'
 
@@ -15,7 +15,6 @@ describe("the equations' MathML filter", () => {
     expect(mathMlToString(tree!)).toBe(
       AREA.replace(` display="inline" xmlns="${NS}"`, ` xmlns="${NS}" display="inline"`),
     )
-    expect(mathText(tree!)).toBe('πr2')
   })
 
   it('carries the presentation attributes and the box class', () => {

@@ -68,9 +68,12 @@ import { propertiesOf, type DocumentStatistics } from '@services/file/properties
  *   DOCX leaves the file's as they are.
  * - **14**: `properties.contentStatus`, `language` and `lastPrinted`. An older draft lacks them, and
  *   saving to DOCX leaves the file's as they are.
+ * - **15**: a `.docx` table's vertical merge is the first cell's `rowspan`, and the lower cells are
+ *   left out. An older draft has them as ordinary cells, and reading marks it
+ *   (`beforeVerticalMerges`) for the same reason as version 4.
  */
 export const SDOC_FORMAT = 'sdoc'
-export const SDOC_VERSION = 14
+export const SDOC_VERSION = 15
 
 /** Content is only validated in shape; the fine structure is ProseMirror's. */
 const documentNodeSchema: z.ZodType<DocumentNode> = z.looseObject({
@@ -104,6 +107,8 @@ const sdocSchema = z.object({
   beforeNotes: z.boolean().optional(),
   // See `DocumentModel.beforeMath`.
   beforeMath: z.boolean().optional(),
+  // See `DocumentModel.beforeVerticalMerges`.
+  beforeVerticalMerges: z.boolean().optional(),
   // See `DocumentModel.properties`.
   properties: documentPropertiesSchema.optional(),
 })
@@ -131,6 +136,7 @@ export function serializeDocument(model: DocumentModel, statistics?: DocumentSta
       ...onlyDefined('notes', model.notes),
       ...onlyTrue('beforeNotes', model.beforeNotes),
       ...onlyTrue('beforeMath', model.beforeMath),
+      ...onlyTrue('beforeVerticalMerges', model.beforeVerticalMerges),
       ...onlyDefined('properties', model.properties),
       ...onlyDefined('statistics', statistics),
     },
@@ -204,6 +210,7 @@ const LEGACY_FLAGS = [
   ['beforeRevisions', 8],
   ['beforeNotes', 9],
   ['beforeMath', 11],
+  ['beforeVerticalMerges', 15],
 ] as const
 
 type LegacyFlag = (typeof LEGACY_FLAGS)[number][0]

@@ -138,13 +138,6 @@ export function mathMlToString(element: MathElement): string {
   return `<${element.tag}${namespace}${attrs}>${inner}</${element.tag}>`
 }
 
-/** Token text in order: what the equation "says" to someone who cannot see it. */
-export function mathText(element: MathElement): string {
-  return element.children
-    .map((child) => (typeof child === 'string' ? child : child.tag === 'annotation' ? '' : mathText(child)))
-    .join('')
-}
-
 function escapeXml(text: string): string {
   return text.replace(/[&<>"]/g, (char) =>
     char === '&' ? '&amp;' : char === '<' ? '&lt;' : char === '>' ? '&gt;' : '&quot;',

@@ -16,7 +16,8 @@ internal sealed class TableWriter(
     Inventory inventory,
     Func<Node, OpenXmlElement?, IEnumerable<OpenXmlElement>> writeBlock,
     int usableWidthPx,
-    bool revisions = true)
+    bool revisions = true,
+    bool verticalMerges = true)
 {
     /// <summary>
     /// Removed, a row takes width, merging and shading along; inserted in the middle, it shifts the
@@ -24,9 +25,6 @@ internal sealed class TableWriter(
     /// </summary>
     private const string ShiftedStructure =
         "sidecar.notice.shiftedTablePart";
-
-    /// <summary>The writer does not write it yet.</summary>
-    internal const string VerticalMergeLoss = "sidecar.notice.editorVerticalMerge";
 
     private readonly TableGridWriter _grid = new(inventory, usableWidthPx);
 
@@ -47,9 +45,14 @@ internal sealed class TableWriter(
         var aligned = original is null || originalRows.Count == rows.Count;
         if (!aligned) inventory.NoteLoss(ShiftedStructure);
 
+        var coverage = new TableCoverage();
+        // An old draft read every `w:vMerge` as an ordinary cell; see BodyReader.
+        var merges = verticalMerges ? VerticalMerges.Of(original) : VerticalMerges.None;
         for (var index = 0; index < rows.Count; index++)
         {
-            table.AppendChild(WriteRow(rows[index], originalRows.ElementAtOrDefault(index), aligned));
+            var row = new RowSource(originalRows.ElementAtOrDefault(index), merges, aligned);
+            var slots = coverage.Place(rows[index].Content ?? [], VerticalMerges.GridBeforeOf(row.Row));
+            table.AppendChild(WriteRow(rows[index], slots, row));
             foreach (var between in Strays(interleaved, index)) table.AppendChild(between.CloneNode(true));
         }
 
@@ -107,10 +110,13 @@ internal sealed class TableWriter(
             new InsideHorizontalBorder { Val = BorderValues.Single, Size = 4 },
             new InsideVerticalBorder { Val = BorderValues.Single, Size = 4 }));
 
-    /// <param name="tableAligned">False: this row's structure may belong to another.</param>
-    private TableRow WriteRow(Node rowNode, TableRow? original, bool tableAligned)
+    /// <param name="Aligned">False: this row's structure may belong to another.</param>
+    private sealed record RowSource(TableRow? Row, VerticalMerges Merges, bool Aligned);
+
+    private TableRow WriteRow(Node rowNode, List<TableSlot> slots, RowSource source)
     {
         var row = new TableRow();
+        var original = source.Row;
 
         // `w:trPr` carries the height and `w:tblHeader`; `w:tblPrEx`, the row's exceptions.
         var interleaved = Interleaved<TableCell>(original);
@@ -119,19 +125,18 @@ internal sealed class TableWriter(
         var originalCells = original?.Elements<TableCell>().ToList() ?? [];
         var cells = rowNode.Content ?? [];
 
-        var aligned = original is null || originalCells.Count == cells.Count;
+        var aligned = original is null || originalCells.Count == slots.Count;
         if (!aligned) inventory.NoteLoss(ShiftedStructure);
 
-        for (var index = 0; index < cells.Count; index++)
+        for (var index = 0; index < slots.Count; index++)
         {
-            row.AppendChild(WriteCell(
-                cells[index],
-                originalCells.ElementAtOrDefault(index),
-                aligned && tableAligned));
+            var slot = slots[index];
+            var cell = new CellSource(originalCells.ElementAtOrDefault(index), aligned && source.Aligned, source.Merges);
+            row.AppendChild(slot.IsContinuation ? Continuation(slot.Span, cell) : WriteCell(slot.Cell!, cell));
             foreach (var between in Strays(interleaved, index)) row.AppendChild(between.CloneNode(true));
         }
 
-        for (var index = cells.Count; index < originalCells.Count; index++)
+        for (var index = slots.Count; index < originalCells.Count; index++)
         {
             foreach (var orphan in Strays(interleaved, index)) row.AppendChild(orphan.CloneNode(true));
         }
@@ -196,27 +201,57 @@ internal sealed class TableWriter(
     private static List<OpenXmlElement> ChildrenOf(OpenXmlElement? element) =>
         element is null ? [] : [.. element.ChildElements];
 
-    /// <param name="aligned">Whether this really is the file's cell at this position.</param>
-    private TableCell WriteCell(Node cellNode, TableCell? original, bool aligned)
+    /// <param name="Aligned">Whether this really is the file's cell at this position.</param>
+    private sealed record CellSource(TableCell? Cell, bool Aligned, VerticalMerges Merges)
+    {
+        public bool WasMerged => Cell is not null && Merges.IsMerged(Cell);
+
+        public bool WasContinuation => Aligned && Cell is not null && Merges.IsAbsorbed(Cell);
+    }
+
+    /// <summary>
+    /// The lower part of a vertical merge. The file's own continuation goes back as it was: Word keeps
+    /// its text, hidden.
+    /// </summary>
+    private static TableCell Continuation(int span, CellSource source)
+    {
+        if (source.WasContinuation)
+        {
+            var kept = (TableCell)source.Cell!.CloneNode(true);
+            kept.TableCellProperties!.GridSpan = span > 1 ? new GridSpan { Val = span } : null;
+            return kept;
+        }
+
+        var properties = new TableCellProperties { VerticalMerge = new VerticalMerge() };
+        if (span > 1) properties.GridSpan = new GridSpan { Val = span };
+        return new TableCell(properties, new Paragraph());
+    }
+
+    private TableCell WriteCell(Node cellNode, CellSource source)
     {
         var cell = new TableCell();
+        var original = source.Cell;
+        var aligned = source.Aligned;
 
         var properties = original?.TableCellProperties?.CloneNode(true) as TableCellProperties
                          ?? new TableCellProperties();
         var span = Attr.Int(cellNode, "colspan");
 
-        // Only what the model represents (`colspan`, shading, borders): `w:vMerge`, cell margins
-        // and vertical alignment stay.
+        // Only what the model represents (`colspan`, `rowspan`, shading, borders): cell margins and
+        // vertical alignment stay.
         if (span is > 1) properties.GridSpan = new GridSpan { Val = span };
         else if (properties.GridSpan is not null) properties.GridSpan = null;
 
-        // A shifted vertical merge makes Word report a corrupt table: it goes, and the loss was
-        // already declared.
-        if (!aligned) properties.RemoveAllChildren<VerticalMerge>();
-
-        // A vertical merge made on screen becomes `rowspan`, which this writer does not write: it
-        // goes to the inventory.
-        if (Attr.Int(cellNode, "rowspan") is > 1) inventory.NoteLoss(VerticalMergeLoss);
+        // A shifted `w:vMerge` makes Word report a corrupt table. A `w:vMerge` the model does not
+        // read as a merge (alone, or with nothing above) stays where it was.
+        if (TableCoverage.RowSpanOf(cellNode) > 1)
+        {
+            properties.VerticalMerge = new VerticalMerge { Val = MergedCellValues.Restart };
+        }
+        else if (!aligned || source.WasMerged)
+        {
+            properties.VerticalMerge = null;
+        }
 
         // Only when they differ from the file; see TableLook.
         TableLook.ApplyShading(properties, Attr.String(cellNode, "shading"), inventory);
@@ -236,10 +271,10 @@ internal sealed class TableWriter(
         var position = 0;
         foreach (var child in cellNode.Content ?? [])
         {
-            var source = blocks.ElementAtOrDefault(position);
+            var block = blocks.ElementAtOrDefault(position);
             position++;
 
-            foreach (var element in writeBlock(child, source)) cell.AppendChild(element);
+            foreach (var element in writeBlock(child, block)) cell.AppendChild(element);
         }
 
         // A `w:tc` must **end** in a `w:p`, and a nested table may end in a `w:tbl`.
