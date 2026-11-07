@@ -1683,6 +1683,12 @@ public sealed class BodyReader(
                 rowNode.With("rowRevision", rowRevision);
             }
 
+            var cantSplit = row.TableRowProperties?.GetFirstChild<CantSplit>();
+            if (cantSplit is not null && !(cantSplit.Val is { } value && value.Value == OnOffOnlyValues.Off))
+            {
+                rowNode.With("cantSplit", true);
+            }
+
             rows.Add(rowNode);
         }
 

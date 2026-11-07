@@ -21,6 +21,8 @@ import { mmToPx, pxToMm, twipsToPx } from '@services/units.js'
 
 const CELL_TYPES: readonly string[] = ['tableCell', 'tableHeader']
 
+export const CANT_SPLIT_ATTR = 'data-cant-split'
+
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
     tableLook: {
@@ -70,6 +72,18 @@ export const TableLook = Extension.create({
               const css = cellMarginsCss(attributes['cellMargins'])
               return css === null ? {} : { style: `--cell-margins: ${css}` }
             },
+          },
+        },
+      },
+      {
+        types: ['tableRow'],
+        attributes: {
+          /** `w:cantSplit`: pagination moves the row whole instead of breaking it between lines. */
+          cantSplit: {
+            default: null,
+            parseHTML: () => null,
+            renderHTML: (attributes: Record<string, unknown>) =>
+              attributes['cantSplit'] === true ? { [CANT_SPLIT_ATTR]: '' } : {},
           },
         },
       },

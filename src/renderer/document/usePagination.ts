@@ -37,6 +37,8 @@ import { applyPageGaps, paginationKey, type RepeatedHeader } from './extensions/
 import { LINE_GAP_CLASS, measureLines } from './line-boxes.js'
 import { screenScaleOf } from './screen-scale.js'
 import { noteBodyOf, type NoteBody } from './extensions/note-view.js'
+import { CANT_SPLIT_ATTR } from './extensions/table-look.js'
+import { rowSplitsOf, type ResolvedRowSplit, type RowSplit } from './row-split.js'
 
 /** The space between one sheet and the next, like a stack of paper. */
 export const SHEET_GUTTER_PX = 28
@@ -165,6 +167,11 @@ export interface PageStart {
   readonly offset?: number
   /** The sheet opens with the table header rows repeated. */
   readonly repeatHeader?: boolean
+  /**
+   * The row `childIndex` is split between lines: where each cell's content continues, `null` for a
+   * cell that ended on the sheet before.
+   */
+  readonly cells?: readonly (number | null)[]
 }
 
 /** The break falls inside the block: the block starts on the previous sheet. */
@@ -180,6 +187,7 @@ interface CutTarget {
   readonly line?: { readonly resolve: () => number | null; readonly block: number }
   /** A break between rows of a table with a header: what repeats at the top of the sheet. */
   readonly header?: () => RepeatedHeader
+  readonly rowSplit?: RowSplit
 }
 
 export interface BlockAnchor {
@@ -485,6 +493,7 @@ class DocumentMeasurer {
       dom instanceof HTMLTableElement ? dom : dom.querySelector<HTMLTableElement>(':scope > table')
     const children = cutChildrenOf(dom, table)
     const breakpoints: number[] = []
+    const carriedAt = new Map<number, number>()
     // The foot of the line of a note reference inside it.
     const childTops: number[] = []
 
@@ -497,7 +506,7 @@ class DocumentMeasurer {
     const internal =
       lines !== null
         ? lines.shift
-        : this.pushChildTargets(children, table, header, drawn, { breakpoints, childTops })
+        : this.pushChildTargets(children, table, header, drawn, { breakpoints, childTops, carriedAt })
 
     const effective = effectiveAttrs(block, this.styles)
     const height = this.ruler.height(dom) - internal
@@ -514,6 +523,7 @@ class DocumentMeasurer {
       keepLines: effective['keepLines'] === true,
       widowControl: lines !== null && effective['widowControl'] !== false,
       ...(header.repeatHeight > 0 ? { repeatHeight: header.repeatHeight } : {}),
+      ...(carriedAt.size > 0 ? { carriedAt } : {}),
       ...(capture.freeBreakpoints.length > 0 ? { freeBreakpoints: capture.freeBreakpoints } : {}),
       ...(capture.hangingBottom > 0 ? { hangingBottom: capture.hangingBottom } : {}),
       ...(notes.length > 0 ? { notes } : {}),
@@ -561,7 +571,7 @@ class DocumentMeasurer {
     table: HTMLTableElement | null,
     header: TableHeader,
     drawn: DrawnBlock,
-    cuts: { readonly breakpoints: number[]; readonly childTops: number[] },
+    cuts: ChildCuts,
   ): number {
     let internal = 0
     children.forEach((child, childIndex) => {
@@ -596,9 +606,32 @@ class DocumentMeasurer {
             : {}),
         })
       }
+      if (child instanceof HTMLTableRowElement && childIndex >= header.headerRows) {
+        this.pushRowSplits(
+          child,
+          { blockIndex: drawn.blockIndex, childIndex },
+          this.accumulated + internal + shift,
+          cuts,
+        )
+      }
       internal += shift
     })
     return internal
+  }
+
+  /** `offset` takes the row's elements to flow coordinates. */
+  private pushRowSplits(row: HTMLTableRowElement, start: PageStart, offset: number, cuts: ChildCuts): void {
+    if (row.hasAttribute(CANT_SPLIT_ATTR)) return
+    const splits = rowSplitsOf(row, {
+      view: this.editor.view,
+      flowTop: (node) => this.ruler.top(node) - offset,
+      height: this.ruler.height,
+    })
+    for (const split of splits) {
+      cuts.breakpoints.push(split.at)
+      cuts.carriedAt.set(split.at, split.carried)
+      this.targets.push({ at: split.at, start, nodes: [], rowSplit: split })
+    }
   }
 
   private measureNotes(drawn: DrawnBlock, height: number, rows: ReferenceRows): MeasuredNote[] {
@@ -618,6 +651,12 @@ class DocumentMeasurer {
     })
     return notes
   }
+}
+
+interface ChildCuts {
+  readonly breakpoints: number[]
+  readonly childTops: number[]
+  readonly carriedAt: Map<number, number>
 }
 
 /** Table rows, list items or table of contents entries: where the block can be broken. */
@@ -721,6 +760,12 @@ export function layoutPages(
   return stack.result()
 }
 
+interface ChosenCut {
+  readonly target: CutTarget | undefined
+  readonly position: number | null
+  readonly split: ResolvedRowSplit | null
+}
+
 /**
  * Gap = what was left of the sheet + both margins + the space between papers. The written margin
  * **replaces** the block's own top margin (the last declaration wins), so the written value is the
@@ -779,7 +824,9 @@ class SheetStack {
     const { targets } = this.measured
     while (
       this.cursor < targets.length &&
-      (targets[this.cursor]!.at < at || targets[this.cursor]!.line !== undefined)
+      (targets[this.cursor]!.at < at ||
+        targets[this.cursor]!.line !== undefined ||
+        targets[this.cursor]!.rowSplit !== undefined)
     )
       this.cursor++
     return targets[this.cursor]
@@ -792,13 +839,7 @@ class SheetStack {
       (this.contentSheets[cut] ?? 0) + 1,
       this.contentSheets[cut + 1] ?? 0,
     )
-    const internal = this.internalAt.get(at)
-    const position = internal?.line?.resolve() ?? null
-    // Line not found (DOM replaced mid-measurement): defer to the next block.
-    const target =
-      internal !== undefined && (internal.line === undefined || position !== null)
-        ? internal
-        : this.blockTargetFrom(at)
+    const { target, position, split } = this.targetAt(at)
     // `hangingBottom` fits in the bottom margin.
     const span = at - this.previous + this.liftsBetween(this.previous, at)
     const hung = Math.min(Math.max(span - ending.contentPx, 0), hangingAt(this.blocks, at))
@@ -820,29 +861,41 @@ class SheetStack {
       SHEET_GUTTER_PX +
       skipped +
       opening.topPx
-    this.previous = this.openSheet(at, target, position, shift, opening)
+    this.previous = this.openSheet(at, { target, position, split }, shift, opening)
+  }
+
+  /** Line not found (DOM replaced mid-measurement): defer to the next block. */
+  private targetAt(at: number): ChosenCut {
+    const internal = this.internalAt.get(at)
+    const position = internal?.line?.resolve() ?? null
+    const split = internal?.rowSplit?.resolve() ?? null
+    const resolved =
+      internal !== undefined &&
+      (internal.line === undefined || position !== null) &&
+      (internal.rowSplit === undefined || split !== null)
+    return { target: resolved ? internal : this.blockTargetFrom(at), position, split }
   }
 
   /** Returns where the new sheet counts its height from. */
   private openSheet(
     at: number,
-    target: CutTarget | undefined,
-    position: number | null,
+    { target, position, split }: ChosenCut,
     shift: number,
     opening: SectionMetrics,
   ): number {
-    if (target?.line !== undefined && position !== null) {
-      // Paper slices the paragraph at the same character.
-      this.pageStarts.push({ ...target.start, offset: position - target.line.block - 1 })
-      this.lineGaps.set(position, shift)
-      return at
-    }
+    if (target?.rowSplit !== undefined && split !== null) return this.openInsideRow(at, target, split, shift)
+    if (target?.line !== undefined && position !== null)
+      return this.openInsideParagraph(at, target, position, shift)
     if (target === undefined) {
       // A final explicit break still opens an empty sheet.
       this.pageStarts.push({ blockIndex: this.blocks.length })
       return at
     }
-    // The repeated header lives in the gap; the flow math subtracts both.
+    return this.openAtTarget(at, target, shift, opening)
+  }
+
+  /** The repeated header lives in the gap; the flow math subtracts both. */
+  private openAtTarget(at: number, target: CutTarget, shift: number, opening: SectionMetrics): number {
     const header = target.header?.()
     const extra = header !== undefined && header.height < opening.contentPx / 2 ? header.height : 0
     if (header !== undefined && extra > 0) this.headers.push(header)
@@ -852,6 +905,21 @@ class SheetStack {
       this.written.set(node.position, shift + extra + topMarginFor(node.natural, node.collapse ?? 0))
     }
     return at - extra
+  }
+
+  /** Paper slices the paragraph at the same character. */
+  private openInsideParagraph(at: number, target: CutTarget, position: number, shift: number): number {
+    this.pageStarts.push({ ...target.start, offset: position - (target.line?.block ?? 0) - 1 })
+    this.lineGaps.set(position, shift)
+    return at
+  }
+
+  /** Paper cuts each cell at the same character. */
+  private openInsideRow(at: number, target: CutTarget, split: ResolvedRowSplit, shift: number): number {
+    const carried = target.rowSplit?.carried ?? 0
+    for (const position of split.positions) this.lineGaps.set(position, shift + carried)
+    this.pageStarts.push({ ...target.start, cells: split.cells })
+    return at - carried
   }
 
   closeLast(bottom: number): void {

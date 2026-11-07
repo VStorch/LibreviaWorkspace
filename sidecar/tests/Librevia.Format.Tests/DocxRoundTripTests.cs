@@ -263,6 +263,15 @@ public class DocxRoundTripTests
     }
 
     [Fact]
+    public void ReadsRowsThatCannotSplitAcrossPages()
+    {
+        var rows = Walk(Open(Fixtures.WithRowThatCannotSplit()).Doc).Where(n => n.Type == "tableRow").ToList();
+
+        Assert.Null(rows[0].Attrs?.GetValueOrDefault("cantSplit"));
+        Assert.True(rows[1].Attrs!["cantSplit"]!.GetValue<bool>());
+    }
+
+    [Fact]
     public void ReadsCellBordersInTheCanonicalForm()
     {
         // A single spelling, compared with the editor's: side, style, width in points and color.

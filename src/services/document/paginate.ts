@@ -36,6 +36,11 @@ export interface MeasuredBlock {
    */
   readonly repeatHeight?: number
   /**
+   * Breakpoints inside a table row, with how much above each one goes along to the next sheet: a
+   * line of another cell that started above the cut and did not fit. The header does not repeat.
+   */
+  readonly carriedAt?: ReadonlyMap<number, number>
+  /**
    * Breaks outside the widow and orphan rule: the foot of an anchored capture, where LibreOffice
    * lets the paragraph's empty line move down while the frame stays. Also in `breakpoints`.
    */
@@ -312,11 +317,17 @@ class Paginator {
     if (breakpoint === undefined) return false
     this.cut(breakpoint, this.current)
     this.floor = breakpoint
+    this.pageStart = breakpoint - this.carriedTo(block, breakpoint)
+    return true
+  }
+
+  private carriedTo(block: MeasuredBlock, breakpoint: number): number {
+    const carried = block.carriedAt?.get(breakpoint)
+    if (carried !== undefined) return carried
     // A header taller than half a sheet does not repeat: repeating it would leave no room for the
     // row it introduces.
     const repeat = block.repeatHeight ?? 0
-    this.pageStart = repeat > 0 && repeat < this.pageHeight / 2 ? breakpoint - repeat : breakpoint
-    return true
+    return repeat > 0 && repeat < this.pageHeight / 2 ? repeat : 0
   }
 
   /** No line, item or table row fits: the break goes **before** the block that would overflow. */

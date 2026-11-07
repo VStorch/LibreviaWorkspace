@@ -159,6 +159,7 @@ function pageHtml(context: PrintContext, start: PageStart, end: PageStart): stri
     end,
     end.offset !== undefined && isJustified(context.editor, context.offsets[end.blockIndex]),
   )
+  markSplitRows(holder, context.blocks, start, end)
   return holder.innerHTML
 }
 
@@ -256,11 +257,31 @@ function sliceChildren(
 ): ProseMirrorNode | null {
   const first = index === start.blockIndex
   const last = index === end.blockIndex
+  const split: SplitRows = { from: first ? start.cells : undefined, to: last ? end.cells : undefined }
   const from = first ? (start.childIndex ?? 0) : 0
-  const to = last ? (end.childIndex ?? 0) : block.childCount
+  const to = last ? (end.childIndex ?? 0) + (split.to === undefined ? 0 : 1) : block.childCount
   if (last && to === 0) return null
-  if (from === 0 && to === block.childCount) return block
-  return partialBlock(block, from, to, first && start.repeatHeader === true)
+  if (from === 0 && to === block.childCount && split.from === undefined && split.to === undefined)
+    return block
+  return partialBlock(block, { from, to, repeatHeader: first && start.repeatHeader === true, split })
+}
+
+/** The cells where the first row of the sheet continues, and those where the last row stops. */
+interface SplitRows {
+  readonly from: readonly (number | null)[] | undefined
+  readonly to: readonly (number | null)[] | undefined
+}
+
+/** A finished cell comes out empty, without the paragraph that would add a line. */
+function rowPiece(row: ProseMirrorNode, { from, to }: SplitRows): ProseMirrorNode {
+  const cells: ProseMirrorNode[] = []
+  row.forEach((cell, _offset, index) => {
+    const size = cell.content.size
+    const begin = from === undefined ? 0 : (from[index] ?? size)
+    const stop = to === undefined ? size : (to[index] ?? size)
+    cells.push(begin >= stop ? cell.copy(Fragment.empty) : cell.cut(begin, stop))
+  })
+  return row.copy(Fragment.fromArray(cells))
 }
 
 /** Broken between lines, at the character where the screen placed the spacer. */
@@ -275,14 +296,17 @@ function sliceTextblock(
 /** Children `[from, to)`, with the table header repeated; a numbered list continues its count. */
 function partialBlock(
   block: ProseMirrorNode,
-  from: number,
-  to: number,
-  repeatHeader: boolean,
+  { from, to, repeatHeader, split }: { from: number; to: number; repeatHeader: boolean; split: SplitRows },
 ): ProseMirrorNode {
   const children: ProseMirrorNode[] = []
   block.forEach((child, _offset, childIndex) => {
     const repeated = repeatHeader && isHeaderRow(block, childIndex)
-    if (repeated || (childIndex >= from && childIndex < to)) children.push(child)
+    if (!repeated && (childIndex < from || childIndex >= to)) return
+    const piece: SplitRows = {
+      from: childIndex === from ? split.from : undefined,
+      to: childIndex === to - 1 ? split.to : undefined,
+    }
+    children.push(piece.from === undefined && piece.to === undefined ? child : rowPiece(child, piece))
   })
   const attrs =
     block.type.name === 'orderedList'
@@ -390,6 +414,50 @@ function markSplitParagraphs(
     }
     last.dataset.continued = 'to'
   }
+}
+
+/** The same as `markSplitParagraphs`, in each cell of a split row cut in the middle of a paragraph. */
+function markSplitRows(
+  holder: HTMLElement,
+  blocks: readonly ProseMirrorNode[],
+  start: PageStart,
+  end: PageStart,
+): void {
+  const first = holder.firstElementChild
+  if (start.cells !== undefined && first instanceof HTMLTableElement) {
+    const row = blocks[start.blockIndex]?.maybeChild(start.childIndex ?? 0)
+    forEachCutCell(first.rows[0], row, start.cells, (cell) => {
+      const piece = cell.querySelector<HTMLElement>(TEXTBLOCK_SELECTOR)
+      if (piece === null) return
+      piece.style.marginTop = '0'
+      piece.style.textIndent = '0'
+    })
+  }
+  const last = holder.lastElementChild
+  if (end.cells !== undefined && last instanceof HTMLTableElement) {
+    const row = blocks[end.blockIndex]?.maybeChild(end.childIndex ?? 0)
+    forEachCutCell(last.rows[last.rows.length - 1], row, end.cells, (cell) => {
+      const piece = Array.from(cell.querySelectorAll<HTMLElement>(TEXTBLOCK_SELECTOR)).at(-1)
+      if (piece !== undefined) piece.style.marginBottom = '0'
+    })
+  }
+}
+
+const TEXTBLOCK_SELECTOR = 'p, h1, h2, h3, h4, h5, h6'
+
+function forEachCutCell(
+  element: HTMLTableRowElement | undefined,
+  row: ProseMirrorNode | null | undefined,
+  cells: readonly (number | null)[],
+  mark: (cell: HTMLTableCellElement) => void,
+): void {
+  if (element === undefined || row === null || row === undefined) return
+  cells.forEach((offset, index) => {
+    const cell = element.cells[index]
+    if (offset === null || cell === undefined || index >= row.childCount) return
+    const cut = row.child(index).resolve(offset)
+    if (cut.parent.isTextblock && cut.parentOffset > 0) mark(cell)
+  })
 }
 
 function isJustified(editor: Editor, offset: number | undefined): boolean {

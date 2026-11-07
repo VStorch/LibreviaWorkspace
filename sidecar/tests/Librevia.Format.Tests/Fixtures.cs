@@ -1131,6 +1131,17 @@ public static class Fixtures
     /// A bullet list inside a cell, where the editor sees regular paragraphs: the <c>w:numPr</c>
     /// must survive.
     /// </summary>
+    /// <summary>Two rows; only the second is <c>w:cantSplit</c>.</summary>
+    public static byte[] WithRowThatCannotSplit() => Build((body, _) =>
+    {
+        var table = new Table(new TableProperties(), new TableGrid(new GridColumn { Width = "9000" }));
+        table.AppendChild(new TableRow(new TableCell(Paragraph("Livre"))));
+        table.AppendChild(new TableRow(
+            new TableRowProperties(new CantSplit()),
+            new TableCell(Paragraph("Inteira"))));
+        body.AppendChild(table);
+    });
+
     public static byte[] WithListInsideTableCell() => Build((body, part) =>
     {
         AddBulletNumbering(part);

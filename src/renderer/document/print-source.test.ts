@@ -94,6 +94,37 @@ describe('page slicing for printing', () => {
   })
 })
 
+describe('table rows split between sheets', () => {
+  const cell = (...texts: string[]) => schema.node('tableCell', null, texts.map(paragraph))
+  const tallRow = schema.node('tableRow', null, [cell('Campo'), cell('Um', 'Dois', 'Três')])
+  const table = schema.node('table', null, [row('Antes'), tallRow, row('Depois')])
+  const texts = (page: ProseMirrorNode[]) => {
+    const rows: string[][] = []
+    page[0]!.forEach((tableRow) => {
+      const cells: string[] = []
+      tableRow.forEach((tableCell) => cells.push(tableCell.textContent))
+      rows.push(cells)
+    })
+    return rows
+  }
+
+  it('each cell continues on the next sheet from where it was cut, and a finished cell comes out empty', () => {
+    const cut = { blockIndex: 0, childIndex: 1, cells: [null, 4] }
+    expect(texts(slicePageBlocks([table], { blockIndex: 0 }, cut))).toEqual([['Antes'], ['Campo', 'Um']])
+    expect(texts(slicePageBlocks([table], cut, { blockIndex: 1 }))).toEqual([['', 'DoisTrês'], ['Depois']])
+  })
+
+  it('a row across three sheets: the middle sheet has only its core', () => {
+    const long = schema.node('table', null, [schema.node('tableRow', null, cell('aaaabbbbcccc'))])
+    const page = slicePageBlocks(
+      [long],
+      { blockIndex: 0, childIndex: 0, cells: [5] },
+      { blockIndex: 0, childIndex: 0, cells: [9] },
+    )
+    expect(texts(page)).toEqual([['bbbb']])
+  })
+})
+
 describe('printing according to Review → Show', () => {
   const ins = schema.marks['insertion']!.create({ author: 'Ana' })
   const del = schema.marks['deletion']!.create({ author: 'Ana' })

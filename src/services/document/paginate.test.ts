@@ -133,6 +133,13 @@ describe('cuts inside blocks', () => {
     expect(paginate([splittable(2500, rows, { repeatHeight: 100 })], 1000)).toEqual([1000, 1900])
   })
 
+  it('a cut inside a table row opens the next sheet with what straddled it', () => {
+    // At 1000 a line of another cell started at 990: those 10 go along to the next sheet.
+    const block = splittable(2500, [500, 1000, 1500, 1995], { carriedAt: new Map([[1000, 10]]) })
+    expect(paginate([block], 1000)).toEqual([1000, 1500])
+    expect(paginate([{ ...block, carriedAt: new Map([[1000, 0]]) }], 1000)).toEqual([1000, 1995])
+  })
+
   it('a header larger than half a sheet is not repeated', () => {
     const rows = Array.from({ length: 24 }, (_, index) => (index + 1) * 100)
     expect(paginate([splittable(2500, rows, { repeatHeight: 600 })], 1000)).toEqual([1000, 2000])

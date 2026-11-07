@@ -1196,6 +1196,36 @@ export async function docxWithLongTable(rows = 80, header = false): Promise<Buff
 }
 
 /**
+ * A two-column table whose single row is taller than a sheet: a short label on the left and
+ * `paragraphs` numbered lines on the right. With `cantSplit`, the row is `w:cantSplit` and comes
+ * after `filler` paragraphs.
+ */
+export async function docxWithTallRow(
+  options: { paragraphs?: number; cantSplit?: boolean; filler?: number } = {},
+): Promise<Buffer> {
+  const { paragraphs = 70, cantSplit = false, filler = 0 } = options
+  const lines = Array.from({ length: paragraphs }, (_, index) => paragraph(`Trecho ${index + 1}`)).join('')
+  const table =
+    '<w:tbl><w:tblPr/><w:tblGrid><w:gridCol w:w="2000"/><w:gridCol w:w="7000"/></w:tblGrid>' +
+    `<w:tr>${cantSplit ? '<w:trPr><w:cantSplit/></w:trPr>' : ''}` +
+    `<w:tc>${paragraph('Campo')}</w:tc><w:tc>${lines}</w:tc></w:tr></w:tbl>`
+  const before = Array.from({ length: filler }, (_, index) => paragraph(`Preenchimento ${index + 1}`)).join(
+    '',
+  )
+  return zip([
+    ['[Content_Types].xml', CONTENT_TYPES.replace(/<Override PartName="\/word\/comments[^>]+>/, '')],
+    ['_rels/.rels', ROOT_RELS],
+    [
+      'word/document.xml',
+      documentXml(before + table + paragraph('Depois da tabela')).replace(
+        '<w:sectPr/>',
+        '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1417" w:right="1417" w:bottom="1417" w:left="1417"/></w:sectPr>',
+      ),
+    ],
+  ])
+}
+
+/**
  * A long document with one footnote per paragraph: notes take height from the sheets and push lines
  * to the next. A4 paper, margins and font declared, so the sheet count also holds in LibreOffice.
  */

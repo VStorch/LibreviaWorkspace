@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
-import { docxWithLongTable } from './fixtures.js'
+import { docxWithLongTable, docxWithTallRow } from './fixtures.js'
 import { hasPdftotext, pdfText } from './external-tools.js'
 
 /**
@@ -319,7 +319,113 @@ test.describe('live pagination', () => {
     const shift = Number(await sheetStart.getAttribute('data-page-shift'))
     expect(Math.abs(shift - original)).toBeLessThan(0.25)
   })
+
+  test('a table row taller than the sheet is split between lines, and typing in it stays on the paper', async () => {
+    await openTallRow(session, directory, await docxWithTallRow())
+    await expect.poll(() => session.window.locator('.paper').count()).toBeGreaterThanOrEqual(2)
+    await expect.poll(() => linesOutsideSheets(session)).toEqual([])
+
+    await session.window.locator('.ProseMirror td p', { hasText: /^Trecho 70$/ }).click()
+    await session.window.keyboard.press('End')
+    for (let line = 0; line < 30; line++) {
+      await session.window.keyboard.press('Enter')
+      await session.window.keyboard.insertText(`Digitado ${line + 1}`)
+    }
+    await expect.poll(() => session.window.locator('.paper').count()).toBeGreaterThanOrEqual(3)
+    await expect.poll(() => linesOutsideSheets(session)).toEqual([])
+    await expect(session.window.locator('.paper--oversized')).toHaveCount(0)
+  })
+
+  test('the split row comes out on paper with the same lines on each sheet', async () => {
+    test.skip(!(await hasPdftotext()), 'pdftotext not installed')
+    const destinationFile = join(directory, 'linha-alta.pdf')
+    await openTallRow(session, directory, await docxWithTallRow())
+    await expect.poll(() => linesOutsideSheets(session)).toEqual([])
+    const onScreen = await linesBySheet(session)
+    expect(onScreen.length).toBeGreaterThanOrEqual(2)
+
+    await stubDialogs(session.app, { save: destinationFile, messageBox: 1 })
+    await menu(session, 'export-pdf')
+    await expect.poll(async () => countPages(destinationFile), { timeout: 30000 }).toBe(onScreen.length)
+    for (let page = 1; page <= onScreen.length; page++) {
+      const text = await pdfText(destinationFile, { page })
+      expect(text.match(/Trecho \d+/g) ?? []).toEqual(onScreen[page - 1])
+    }
+  })
+
+  test('a row marked not to split moves whole to the next sheet', async () => {
+    await openTallRow(
+      session,
+      directory,
+      await docxWithTallRow({ paragraphs: 12, filler: 48, cantSplit: true }),
+    )
+    await expect.poll(() => session.window.locator('.paper').count()).toBe(2)
+    await expect
+      .poll(() => linesBySheet(session))
+      .toEqual([[], Array.from({ length: 12 }, (_, index) => `Trecho ${index + 1}`)])
+  })
+
+  test('without the mark, the same row splits at the foot of the sheet', async () => {
+    await openTallRow(session, directory, await docxWithTallRow({ paragraphs: 12, filler: 48 }))
+    await expect.poll(() => session.window.locator('.paper').count()).toBe(2)
+    await expect.poll(async () => (await linesBySheet(session))[0]?.length ?? 0).toBeGreaterThan(0)
+    await expect.poll(() => linesOutsideSheets(session)).toEqual([])
+  })
 })
+
+async function openTallRow(session: Session, directory: string, docx: Buffer): Promise<void> {
+  const source = join(directory, 'linha-alta.docx')
+  await writeFile(source, docx)
+  await stubDialogs(session.app, { open: source, messageBox: 1 })
+  await menu(session, 'open')
+  await expect(session.window.locator('.ProseMirror td p').first()).toBeVisible()
+}
+
+/** The numbered cell lines, by the sheet holding each one. */
+async function linesBySheet(session: Session): Promise<string[][]> {
+  return session.window.evaluate(() => {
+    const sheets = Array.from(document.querySelectorAll('.paper')).map((sheet) =>
+      sheet.getBoundingClientRect(),
+    )
+    const bySheet: string[][] = sheets.map(() => [])
+    const range = document.createRange()
+    for (const line of Array.from(document.querySelectorAll('.ProseMirror td p'))) {
+      const label = line.textContent ?? ''
+      const text = Array.from(line.childNodes).find((node) => node.nodeType === Node.TEXT_NODE)
+      if (!/^Trecho \d+$/.test(label) || text === undefined) continue
+      range.selectNodeContents(text)
+      const top = range.getBoundingClientRect().top
+      const sheet = sheets.findIndex((box) => top >= box.top && top < box.bottom)
+      if (sheet >= 0) bySheet[sheet]!.push(label)
+    }
+    return bySheet
+  })
+}
+
+/** Cell lines whose text is not inside the writing area of an A4 sheet with 2.5 cm margins. */
+async function linesOutsideSheets(session: Session): Promise<string[]> {
+  return session.window.evaluate(() => {
+    const areas = Array.from(document.querySelectorAll<HTMLElement>('.paper')).map((sheet) => {
+      const box = sheet.getBoundingClientRect()
+      const scale = box.width / sheet.offsetWidth
+      const margin = ((2.5 * 96) / 2.54) * scale
+      const a4 = ((297 * 96) / 25.4) * scale
+      return { top: box.top + margin - 1, bottom: box.top + a4 - margin + 1 }
+    })
+    const outside: string[] = []
+    const range = document.createRange()
+    for (const line of Array.from(document.querySelectorAll('.ProseMirror td p'))) {
+      const text = Array.from(line.childNodes).find((node) => node.nodeType === Node.TEXT_NODE)
+      if (text === undefined) continue
+      range.selectNodeContents(text)
+      const rect = range.getBoundingClientRect()
+      if (!areas.some((area) => rect.top >= area.top && rect.bottom <= area.bottom)) {
+        outside.push(line.textContent ?? '')
+      }
+    }
+    return outside
+  })
+}
 
 /** Short paragraphs, by keyboard, until a few of them pass to the second sheet. */
 async function linesAcrossSheet(session: Session): Promise<void> {
