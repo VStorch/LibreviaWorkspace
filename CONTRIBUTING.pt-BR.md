@@ -37,8 +37,9 @@ quais padrões o código segue. A maior parte desses padrões é conferida por m
 **É um arquivo que não abriu direito.** O projeto é calibrado com documentos reais, e cada
 `.docx` ou `.xlsx` que se comporta de um jeito inesperado ensina mais que uma função nova.
 
-Use o modelo **"Arquivo que abriu errado"** ao abrir a issue. Se puder, anexe o arquivo. Se ele
-for confidencial, descreva o que o Word ou o LibreOffice mostram e o que o Librevia mostrou.
+Use o modelo **"File that opened wrong"** (arquivo que abriu errado) ao abrir a issue. Se puder,
+anexe o arquivo. Se ele for confidencial, descreva o que o Word ou o LibreOffice mostram e o que o
+Librevia mostrou.
 
 Falhas de segurança **não** vão em issue pública: veja a [política de segurança](SECURITY.pt-BR.md).
 

@@ -35,7 +35,7 @@ and which standards the code follows. Most of these standards are checked by mac
 **It is a file that did not open right.** The project is calibrated with real documents, and
 every `.docx` or `.xlsx` that behaves unexpectedly teaches more than a new feature.
 
-Use the **"Arquivo que abriu errado"** (file that opened wrong) template when opening the issue.
+Use the **"File that opened wrong"** template when opening the issue.
 If you can, attach the file. If it is confidential, describe what Word or LibreOffice shows and
 what Librevia showed.
 

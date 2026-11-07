@@ -1,0 +1,73 @@
+name: File that opened wrong
+description: A .docx or .xlsx that looks, prints or is saved differently from Word or LibreOffice.
+title: '[file] '
+labels: ['arquivo']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you. This is the most useful report for the project: every real file that behaves unexpectedly teaches more than a new feature.
+
+        If the file is confidential, **do not attach it**. Describe what shows up and, if you can, add a screenshot with the content covered.
+  - type: dropdown
+    id: format
+    attributes:
+      label: Format
+      options:
+        - .docx
+        - .dotx / .dotm
+        - .xlsx
+        - other
+    validations:
+      required: true
+  - type: dropdown
+    id: origin
+    attributes:
+      label: Which program was the file made in?
+      options:
+        - Microsoft Word / Excel
+        - LibreOffice
+        - Google Docs / Sheets
+        - I don't know
+        - other
+    validations:
+      required: true
+  - type: dropdown
+    id: when
+    attributes:
+      label: When does the problem show up?
+      multiple: true
+      options:
+        - on opening (it looks different)
+        - on editing
+        - on saving (the saved file opens differently in Word or LibreOffice)
+        - on printing or exporting to PDF
+        - a warning that makes no sense
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What Word or LibreOffice shows
+      description: With a screenshot, if possible.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What Librevia showed
+      description: With a screenshot, if possible. Include the text of any warning that appeared.
+    validations:
+      required: true
+  - type: textarea
+    id: file
+    attributes:
+      label: The file
+      description: Drag the file here, if you can share it. If you can't, say what is special about it (tables, images, sections, comments, revisions, formulas…).
+  - type: input
+    id: version
+    attributes:
+      label: Librevia version and system
+      placeholder: 'e.g. 0.5.0, Windows 11'
+    validations:
+      required: true
