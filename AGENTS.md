@@ -25,6 +25,10 @@ central: **salvar regrava só o que foi editado**; o resto do pacote volta byte 
 
 Teste só o que a mudança tocou. Rodar a suíte inteira a cada passo é desperdício.
 
+**Correção de bug começa pelo teste.** Antes de mexer no código, escreva um teste, na camada
+certa, que reproduz o bug, e rode-o para vê-lo falhar pelo motivo do bug. Só então corrija, e
+rode de novo para vê-lo passar. O teste entra no mesmo commit do `fix`.
+
 ## Regras que o código cobra
 
 - **Fronteiras:** `src/services/` e `src/shared/` não importam `electron`, `react`, `node:*`,

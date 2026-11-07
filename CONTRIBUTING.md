@@ -329,6 +329,21 @@ O teste acompanha a mudança, na camada certa:
 
 A regra de negócio mora em camada pura justamente para ser testada sem subir o Electron.
 
+### Correção de bugs
+
+Todo bug se corrige em dois passos, nesta ordem:
+
+1. **Reproduza num teste.** Escreva, na camada da tabela acima, um teste que mostra o bug, e
+   rode-o: ele precisa falhar, e pelo motivo do bug, não por um erro de montagem do teste.
+2. **Corrija.** Mude o código até o teste passar, sem alterar o que o teste espera.
+
+Por quê? O teste que falhou antes prova que reproduz o bug de verdade, e o que passa depois
+prova que a correção resolve aquele caso. Fica também como guarda: se o bug voltar, o teste
+acusa. O nome do teste descreve o comportamento certo, e o teste entra no mesmo commit do `fix`.
+
+Se o bug só aparece com um documento do corpus, reduza-o ao mínimo que o reproduz e monte esse
+mínimo no próprio teste, já que o corpus não entra no repositório.
+
 Os documentos reais usados para calibrar o projeto **não entram no repositório**. Os testes que
 dependem deles são pulados quando a variável `LIBREVIA_CORPUS_DOC` não está definida.
 
