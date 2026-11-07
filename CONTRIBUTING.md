@@ -55,7 +55,7 @@ npm run sidecar:build   # publishes the .NET format service
 npm run dev             # opens the application with automatic reload
 ```
 
-The full list of commands is in the [README](README.md#rodando-localmente).
+The full list of commands is in the [README](README.md#running-locally).
 
 ---
 

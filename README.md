@@ -1,7 +1,9 @@
 # Librevia
 
-Editor de documentos e planilhas para o computador. Funciona **sem internet**, abre e grava
-arquivos do Word e do Excel e, ao salvar, **regrava só o que você editou**.
+**English** · [Português (Brasil)](README.pt-BR.md)
+
+Document and spreadsheet editor for the desktop. It works **without internet**, opens and saves
+Word and Excel files and, when saving, **rewrites only what you edited**.
 
 [![CI](https://github.com/VStorch/LibreviaWorkspace/actions/workflows/ci.yml/badge.svg)](https://github.com/VStorch/LibreviaWorkspace/actions/workflows/ci.yml)
 
@@ -9,172 +11,172 @@ arquivos do Word e do Excel e, ao salvar, **regrava só o que você editou**.
 ![React](https://img.shields.io/badge/React_19-61DAFB?style=for-the-badge&logo=react&logoColor=black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
 ![.NET](https://img.shields.io/badge/.NET_10-512BD4?style=for-the-badge&logo=dotnet&logoColor=white)
-![Licença MIT](https://img.shields.io/badge/Licença-MIT-22C55E?style=for-the-badge)
+![MIT License](https://img.shields.io/badge/License-MIT-22C55E?style=for-the-badge)
 
-Este README é para quem lê ou mexe no código. Quem só quer **usar** o aplicativo deve ler o
-**[manual](MANUAL.md)**.
+This README is for people who read or work on the code. If you only want to **use** the
+application, read the **[manual](MANUAL.md)**.
 
 ---
 
-## 📑 Índice
+## 📑 Contents
 
-**Conhecer**
+**Get to know it**
 
-- [O que é o Librevia](#o-que-é-o-librevia)
-- [O que ele faz](#o-que-ele-faz)
-- [Formatos](#formatos)
-- [Salvar não custa o que você não editou](#salvar-não-custa-o-que-você-não-editou)
-- [Fórmulas em português](#fórmulas-em-português)
+- [What Librevia is](#what-librevia-is)
+- [What it does](#what-it-does)
+- [Formats](#formats)
+- [Saving does not cost what you did not edit](#saving-does-not-cost-what-you-did-not-edit)
+- [Formulas in Portuguese](#formulas-in-portuguese)
 
-**Por dentro**
+**Inside**
 
-- [Arquitetura](#arquitetura)
-- [Mapa do código](#mapa-do-código)
-- [Por que há .NET num projeto Electron](#por-que-há-net-num-projeto-electron)
-- [A tela é a folha impressa](#a-tela-é-a-folha-impressa)
-- [Ler e alterar um PDF](#ler-e-alterar-um-pdf)
-- [Recuperação depois de uma queda](#recuperação-depois-de-uma-queda)
-- [Idiomas e aparência](#idiomas-e-aparência)
-- [Desempenho, medido](#desempenho-medido)
+- [Architecture](#architecture)
+- [Code map](#code-map)
+- [Why there is .NET in an Electron project](#why-there-is-net-in-an-electron-project)
+- [The screen is the printed sheet](#the-screen-is-the-printed-sheet)
+- [Reading and changing a PDF](#reading-and-changing-a-pdf)
+- [Recovery after a crash](#recovery-after-a-crash)
+- [Languages and appearance](#languages-and-appearance)
+- [Performance, measured](#performance-measured)
 
-**Trabalhar no código**
+**Working on the code**
 
-- [Requisitos](#requisitos)
-- [Rodando localmente](#rodando-localmente)
-- [Testes](#testes)
+- [Requirements](#requirements)
+- [Running locally](#running-locally)
+- [Tests](#tests)
 - [CI/CD](#cicd)
-- [Empacotamento](#empacotamento)
-- [Regras do código](#regras-do-código)
-- [Limites conhecidos](#limites-conhecidos)
-- [Onde saber mais](#onde-saber-mais)
-- [Contribuindo](#contribuindo)
-- [Licença](#licença)
+- [Packaging](#packaging)
+- [Code rules](#code-rules)
+- [Known limits](#known-limits)
+- [Where to learn more](#where-to-learn-more)
+- [Contributing](#contributing)
+- [License](#license)
 
 ---
 
-<a id="o-que-é-o-librevia"></a>
+<a id="what-librevia-is"></a>
 
-## 💡 O que é o Librevia
+## 💡 What Librevia is
 
-Quem já abriu um `.docx` num editor diferente do Word e salvou conhece o problema. O texto
-continua lá, mas os comentários somem, as revisões desaparecem, uma nota de rodapé vira
-texto comum. Ninguém avisou.
+Anyone who has opened a `.docx` in an editor other than Word and saved it knows the problem. The
+text is still there, but the comments are gone, the revisions disappear, a footnote turns into
+plain text. Nobody warned you.
 
-Por que isso acontece? A maioria dos editores lê o arquivo, monta a própria versão dele e,
-ao salvar, **escreve tudo de novo** a partir dessa versão. O que o editor não entendeu na
-leitura não volta na escrita.
+Why does this happen? Most editors read the file, build their own version of it and, when
+saving, **write everything again** from that version. Whatever the editor did not understand on
+reading does not come back on writing.
 
-O Librevia faz o contrário. Ele guarda o arquivo original e, ao salvar, troca só os trechos
-que você mudou. O resto volta byte a byte, como estava.
+Librevia does the opposite. It keeps the original file and, when saving, replaces only the parts
+you changed. The rest comes back byte for byte, as it was.
 
-Imagine um livro impresso em que você corrige um parágrafo. Um editor comum digitaria o livro
-inteiro de novo para mudar uma frase. O Librevia troca só a página corrigida e devolve as
-outras como vieram.
+Picture a printed book in which you correct one paragraph. A regular editor would retype the
+whole book to change one sentence. Librevia replaces only the corrected page and hands back the
+others as they came.
 
-Ele também:
+It also:
 
-- **não usa a rede**, nem para a ortografia, nem para as fontes, a menos que você ligue um
-  assistente de IA;
-- **avisa antes de perder alguma coisa**, e diz o quê;
-- **guarda um rascunho** a cada oito segundos, para o caso de o computador desligar.
-
----
-
-<a id="o-que-ele-faz"></a>
-
-## 📌 O que ele faz
-
-### Documentos
-
-| Área | O que entrega |
-| --- | --- |
-| **Texto** | fontes, tamanhos, cores, destaque, caixa alta, versalete, sobrescrito e subscrito |
-| **Estilos** | os estilos do próprio documento; aplicar, alterar e criar; documento novo em Calibri 11 |
-| **Parágrafo** | recuo, espaçamento, alinhamento, viúvas e órfãs, manter com o próximo |
-| **Listas** | listas de vários níveis numeradas como no Word; reiniciar, continuar e mudar o formato |
-| **Página** | folhas de verdade na tela, cabeçalho, rodapé, numeração de página, margens, orientação, zoom de 50 % a 200 % |
-| **Seções e colunas** | cada seção com o próprio papel e as próprias margens; texto em colunas |
-| **Tabelas e imagens** | inserir e editar; cabeçalho de tabela repetido em cada folha; imagens ancoradas no texto |
-| **Referências** | painel de navegação, sumário, marcadores, legendas, referência cruzada e campos que mostram as propriedades no texto |
-| **Notas** | notas de rodapé e de fim, editadas no pé da própria folha |
-| **Revisão** | comentários com resposta e resolução; controle de alterações enquanto você digita; aceitar e rejeitar |
-| **Equações** | mostra as equações do Word e permite escrever novas em LaTeX |
-| **Modelos** | cria documentos a partir de modelos do Word (`.dotx`) e do ODF (`.ott`); quatro vêm com o aplicativo |
-| **Ferramentas** | ortografia em português sem internet, localizar e substituir, contar palavras, caracteres especiais, autocorreção tipográfica |
-| **Assistente de IA** | opcional e desligado de fábrica: reescreve, resume, revisa ou traduz o trecho selecionado, com o documento aberto como contexto e com permissão para os que ficam fora do computador; a resposta chega formatada (negrito, títulos, listas) e entra como alteração controlada. Na planilha, explica e cria fórmulas e preenche colunas, com prévia antes de gravar. Funciona com Ollama e LM Studio, neste computador, com o Claude Code, com agentes que falam o protocolo ACP (Gemini CLI, Codex e outros) ou com um serviço na nuvem. Programas externos, como o Claude Code, podem ler o documento aberto e deixar revisões e comentários pelo protocolo MCP, sem usar a rede; na planilha, leem as células e propõem escritas, que você aplica ou descarta |
-
-### Planilhas
-
-| Área | O que entrega |
-| --- | --- |
-| **Grade** | seleção de intervalo, alça de preenchimento, área de transferência; abre planilhas de 20 mil linhas |
-| **Estrutura** | abas, congelar linhas e colunas, inserir e excluir linhas e colunas |
-| **Formatação** | número, moeda, percentual, data e texto; negrito, itálico, sublinhado, cores, alinhamento e bordas |
-| **Fórmulas** | 52 funções em português e em inglês, referências entre abas, barra de fórmulas |
-
-### Em volta dos dois
-
-| Área | O que entrega |
-| --- | --- |
-| **PDF e impressão** | documentos e planilhas, com cabeçalho, rodapé, numeração, margens e orientação; o PDF exportado leva as propriedades |
-| **Leitor de PDF** | abre PDFs, inclusive protegidos por senha; edita as propriedades e avisa quantas versões anteriores o arquivo guarda |
-| **Propriedades** | resumo, propriedades personalizadas e estatísticas, em documentos e planilhas |
-| **Dados pessoais** | o inspetor acha e remove nomes, pastas, miniatura e metadados das fotos de um `.docx`, `.odt` ou `.xlsx` |
-| **Exportar** | documento para PDF, HTML, Markdown e ODT |
-| **Recuperação** | rascunho a cada oito segundos, oferecido de volta depois de uma queda |
-| **Somente leitura** | só trava o arquivo quando editar pode apagar algo importante dele |
-| **Interface** | português ou inglês; tema claro, escuro ou do sistema; modo de leitura |
-| **Distribuição** | AppImage, `.deb` e instalador para Windows, com os avisos de licença de terceiros |
+- **does not use the network**, not for spelling, not for fonts, unless you turn on an AI
+  assistant;
+- **warns before losing anything**, and says what;
+- **keeps a draft** every eight seconds, in case the computer shuts down.
 
 ---
 
-<a id="formatos"></a>
+<a id="what-it-does"></a>
 
-## 📄 Formatos
+## 📌 What it does
 
-| Extensão | Abre | Salva | O que é |
+### Documents
+
+| Area | What it delivers |
+| --- | --- |
+| **Text** | fonts, sizes, colors, highlight, all caps, small caps, superscript and subscript |
+| **Styles** | the document's own styles; apply, change and create; new documents in Calibri 11 |
+| **Paragraph** | indentation, spacing, alignment, widows and orphans, keep with next |
+| **Lists** | multilevel lists numbered as in Word; restart, continue and change the format |
+| **Page** | real sheets on screen, header, footer, page numbering, margins, orientation, zoom from 50 % to 200 % |
+| **Sections and columns** | each section with its own paper and margins; text in columns |
+| **Tables and images** | insert and edit; table header repeated on each sheet; images anchored in the text |
+| **References** | navigation pane, table of contents, bookmarks, captions, cross-references and fields that show the properties in the text |
+| **Notes** | footnotes and endnotes, edited at the foot of their own sheet |
+| **Review** | comments with replies and resolution; tracked changes as you type; accept and reject |
+| **Equations** | shows Word's equations and lets you write new ones in LaTeX |
+| **Templates** | creates documents from Word (`.dotx`) and ODF (`.ott`) templates; four come with the application |
+| **Tools** | Portuguese spell checking without internet, find and replace, word count, special characters, typographic autocorrect |
+| **AI assistant** | optional and off by default: rewrites, summarizes, proofreads or translates the selected passage, with the open document as context and with permission for those outside the computer; the answer arrives formatted (bold, headings, lists) and goes in as a tracked change. In the spreadsheet, it explains and creates formulas and fills columns, with a preview before writing. It works with Ollama and LM Studio, on this computer, with Claude Code, with agents that speak the ACP protocol (Gemini CLI, Codex and others) or with a cloud service. External programs, such as Claude Code, can read the open document and leave revisions and comments through the MCP protocol, without using the network; in the spreadsheet, they read the cells and propose writes, which you apply or discard |
+
+### Spreadsheets
+
+| Area | What it delivers |
+| --- | --- |
+| **Grid** | range selection, fill handle, clipboard; opens 20-thousand-row spreadsheets |
+| **Structure** | tabs, freeze rows and columns, insert and delete rows and columns |
+| **Formatting** | number, currency, percentage, date and text; bold, italic, underline, colors, alignment and borders |
+| **Formulas** | 52 functions in Portuguese and English, references across tabs, formula bar |
+
+### Around both
+
+| Area | What it delivers |
+| --- | --- |
+| **PDF and printing** | documents and spreadsheets, with header, footer, numbering, margins and orientation; the exported PDF carries the properties |
+| **PDF reader** | opens PDFs, including password-protected ones; edits the properties and says how many earlier versions the file keeps |
+| **Properties** | summary, custom properties and statistics, in documents and spreadsheets |
+| **Personal data** | the inspector finds and removes names, folders, thumbnail and photo metadata from a `.docx`, `.odt` or `.xlsx` |
+| **Export** | document to PDF, HTML, Markdown and ODT |
+| **Recovery** | a draft every eight seconds, offered back after a crash |
+| **Read-only** | only locks the file when editing could erase something important in it |
+| **Interface** | Portuguese or English; light, dark or system theme; reading mode |
+| **Distribution** | AppImage, `.deb` and a Windows installer, with the third-party license notices |
+
+---
+
+<a id="formats"></a>
+
+## 📄 Formats
+
+| Extension | Opens | Saves | What it is |
 | --- | :---: | :---: | --- |
-| `.docx` | ✅ | ✅ | documento do Word; o que você não editou volta intacto |
-| `.dotx` | ✅ | ✅ | modelo do Word; abrir cria um documento novo, sem título |
-| `.dotm` | ✅ | — | modelo do Word com macros; abre como o `.dotx`, mas sem as macros (o app avisa) |
-| `.xlsx` | ✅ | ✅ | planilha do Excel; o que você não editou volta intacto |
-| `.sdoc` | ✅ | ✅ | documento do Librevia; guarda tudo, sem perda |
-| `.ssheet` | ✅ | ✅ | planilha do Librevia; guarda tudo, sem perda |
-| `.txt` | ✅ | ✅ | só texto; salvar nele descarta a formatação, e o app avisa antes |
-| `.pdf` | ✅ | exporta | abre só para ler; título, autor, assunto e palavras-chave se alteram; documentos e planilhas exportam para ele |
-| `.html`, `.md` | — | exporta | documento numa página só, ou em Markdown com as imagens numa pasta ao lado |
-| `.odt` | ✅ | ✅ | documento do LibreOffice; o que você não editou volta intacto |
-| `.ott` | ✅ | ✅ | modelo do LibreOffice; abrir cria um documento novo, sem título |
+| `.docx` | ✅ | ✅ | Word document; what you did not edit comes back intact |
+| `.dotx` | ✅ | ✅ | Word template; opening it creates a new, untitled document |
+| `.dotm` | ✅ | — | Word template with macros; opens like `.dotx`, but without the macros (the app warns) |
+| `.xlsx` | ✅ | ✅ | Excel spreadsheet; what you did not edit comes back intact |
+| `.sdoc` | ✅ | ✅ | Librevia document; keeps everything, without loss |
+| `.ssheet` | ✅ | ✅ | Librevia spreadsheet; keeps everything, without loss |
+| `.txt` | ✅ | ✅ | text only; saving to it discards the formatting, and the app warns first |
+| `.pdf` | ✅ | exports | opens read-only; title, author, subject and keywords can be changed; documents and spreadsheets export to it |
+| `.html`, `.md` | — | exports | document on a single page, or in Markdown with the images in a folder next to it |
+| `.odt` | ✅ | ✅ | LibreOffice document; what you did not edit comes back intact |
+| `.ott` | ✅ | ✅ | LibreOffice template; opening it creates a new, untitled document |
 
-O `.odt` segue a mesma gravação cirúrgica do `.docx`: cada bloco do `content.xml` recebe uma
-identificação ao abrir, e o bloco que você não editou volta com o texto exato que tinha. O que o
-Librevia mostra e o que só preserva estão no [manual](MANUAL.md#documentos-do-libreoffice-odt). Planilhas
-`.ods` não abrem: a biblioteca de planilha do sidecar não lê o formato.
+`.odt` follows the same surgical save as `.docx`: each block of `content.xml` gets an identifier on
+opening, and the block you did not edit comes back with the exact text it had. What Librevia shows
+and what it only preserves is in the [manual](MANUAL.md#libreoffice-documents-odt). `.ods`
+spreadsheets do not open: the sidecar's spreadsheet library does not read the format.
 
 ---
 
-<a id="salvar-não-custa-o-que-você-não-editou"></a>
+<a id="saving-does-not-cost-what-you-did-not-edit"></a>
 
-## 🔬 Salvar não custa o que você não editou
+## 🔬 Saving does not cost what you did not edit
 
-É o motivo de o projeto existir.
+It is the reason the project exists.
 
-Quando o arquivo abre, cada parágrafo, tabela ou bloco recebe duas coisas: um **número de
-identificação** e uma **impressão digital**, um resumo curto do conteúdo. Se o conteúdo
-muda, a impressão digital muda junto.
+When the file opens, each paragraph, table or block gets two things: an **identification
+number** and a **fingerprint**, a short summary of the content. If the content changes, the
+fingerprint changes with it.
 
-Na hora de salvar, o Librevia compara as impressões digitais. Bloco igual volta com o XML
-original. Só o bloco diferente é escrito de novo.
+At save time, Librevia compares the fingerprints. An unchanged block comes back with the original
+XML. Only the different block is written again.
 
 ```mermaid
 flowchart TD
-    A(["📂 Abrir o .docx"]) --> B["Cada bloco recebe<br/>um id e uma impressão digital"]
-    B --> C["✍️ Você edita"]
-    C --> D(["💾 Salvar"])
-    D --> E{"A impressão digital<br/>do bloco mudou?"}
-    E -- "não" --> F["Volta o XML original,<br/>byte a byte"]
-    E -- "sim" --> G["Só esse bloco<br/>é escrito de novo"]
-    F --> H["📦 Arquivo gravado"]
+    A(["📂 Open the .docx"]) --> B["Each block gets<br/>an id and a fingerprint"]
+    B --> C["✍️ You edit"]
+    C --> D(["💾 Save"])
+    D --> E{"Did the block's<br/>fingerprint change?"}
+    E -- "no" --> F["The original XML comes back,<br/>byte for byte"]
+    E -- "yes" --> G["Only that block<br/>is written again"]
+    F --> H["📦 File saved"]
     G --> H
 
     classDef io fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
@@ -185,99 +187,102 @@ flowchart TD
     class G write
 ```
 
-Os números abaixo foram medidos:
+The numbers below were measured:
 
-| Cenário | Resultado |
+| Scenario | Result |
 | --- | --- |
-| Documento de 105 blocos, salvo sem editar | **0** blocos reescritos |
-| O mesmo documento, com um parágrafo editado | **1** bloco reescrito |
-| Partes do pacote que mudam | só `word/document.xml`; as outras 25 saem idênticas byte a byte |
-| Documento do LibreOffice (`.odt`, 7 blocos), salvo sem editar | **0** blocos reescritos; as 9 partes saem idênticas |
-| O mesmo `.odt`, com um parágrafo editado | **1** bloco reescrito; só `content.xml` muda |
-| Planilha do LibreOffice, aberta e salva sem editar | **0** células escritas, 18 preservadas |
-| A mesma planilha, com uma quantidade alterada | **4** células: a digitada e as três fórmulas que dependiam dela |
+| 105-block document, saved without editing | **0** blocks rewritten |
+| The same document, with one paragraph edited | **1** block rewritten |
+| Package parts that change | only `word/document.xml`; the other 25 come out identical byte for byte |
+| LibreOffice document (`.odt`, 7 blocks), saved without editing | **0** blocks rewritten; the 9 parts come out identical |
+| The same `.odt`, with one paragraph edited | **1** block rewritten; only `content.xml` changes |
+| LibreOffice spreadsheet, opened and saved without editing | **0** cells written, 18 preserved |
+| The same spreadsheet, with one quantity changed | **4** cells: the one typed and the three formulas that depended on it |
 
-O Librevia não precisa entender o formato inteiro do Word para ser fiel a ele. Basta não
-mexer no que você não mexeu.
+Librevia does not need to understand Word's whole format to be faithful to it. It only needs not
+to touch what you did not touch.
 
-### Três tipos de aviso
+### Three kinds of warning
 
-Imagine três situações. Na primeira, o arquivo tem algo que o Librevia não sabe desenhar,
-mas que vai continuar lá. Na segunda, algo vai sumir se você editar um trecho específico. Na
-terceira, o que pode sumir é importante a ponto de valer travar o arquivo.
+Picture three situations. In the first, the file has something Librevia cannot draw, but that
+will stay there. In the second, something will vanish if you edit a specific passage. In the
+third, what may vanish is important enough to be worth locking the file.
 
-São riscos diferentes, então os avisos também são:
+The risks are different, so the warnings are too:
 
-| Aviso | O que significa | Exemplos |
+| Warning | What it means | Examples |
 | --- | --- | --- |
-| **Invisível** | continua no arquivo, mas o editor não desenha | o degradê ou a sombra de uma forma; o trecho de uma equação que a tela não sabe desenhar |
-| **Perda** | some ao salvar, mas só se você editar o trecho em que está preso | a formatação de antes de uma revisão, no parágrafo que você reescreveu |
-| **Perda estrutural** | é o tipo de perda que **trava o arquivo** em somente leitura | campos calculados que o editor não refaz, controles de conteúdo, revisões de estrutura (como uma célula inserida numa tabela) |
+| **Invisible** | stays in the file, but the editor does not draw it | a shape's gradient or shadow; the part of an equation the screen cannot draw |
+| **Loss** | vanishes on save, but only if you edit the passage it is tied to | the formatting from before a revision, in the paragraph you rewrote |
+| **Structural loss** | the kind of loss that **locks the file** as read-only | calculated fields the editor does not recompute, content controls, structural revisions (such as a cell inserted into a table) |
 
-Se todo aviso dissesse a mesma coisa, o usuário aprenderia a fechá-los sem ler.
+If every warning said the same thing, the user would learn to close them without reading.
 
 <details>
-<summary><b>Por que o somente leitura existe, e por que não é um cadeado</b></summary>
+<summary><b>Why read-only exists, and why it is not a padlock</b></summary>
 
-Perder **aparência**, como a posição exata de uma imagem, não trava nada. Quase todo
-documento de empresa tem uma imagem ancorada; travar por isso travaria o uso do dia a dia, e
-o usuário aprenderia a destravar sem ler.
+Losing **appearance**, such as the exact position of an image, locks nothing. Almost every
+company document has an anchored image; locking for that would block everyday use, and the user
+would learn to unlock without reading.
 
-Quando o arquivo traz perda estrutural, ele abre travado, e uma faixa diz **exatamente o que
-está em jogo**. Um clique em "Editar mesmo assim" libera aquele arquivo, e só ele.
+When the file carries a structural loss, it opens locked, and a banner says **exactly what is at
+stake**. A click on "Editar mesmo assim" (edit anyway) unlocks that file, and only that one.
 
-A classificação mora em `Inventory.cs`. Os rótulos são **constantes** usadas pelos leitores
-do formato. Se fossem frases soltas, mudar uma delas num lugar faria o documento abrir
-editável sem ninguém perceber. Como são constantes, o compilador não deixa.
+The classification lives in `Inventory.cs`. The labels are **constants** used by the format
+readers. If they were loose sentences, changing one of them in one place would make the document
+open editable without anyone noticing. Because they are constants, the compiler does not allow
+it.
 
 </details>
 
 <details>
-<summary><b>O inspetor de dados pessoais segue a mesma regra</b></summary>
+<summary><b>The personal data inspector follows the same rule</b></summary>
 
-A limpeza trabalha parte por parte no pacote: um documento sem miniatura nem nomes em
-`word/document.xml` sai com essa parte idêntica byte a byte. Numa foto, sai o EXIF, o XMP e os
-comentários; os pixels, o perfil de cor e a orientação ficam. O arquivo passa a guardar o pedido de
-não gravar nomes (`w:removePersonalInformation` no Word, `filterPrivacy` no Excel), que o Word, o
-Excel e o Librevia respeitam. O ODF não tem esse pedido; o Librevia grava o seu no `settings.xml`.
-O que o inspetor procura está no [manual](MANUAL.md#inspecionar-documento).
-
-</details>
-
-<details>
-<summary><b>As propriedades também</b></summary>
-
-As propriedades moram em três partes do pacote: o resumo em `docProps/core.xml`, a empresa, o
-gerente e as estatísticas em `docProps/app.xml`, e as personalizadas em `docProps/custom.xml`.
-Mudar só o status regrava só o `core.xml`; as outras duas voltam byte a byte.
-
-As estatísticas (páginas, palavras, caracteres e parágrafos) só são gravadas quando o texto mudou.
-Se você só trocou o título, o `app.xml` fica como estava, com os números que o Word escreveu.
+Cleaning works part by part in the package: a document with no thumbnail or names in
+`word/document.xml` comes out with that part identical byte for byte. In a photo, the EXIF, the
+XMP and the comments go; the pixels, the color profile and the orientation stay. The file starts
+storing the request not to record names (`w:removePersonalInformation` in Word, `filterPrivacy` in
+Excel), which Word, Excel and Librevia respect. ODF has no such request; Librevia writes its own
+in `settings.xml`. What the inspector looks for is in the
+[manual](MANUAL.md#inspect-document).
 
 </details>
 
 <details>
-<summary><b>No XLSX o cuidado é com a célula</b></summary>
+<summary><b>Properties too</b></summary>
 
-O arquivo diz `SUM(A1,B1)`; a tela mostra `SOMA(A1;B1)`. A tradução acontece num lugar só, na
-passagem entre o processo principal e o serviço de formatos, e é feita **caractere por
-caractere**.
+Properties live in three parts of the package: the summary in `docProps/core.xml`, the company,
+manager and statistics in `docProps/app.xml`, and the custom ones in `docProps/custom.xml`.
+Changing only the status rewrites only `core.xml`; the other two come back byte for byte.
 
-Por que não montar a fórmula de novo a partir do que foi entendido? Porque isso mudaria
-espaços e maiúsculas. Toda célula pareceria diferente, e abrir e salvar sem editar reescreveria
-a planilha inteira, apagando fonte, alinhamento vertical, recuo e bordas diagonais.
+The statistics (pages, words, characters and paragraphs) are only written when the text changed.
+If you only changed the title, `app.xml` stays as it was, with the numbers Word wrote.
 
-A biblioteca de planilha usada no sidecar **preserva as partes do pacote que não entende**.
-Gráficos e tabelas dinâmicas sobrevivem assim. O que ela reescreve é a planilha em si, e por
-isso a comparação célula a célula.
+</details>
+
+<details>
+<summary><b>In XLSX the care is with the cell</b></summary>
+
+The file says `SUM(A1,B1)`; the screen shows `SOMA(A1;B1)`. The translation happens in one place
+only, on the way between the main process and the format service, and it is done **character by
+character**.
+
+Why not rebuild the formula from what was understood? Because that would change spaces and
+capitalization. Every cell would look different, and opening and saving without editing would
+rewrite the whole spreadsheet, erasing font, vertical alignment, indentation and diagonal
+borders.
+
+The spreadsheet library used in the sidecar **preserves the package parts it does not
+understand**. Charts and pivot tables survive that way. What it rewrites is the sheet itself,
+hence the cell-by-cell comparison.
 
 </details>
 
 ---
 
-<a id="fórmulas-em-português"></a>
+<a id="formulas-in-portuguese"></a>
 
-## 🧮 Fórmulas em português
+## 🧮 Formulas in Portuguese
 
 ```excel
 =SOMA(1,5;2)      → 3,5
@@ -285,78 +290,78 @@ isso a comparação célula a célula.
 =PROCV("Ana";A1:C50;3;FALSO)
 ```
 
-**A vírgula é o separador decimal, e o ponto e vírgula separa os argumentos.** É a regra do
-Excel em português. Se a vírgula já marca o decimal, não pode separar mais nada.
+**The comma is the decimal separator, and the semicolon separates the arguments.** It is the rule
+of Excel in Portuguese. If the comma already marks the decimal, it cannot separate anything else.
 
-Quem escreve `SOMA(A1,B1)` recebe uma frase que diz qual é o separador certo, e não um erro
-genérico.
+Whoever writes `SOMA(A1,B1)` gets a sentence saying which separator is right, not a generic
+error.
 
-- **52 funções**, em seis grupos: [lista completa no manual](MANUAL.md#funções-disponíveis).
-- **Dois idiomas:** `SOMA` e `SUM` são a mesma função, assim como `SE` e `IF`, `PROCV` e
+- **52 functions**, in six groups: [full list in the manual](MANUAL.md#available-functions).
+- **Two languages:** `SOMA` and `SUM` are the same function, as are `SE` and `IF`, `PROCV` and
   `VLOOKUP`.
-- **Erro é um valor:** `=A1/0` dá `#DIV/0!`, e o erro passa adiante para quem depende da
-  célula, sem travar o cálculo do resto.
-- **As referências acompanham a estrutura:** inserir uma linha corrige as fórmulas, até as de
-  outras abas. Renomear uma aba corrige as fórmulas que a citam.
-- **A alça leva a fórmula:** `=B2*C2` arrastada para baixo vira `=B3*C3`; a referência com `$`
-  não se mexe.
+- **An error is a value:** `=A1/0` gives `#DIV/0!`, and the error passes on to whatever depends
+  on the cell, without stopping the calculation of the rest.
+- **References follow the structure:** inserting a row fixes the formulas, even those in other
+  tabs. Renaming a tab fixes the formulas that mention it.
+- **The fill handle carries the formula:** `=B2*C2` dragged down becomes `=B3*C3`; a reference
+  with `$` does not move.
 
 <details>
-<summary><b>Comportamentos do Excel copiados de propósito</b></summary>
+<summary><b>Excel behaviors copied on purpose</b></summary>
 
-São eles:
+They are:
 
-- `=-2^2` vale **4**;
-- `="a"="A"` é verdadeiro, mas `=1="1"` é falso;
-- texto dentro de um intervalo é ignorado por `SOMA`, mas convertido quando passado direto;
-- `PROCV` procura valor aproximado, a menos que se peça o exato.
+- `=-2^2` is **4**;
+- `="a"="A"` is true, but `=1="1"` is false;
+- text inside a range is ignored by `SOMA`, but converted when passed directly;
+- `PROCV` looks for an approximate value, unless the exact one is requested.
 
-O critério é um só: o mesmo arquivo precisa dar o mesmo número nos dois programas.
+The criterion is a single one: the same file must give the same number in both programs.
 
-A exceção é `#CIRC!`, que o Excel não tem. Lá, uma referência circular mostra zero e abre um
-aviso, e o zero fica na planilha como se fosse um resultado.
+The exception is `#CIRC!`, which Excel does not have. There, a circular reference shows zero and
+opens a warning, and the zero stays in the spreadsheet as if it were a result.
 
 </details>
 
 ---
 
-<a id="arquitetura"></a>
+<a id="architecture"></a>
 
-## 🧱 Arquitetura
+## 🧱 Architecture
 
-O aplicativo tem quatro partes. Cada uma só pode fazer o que precisa, e conversa com as
-outras por um canal estreito.
+The application has four parts. Each may only do what it needs, and talks to the others through
+a narrow channel.
 
 ```mermaid
 flowchart LR
-    subgraph R["🖥️ Renderer · React, isolado"]
+    subgraph R["🖥️ Renderer · React, isolated"]
         direction TB
-        DOC["Editor de documentos<br/><i>TipTap / ProseMirror</i>"]
-        SHEET["Planilha<br/><i>RevoGrid</i>"]
-        ST["Estado<br/><i>Zustand</i>"]
+        DOC["Document editor<br/><i>TipTap / ProseMirror</i>"]
+        SHEET["Spreadsheet<br/><i>RevoGrid</i>"]
+        ST["State<br/><i>Zustand</i>"]
     end
 
     subgraph P["🔌 Preload"]
-        API["window.api<br/><i>só encaminha</i>"]
+        API["window.api<br/><i>only forwards</i>"]
     end
 
     subgraph M["⚙️ Main · Node.js"]
         direction TB
-        IPC["IPC validado<br/>por Zod"]
-        FS["Arquivos<br/><i>caminhos autorizados,<br/>gravação atômica</i>"]
-        PDF["PDF e impressão<br/><i>Chromium</i>"]
-        REC["Rascunhos"]
+        IPC["IPC validated<br/>by Zod"]
+        FS["Files<br/><i>authorized paths,<br/>atomic writes</i>"]
+        PDF["PDF and printing<br/><i>Chromium</i>"]
+        REC["Drafts"]
     end
 
     subgraph S["🧩 Sidecar · .NET 10"]
-        FMT["Librevia.Format<br/><i>DOCX, ODT e XLSX</i>"]
+        FMT["Librevia.Format<br/><i>DOCX, ODT and XLSX</i>"]
     end
 
-    SV[["📚 src/services<br/>lógica pura, usada<br/>pelos dois lados"]]
+    SV[["📚 src/services<br/>pure logic, used<br/>by both sides"]]
 
     DOC & SHEET --> ST --> API --> IPC
     IPC --> FS & PDF & REC
-    IPC <-->|"quadros binários<br/>por stdio"| FMT
+    IPC <-->|"binary frames<br/>over stdio"| FMT
     SV -.-> R
     SV -.-> M
 
@@ -372,206 +377,205 @@ flowchart LR
     class SV pure
 ```
 
-| Parte | O que faz | O que não pode fazer |
+| Part | What it does | What it may not do |
 | --- | --- | --- |
-| **Renderer** | desenha a interface e edita | tocar no disco ou importar `electron` e `node:*` |
-| **Preload** | expõe `window.api` | ter lógica; ele só encaminha |
-| **Main** | abre janelas, lê e grava arquivos, imprime | aceitar caminho que o usuário não escolheu; acessar a rede fora de `src/main/ai/` |
-| **Sidecar** | lê e escreve DOCX, ODT e XLSX | acessar rede ou gravar no disco |
+| **Renderer** | draws the interface and edits | touch the disk or import `electron` and `node:*` |
+| **Preload** | exposes `window.api` | have logic; it only forwards |
+| **Main** | opens windows, reads and writes files, prints | accept a path the user did not choose; access the network outside `src/main/ai/` |
+| **Sidecar** | reads and writes DOCX, ODT and XLSX | access the network or write to disk |
 
-### Uma abertura e um salvamento, passo a passo
+### One open and one save, step by step
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor U as Você
+    actor U as You
     participant R as Renderer
     participant M as Main
-    participant S as Sidecar .NET
+    participant S as .NET sidecar
 
-    U->>R: Arquivo → Abrir
+    U->>R: File → Open
     R->>M: file:open
-    M->>M: diálogo nativo, autoriza o caminho
-    M->>S: bytes do .docx
-    S-->>M: documento em JSON, com id e impressão digital por bloco
-    M-->>R: documento validado por Zod
-    U->>R: edita um parágrafo
+    M->>M: native dialog, authorizes the path
+    M->>S: bytes of the .docx
+    S-->>M: document as JSON, with an id and fingerprint per block
+    M-->>R: document validated by Zod
+    U->>R: edits a paragraph
     U->>R: Ctrl+S
-    R->>M: file:save (documento)
-    M->>S: documento + bytes originais
-    S-->>M: pacote novo, só o bloco editado reescrito
-    M->>M: grava num temporário, guarda um .bak e troca pelo original
-    M-->>R: salvo
+    R->>M: file:save (document)
+    M->>S: document + original bytes
+    S-->>M: new package, only the edited block rewritten
+    M->>M: writes to a temporary file, keeps a .bak and swaps it for the original
+    M-->>R: saved
 ```
 
-### Duas travas no processo principal
+### Two locks in the main process
 
-Elas valem mesmo que um documento malicioso consiga controlar a interface:
+They hold even if a malicious document manages to control the interface:
 
-- **Gravar** (`file:save`) só aceita caminhos autorizados nesta sessão, isto é, abertos ou
-  escolhidos pelo usuário num diálogo do sistema.
-- **Abrir pelos recentes** (`file:open-recent`) só aceita caminhos que já estejam na lista
-  de recentes.
+- **Saving** (`file:save`) only accepts paths authorized in this session, that is, opened or
+  chosen by the user in a system dialog.
+- **Opening from recents** (`file:open-recent`) only accepts paths already in the recent files
+  list.
 
-Qualquer outro caminho é recusado com `PATH_NOT_AUTHORIZED` antes de chegar ao disco.
+Any other path is refused with `PATH_NOT_AUTHORIZED` before reaching the disk.
 
-A janela roda com `contextIsolation` e `sandbox` ligados e `nodeIntegration` desligado. Um
-teste trava essas opções: se alguém desligar uma delas, `security-policy.test.ts` falha.
+The window runs with `contextIsolation` and `sandbox` on and `nodeIntegration` off. A test locks
+these options: if someone turns one of them off, `security-policy.test.ts` fails.
 
 ---
 
-<a id="mapa-do-código"></a>
+<a id="code-map"></a>
 
-## 🗺️ Mapa do código
+## 🗺️ Code map
 
-O código é TypeScript e C#, e cerca de um terço dele é de testes. Esta é a lista das pastas que
-importam e do que cada uma guarda.
+The code is TypeScript and C#, and about a third of it is tests. This is the list of the folders
+that matter and what each one holds.
 
-### Raiz
+### Root
 
-| Pasta | Conteúdo |
+| Folder | Contents |
 | --- | --- |
-| [`src/main/`](src/main) | processo principal do Electron: janelas, menu, arquivos, impressão, IPC |
-| [`src/preload/`](src/preload) | a ponte `contextBridge`, num arquivo só |
-| [`src/renderer/`](src/renderer) | interface React: editor de documentos, planilha, página inicial |
-| [`src/services/`](src/services) | lógica pura: modelos, formatos, fórmulas, paginação, exportação |
-| [`src/shared/`](src/shared) | contratos de IPC, esquemas Zod, erros, atalhos e o catálogo de traduções |
-| [`sidecar/`](sidecar) | serviço de formatos em .NET, com os próprios testes |
-| [`e2e/`](e2e) | testes de ponta a ponta com Playwright, sobre o aplicativo montado |
-| [`resources/`](resources) | fontes, dicionário, modelos e os binários do sidecar que vão no instalador |
-| [`scripts/`](scripts) | ícone, avisos de licença, publicação do sidecar, checagem de traduções |
+| [`src/main/`](src/main) | Electron main process: windows, menu, files, printing, IPC |
+| [`src/preload/`](src/preload) | the `contextBridge` bridge, in a single file |
+| [`src/renderer/`](src/renderer) | React interface: document editor, spreadsheet, start page |
+| [`src/services/`](src/services) | pure logic: models, formats, formulas, pagination, export |
+| [`src/shared/`](src/shared) | IPC contracts, Zod schemas, errors, shortcuts and the translation catalog |
+| [`sidecar/`](sidecar) | .NET format service, with its own tests |
+| [`e2e/`](e2e) | end-to-end tests with Playwright, on the assembled application |
+| [`resources/`](resources) | fonts, dictionary, templates and the sidecar binaries that go in the installer |
+| [`scripts/`](scripts) | icon, license notices, sidecar publishing, translation checks |
 
-### Processo principal — `src/main/`
+### Main process — `src/main/`
 
-| Pasta ou arquivo | Conteúdo |
+| Folder or file | Contents |
 | --- | --- |
-| [`index.ts`](src/main/index.ts), [`window.ts`](src/main/window.ts) | início do aplicativo e criação das janelas |
-| [`menu.ts`](src/main/menu.ts), [`context-menu.ts`](src/main/context-menu.ts) | menu nativo e menu do botão direito |
-| [`ipc/`](src/main/ipc) | um arquivo por grupo de canais: arquivo, edição, exportação, impressão, PDF, dados pessoais, rascunhos, modelos, janela |
-| [`fs/`](src/main/fs) | autorização de caminhos, gravação atômica, recentes, rascunhos, limite de 20 MB |
-| [`sidecar/`](src/main/sidecar) | localiza o executável .NET, sobe o processo e fala o protocolo de quadros |
-| [`docx/`](src/main/docx), [`odt/`](src/main/odt), [`xlsx/`](src/main/xlsx) | o lado TypeScript de cada formato, incluindo a tradução das fórmulas |
-| [`opened-original.ts`](src/main/opened-original.ts) | os bytes do arquivo aberto, com que a gravação cirúrgica compara |
-| [`print/`](src/main/print), [`pdf-metadata.ts`](src/main/pdf-metadata.ts) | PDF pelo `printToPDF`, depois as propriedades gravadas nele |
-| [`pdf-scheme.ts`](src/main/pdf-scheme.ts), [`pdf-viewer.ts`](src/main/pdf-viewer.ts) | o leitor de PDF na sua origem própria, e a janela de impressão de um PDF |
-| [`privacy.ts`](src/main/privacy.ts) | o inspetor de dados pessoais, que lê o arquivo gravado no disco |
-| [`preferences.ts`](src/main/preferences.ts), [`i18n.ts`](src/main/i18n.ts) | idioma e tema guardados, e a tradução do menu nativo |
-| [`security.ts`](src/main/security.ts), [`security-policy.ts`](src/main/security-policy.ts) | preferências da janela e política de navegação |
-| [`spellcheck.ts`](src/main/spellcheck.ts), [`fonts.ts`](src/main/fonts.ts), [`system-fonts.ts`](src/main/system-fonts.ts) | ortografia offline e lista de fontes |
-| [`log.ts`](src/main/log.ts) | o registro de erros, `librevia.log`, que fica só no computador |
-| [`ai/`](src/main/ai) | o assistente de IA: provedores, chaves cifradas, consentimento, cancelamento e o servidor MCP local. É a única pasta que acessa a rede |
+| [`index.ts`](src/main/index.ts), [`window.ts`](src/main/window.ts) | application start and window creation |
+| [`menu.ts`](src/main/menu.ts), [`context-menu.ts`](src/main/context-menu.ts) | native menu and right-click menu |
+| [`ipc/`](src/main/ipc) | one file per group of channels: file, editing, export, printing, PDF, personal data, drafts, templates, window |
+| [`fs/`](src/main/fs) | path authorization, atomic writes, recents, drafts, 20 MB limit |
+| [`sidecar/`](src/main/sidecar) | finds the .NET executable, starts the process and speaks the frame protocol |
+| [`docx/`](src/main/docx), [`odt/`](src/main/odt), [`xlsx/`](src/main/xlsx) | the TypeScript side of each format, including formula translation |
+| [`opened-original.ts`](src/main/opened-original.ts) | the bytes of the opened file, which the surgical save compares against |
+| [`print/`](src/main/print), [`pdf-metadata.ts`](src/main/pdf-metadata.ts) | PDF through `printToPDF`, then the properties written into it |
+| [`pdf-scheme.ts`](src/main/pdf-scheme.ts), [`pdf-viewer.ts`](src/main/pdf-viewer.ts) | the PDF reader on its own origin, and the print window for a PDF |
+| [`privacy.ts`](src/main/privacy.ts) | the personal data inspector, which reads the file saved on disk |
+| [`preferences.ts`](src/main/preferences.ts), [`i18n.ts`](src/main/i18n.ts) | stored language and theme, and the native menu translation |
+| [`security.ts`](src/main/security.ts), [`security-policy.ts`](src/main/security-policy.ts) | window preferences and navigation policy |
+| [`spellcheck.ts`](src/main/spellcheck.ts), [`fonts.ts`](src/main/fonts.ts), [`system-fonts.ts`](src/main/system-fonts.ts) | offline spell checking and the font list |
+| [`log.ts`](src/main/log.ts) | the error log, `librevia.log`, which stays on the computer |
+| [`ai/`](src/main/ai) | the AI assistant: providers, encrypted keys, consent, cancellation and the local MCP server. It is the only folder that accesses the network |
 
 ### Interface — `src/renderer/`
 
-| Pasta | Conteúdo |
+| Folder | Contents |
 | --- | --- |
-| [`app/`](src/renderer/app), [`pages/`](src/renderer/pages) | a casca do aplicativo, com o salvamento do rascunho, e a página inicial |
-| [`document/`](src/renderer/document) | o editor de documentos: folhas, faixas de cabeçalho e rodapé, notas, comentários, diálogos |
-| [`document/extensions/`](src/renderer/document/extensions) | extensões do TipTap: paginação, estilos, listas, campos, notas, equações, controle de alterações |
-| [`document/toolbar/`](src/renderer/document/toolbar) | a barra de ferramentas e os diálogos de parágrafo, tabela, imagem e link |
-| [`spreadsheet/`](src/renderer/spreadsheet) | grade, barra de fórmulas, abas e menus da planilha |
-| [`state/`](src/renderer/state) | estado com Zustand: arquivos, rascunhos, impressão, tema, zoom, modo de leitura |
-| [`components/`](src/renderer/components) | peças comuns: barra de status, faixas de aviso, galeria de modelos, propriedades, inspetor de dados pessoais |
-| [`pdf/`](src/renderer/pdf) | o quadro do leitor de PDF e a barra de busca dele |
-| [`pdf-viewer/`](src/renderer/pdf-viewer) | a página isolada que desenha o PDF com o pdf.js |
-| [`ai/`](src/renderer/ai) | o painel do assistente de IA, a conversa, as propostas na folha e as respostas aos programas MCP |
+| [`app/`](src/renderer/app), [`pages/`](src/renderer/pages) | the application shell, with the draft saving, and the start page |
+| [`document/`](src/renderer/document) | the document editor: sheets, header and footer bands, notes, comments, dialogs |
+| [`document/extensions/`](src/renderer/document/extensions) | TipTap extensions: pagination, styles, lists, fields, notes, equations, tracked changes |
+| [`document/toolbar/`](src/renderer/document/toolbar) | the toolbar and the paragraph, table, image and link dialogs |
+| [`spreadsheet/`](src/renderer/spreadsheet) | grid, formula bar, tabs and spreadsheet menus |
+| [`state/`](src/renderer/state) | Zustand state: files, drafts, printing, theme, zoom, reading mode |
+| [`components/`](src/renderer/components) | shared pieces: status bar, warning banners, template gallery, properties, personal data inspector |
+| [`pdf/`](src/renderer/pdf) | the PDF reader frame and its search bar |
+| [`pdf-viewer/`](src/renderer/pdf-viewer) | the isolated page that draws the PDF with pdf.js |
+| [`ai/`](src/renderer/ai) | the AI assistant panel, the conversation, the proposals on the sheet and the replies to MCP programs |
 
-### Lógica pura — `src/services/`
+### Pure logic — `src/services/`
 
-| Pasta | Conteúdo |
+| Folder | Contents |
 | --- | --- |
-| [`document/`](src/services/document) | modelo do documento, `.sdoc`, estilos, paginação, listas, campos, notas, equações (LaTeX e MathML), exportação HTML e Markdown, leitura do Markdown das respostas do assistente |
-| [`spreadsheet/`](src/services/spreadsheet) | modelo da planilha, `.ssheet`, edição, preenchimento, formatação, estrutura |
-| [`spreadsheet/formula/`](src/services/spreadsheet/formula) | fórmulas: leitura, avaliação, recálculo, ajuste de referências e as 52 funções |
-| [`file/`](src/services/file) | extensões aceitas, propriedades do documento, dados pessoais e o inventário do que um arquivo pode perder |
-| [`pdf/`](src/services/pdf) | configuração de página, nas unidades que o Chromium espera |
-| [`spell/`](src/services/spell) | dicionário do usuário |
-| [`ai/`](src/services/ai) | pedidos ao assistente de IA, contexto do documento e leitura das respostas em fluxo |
+| [`document/`](src/services/document) | document model, `.sdoc`, styles, pagination, lists, fields, notes, equations (LaTeX and MathML), HTML and Markdown export, reading the Markdown of the assistant's answers |
+| [`spreadsheet/`](src/services/spreadsheet) | spreadsheet model, `.ssheet`, editing, filling, formatting, structure |
+| [`spreadsheet/formula/`](src/services/spreadsheet/formula) | formulas: parsing, evaluation, recalculation, reference adjustment and the 52 functions |
+| [`file/`](src/services/file) | accepted extensions, document properties, personal data and the inventory of what a file can lose |
+| [`pdf/`](src/services/pdf) | page setup, in the units Chromium expects |
+| [`spell/`](src/services/spell) | user dictionary |
+| [`ai/`](src/services/ai) | requests to the AI assistant, document context and reading streamed answers |
 
 ### Sidecar — `sidecar/src/Librevia.Format/`
 
-| Pasta ou arquivo | Conteúdo |
+| Folder or file | Contents |
 | --- | --- |
-| [`Program.cs`](sidecar/src/Librevia.Format/Program.cs), [`Server.cs`](sidecar/src/Librevia.Format/Server.cs) | laço que recebe pedidos pelo stdin e responde pelo stdout |
-| [`Protocol/`](sidecar/src/Librevia.Format/Protocol) | formato dos quadros e das mensagens |
-| [`Docx/`](sidecar/src/Librevia.Format/Docx) | leitores (`DocxReader`, `BodyReader`, `StyleReader`, `NotesReader`…), escritores (`DocxWriter`, `ParagraphWriter`, `SectionWriter`…), equações (`OmmlMath`), revisões, modelos, propriedades (`DocumentProperties`, `CustomProperties`) e o `Inventory` |
-| [`Odt/`](sidecar/src/Librevia.Format/Odt) | leitura e gravação cirúrgica de `.odt` e `.ott`, e a criação de um pacote ODT novo |
-| [`Xlsx/`](sidecar/src/Librevia.Format/Xlsx) | leitura e escrita de planilhas e formatos numéricos |
-| [`Pdf/`](sidecar/src/Librevia.Format/Pdf) | leitura da estrutura de um PDF e atualização incremental do título, autor, assunto e palavras-chave |
-| [`Privacy/`](sidecar/src/Librevia.Format/Privacy) | o inspetor de dados pessoais: acha e remove nomes, pastas, propriedades personalizadas, a miniatura e os metadados das imagens de um DOCX, ODT ou XLSX |
+| [`Program.cs`](sidecar/src/Librevia.Format/Program.cs), [`Server.cs`](sidecar/src/Librevia.Format/Server.cs) | loop that receives requests on stdin and answers on stdout |
+| [`Protocol/`](sidecar/src/Librevia.Format/Protocol) | format of the frames and messages |
+| [`Docx/`](sidecar/src/Librevia.Format/Docx) | readers (`DocxReader`, `BodyReader`, `StyleReader`, `NotesReader`…), writers (`DocxWriter`, `ParagraphWriter`, `SectionWriter`…), equations (`OmmlMath`), revisions, templates, properties (`DocumentProperties`, `CustomProperties`) and the `Inventory` |
+| [`Odt/`](sidecar/src/Librevia.Format/Odt) | reading and surgical saving of `.odt` and `.ott`, and creating a new ODT package |
+| [`Xlsx/`](sidecar/src/Librevia.Format/Xlsx) | reading and writing spreadsheets and number formats |
+| [`Pdf/`](sidecar/src/Librevia.Format/Pdf) | reading a PDF's structure and incrementally updating the title, author, subject and keywords |
+| [`Privacy/`](sidecar/src/Librevia.Format/Privacy) | the personal data inspector: finds and removes names, folders, custom properties, the thumbnail and image metadata of a DOCX, ODT or XLSX |
 
 ---
 
-<a id="por-que-há-net-num-projeto-electron"></a>
+<a id="why-there-is-net-in-an-electron-project"></a>
 
-## 🔌 Por que há .NET num projeto Electron
+## 🔌 Why there is .NET in an Electron project
 
-Para trocar só um bloco dentro de um `.docx`, é preciso enxergar o XML do Word com todos os
-seus tipos. A biblioteca que faz isso bem é a `DocumentFormat.OpenXml`, da Microsoft, sob
-licença MIT. Ela é de .NET, e daí o sidecar.
+To replace only one block inside a `.docx`, you need to see Word's XML with all its types. The
+library that does this well is Microsoft's `DocumentFormat.OpenXml`, under the MIT license. It is
+.NET, hence the sidecar.
 
-O sidecar é um **serviço de formatos**, e não uma segunda aplicação. Bytes entram pelo stdin
-e JSON sai pelo stdout. Ele não abre porta, não usa rede e não grava no disco; quem grava
-continua sendo o processo principal, com as travas que já existem.
+The sidecar is a **format service**, not a second application. Bytes come in on stdin and JSON
+goes out on stdout. It opens no port, uses no network and writes nothing to disk; the main process
+is still the one that writes, with the locks that already exist.
 
-Cada mensagem vai num **quadro binário**:
+Each message goes in a **binary frame**:
 
 ```text
 ┌──────────────────┬──────────────────────┬────────┬───────────┐
-│ tamanho do JSON  │ tamanho do binário   │  JSON  │  binário  │
+│ JSON length      │ binary length        │  JSON  │  binary   │
 └──────────────────┴──────────────────────┴────────┴───────────┘
 ```
 
-Por que não mandar uma linha de texto por mensagem? Porque um `.docx` é um ZIP, cheio de
-bytes de quebra de linha e de zeros. Um protocolo que separa mensagens por linha cortaria o
-arquivo ao meio.
+Why not send one line of text per message? Because a `.docx` is a ZIP, full of line-break and
+zero bytes. A protocol that separates messages by line would cut the file in half.
 
 <details>
-<summary><b>O que acontece se o sidecar cair</b></summary>
+<summary><b>What happens if the sidecar crashes</b></summary>
 
-O documento aberto continua aberto. A operação em andamento falha com uma frase que dá para
-entender, e o próximo pedido sobe um processo novo. O sidecar também se encerra sozinho
-quando perde o stdin, então nem um `SIGKILL` no aplicativo deixa processo esquecido.
+The open document stays open. The operation in progress fails with a sentence you can
+understand, and the next request starts a new process. The sidecar also shuts down on its own
+when it loses stdin, so not even a `SIGKILL` on the application leaves a forgotten process.
 
-Os dois lados do protocolo, `src/main/sidecar/protocol.ts` e
-`sidecar/src/Librevia.Format/Protocol/Frame.cs`, **precisam mudar juntos**. Quem garante isso
-é `sidecar-real.test.ts`, que conversa com o executável publicado de verdade.
+The two sides of the protocol, `src/main/sidecar/protocol.ts` and
+`sidecar/src/Librevia.Format/Protocol/Frame.cs`, **must change together**. What guarantees this
+is `sidecar-real.test.ts`, which talks to the real published executable.
 
 </details>
 
 ---
 
-<a id="a-tela-é-a-folha-impressa"></a>
+<a id="the-screen-is-the-printed-sheet"></a>
 
-## 📏 A tela é a folha impressa
+## 📏 The screen is the printed sheet
 
-O editor quebra o texto em folhas **linha por linha**, como o Word e o LibreOffice. Um
-parágrafo pode começar numa folha e terminar na seguinte, linhas sozinhas no topo ou no pé da
-folha (viúvas e órfãs) são evitadas, e o cabeçalho de uma tabela se repete em cada folha.
+The editor breaks the text into sheets **line by line**, like Word and LibreOffice. A paragraph
+can start on one sheet and end on the next, lone lines at the top or bottom of a sheet (widows
+and orphans) are avoided, and a table's header repeats on each sheet.
 
-Nos 25 documentos usados para conferir, o número de folhas é o mesmo do LibreOffice, e cada
-folha começa pela mesma palavra.
+In the 25 documents used for checking, the number of sheets is the same as in LibreOffice, and
+each sheet starts with the same word.
 
-Nenhuma biblioteca gera o PDF: quem gera é o próprio **Chromium**, pelo `printToPDF`. O
-editor entrega o documento **já dividido em folhas**, e cada folha vira uma caixa do tamanho
-do papel. Por isso o PDF sai igual à tela, com o texto selecionável e as fontes embutidas.
-O `printToPDF` só grava o título; o autor, o assunto e as palavras-chave das propriedades entram
-depois, por [atualização incremental](#ler-e-alterar-um-pdf), como num PDF aberto.
+No library generates the PDF: **Chromium** itself does, through `printToPDF`. The editor hands
+over the document **already divided into sheets**, and each sheet becomes a box the size of the
+paper. That is why the PDF comes out the same as the screen, with selectable text and embedded
+fonts. `printToPDF` only writes the title; the author, subject and keywords from the properties
+go in afterward, by [incremental update](#reading-and-changing-a-pdf), as in an opened PDF.
 
-Antes havia dois paginadores, o do editor e o do Chromium, e eles nem sempre concordavam.
-Agora há um só.
+There used to be two paginators, the editor's and Chromium's, and they did not always agree. Now
+there is only one.
 
-> ⚠️ **Ao mexer em margens:** `printToPDF()` recebe **polegadas** e `webContents.print()`
-> recebe **pixels CSS**. As duas conversões ficam juntas em `services/pdf/page-setup.ts`, com
-> um teste que compara uma com a outra.
+> ⚠️ **When touching margins:** `printToPDF()` takes **inches** and `webContents.print()` takes
+> **CSS pixels**. Both conversions live together in `services/pdf/page-setup.ts`, with a test
+> that compares one with the other.
 
 <details>
-<summary><b>As fontes que vêm junto</b></summary>
+<summary><b>The fonts that come along</b></summary>
 
-Um documento feito em Calibri precisa ocupar o mesmo espaço aqui, ou as folhas não batem. O
-instalador traz fontes livres com as **mesmas medidas** das fontes do Office:
+A document made in Calibri needs to take up the same space here, or the sheets do not match. The
+installer brings free fonts with the **same metrics** as the Office fonts:
 
-| Fonte do Office | Fonte que vem no Librevia |
+| Office font | Font that comes with Librevia |
 | --- | --- |
 | Calibri | Carlito |
 | Cambria | Caladea |
@@ -583,199 +587,198 @@ instalador traz fontes livres com as **mesmas medidas** das fontes do Office:
 
 ---
 
-<a id="ler-e-alterar-um-pdf"></a>
+<a id="reading-and-changing-a-pdf"></a>
 
-## 📕 Ler e alterar um PDF
+## 📕 Reading and changing a PDF
 
-Para **ler** um PDF, o Librevia usa o [pdf.js](https://mozilla.github.io/pdf.js/), da Mozilla.
-Ele roda num quadro com origem e processo próprios, sem acesso ao resto do aplicativo, e lê o
-arquivo por trechos: um PDF de 200 MB abre em 0,3 s, lendo 128 KB dele. A senha de um PDF
-protegido vai do diálogo direto para esse quadro: não passa pelo processo principal e não fica
-guardada.
+To **read** a PDF, Librevia uses Mozilla's [pdf.js](https://mozilla.github.io/pdf.js/). It runs
+in a frame with its own origin and process, without access to the rest of the application, and
+reads the file in chunks: a 200 MB PDF opens in 0.3 s, reading 128 KB of it. The password of a
+protected PDF goes from the dialog straight to that frame: it does not pass through the main
+process and is not stored.
 
-As **propriedades** de um PDF (título, autor, assunto e palavras-chave) são gravadas por
-**atualização incremental**, prevista na especificação do PDF: os bytes do arquivo ficam como
-estavam, e o dicionário de informações novo, o XMP, uma tabela de referências e um trailer
-apontando para a anterior vão no fim. Numa amostra de dez PDFs, entre eles um de 33 MB e 1.282
-páginas, a atualização teve de 357 bytes a 4,6 KB. Num PDF criptografado, a alteração é
-recusada; num PDF assinado, o diálogo avisa antes que leitores como o Acrobat vão indicar a
-mudança.
+A PDF's **properties** (title, author, subject and keywords) are written by **incremental
+update**, provided for in the PDF specification: the file's bytes stay as they were, and the new
+information dictionary, the XMP, a cross-reference table and a trailer pointing to the previous
+one go at the end. In a sample of ten PDFs, among them one of 33 MB and 1,282 pages, the update
+took from 357 bytes to 4.6 KB. In an encrypted PDF, the change is refused; in a signed PDF, the
+dialog warns beforehand that readers such as Acrobat will flag the change.
 
-O mesmo mecanismo explica por que o inspetor de dados pessoais não promete limpar um PDF: a versão
-anterior continua no arquivo. Ele conta as atualizações pela cadeia de `/Prev` (um PDF linearizado
-começa com duas seções, que não contam) e avisa quantas versões anteriores o arquivo guarda.
+The same mechanism explains why the personal data inspector does not promise to clean a PDF: the
+earlier version is still in the file. It counts the updates through the `/Prev` chain (a
+linearized PDF starts with two sections, which do not count) and says how many earlier versions
+the file keeps.
 
 ---
 
-<a id="recuperação-depois-de-uma-queda"></a>
+<a id="recovery-after-a-crash"></a>
 
-## 💾 Recuperação depois de uma queda
+## 💾 Recovery after a crash
 
-A cada oito segundos, o que está na tela vai para um rascunho, **nunca para o seu arquivo**.
-Se o aplicativo gravasse sozinho no arquivo, "não salvei" viraria "salvei sem querer". Decidir
-quando gravar continua sendo seu.
+Every eight seconds, what is on screen goes to a draft, **never to your file**. If the application
+wrote to the file on its own, "I didn't save" would become "I saved by accident". Deciding when
+to save is still up to you.
 
 ```mermaid
 stateDiagram-v2
     direction LR
-    [*] --> Editando
-    Editando --> Editando: a cada 8 s, grava o rascunho
-    Editando --> Salvo: Ctrl+S (o rascunho é apagado)
-    Salvo --> Editando: nova edição
-    Salvo --> [*]: fechar
-    Editando --> Queda: o computador desliga
-    Queda --> Oferta: próxima abertura
-    Oferta --> Editando: Recuperar
-    Oferta --> [*]: Descartar
-    note right of Oferta
-        Enquanto a faixa estiver na tela,
-        o rascunho não é sobrescrito.
+    [*] --> Editing
+    Editing --> Editing: every 8 s, writes the draft
+    Editing --> Saved: Ctrl+S (the draft is deleted)
+    Saved --> Editing: new edit
+    Saved --> [*]: close
+    Editing --> Crash: the computer shuts down
+    Crash --> Offer: next start
+    Offer --> Editing: Recover
+    Offer --> [*]: Discard
+    note right of Offer
+        While the banner is on screen,
+        the draft is not overwritten.
     end note
 ```
 
-Depois de uma queda, o aplicativo oferece o rascunho de volta numa faixa com duas ações.
-Enquanto a faixa estiver na tela, o salvamento automático **não escreve**. Sem essa regra,
-quem ignorasse o aviso e começasse a digitar apagaria, em segundos, justamente o trabalho
-que a faixa existe para devolver.
+After a crash, the application offers the draft back in a banner with two actions. While the
+banner is on screen, autosave **does not write**. Without this rule, whoever ignored the warning
+and started typing would erase, within seconds, exactly the work the banner exists to give back.
 
-Recuperar também restaura o que se perdeu com o processo: a autorização para gravar naquele
-caminho e os bytes originais do `.docx`. Sem eles, salvar por cima do arquivo recuperado
-seria recusado, e a gravação cirúrgica não teria com o que comparar.
-
----
-
-<a id="idiomas-e-aparência"></a>
-
-## 🌐 Idiomas e aparência
-
-A interface fala **português** e **inglês**, e o menu **Exibir** troca o idioma, o tema
-(claro, escuro ou o do sistema) e liga o **modo de leitura**.
-
-Os textos da interface ficam num catálogo em [`src/shared/i18n/`](src/shared/i18n), com as
-duas línguas lado a lado em cada entrada. Por que só duas, e não uma lista aberta? Porque cada
-idioma novo precisa de uma tradução em **toda** entrada, e o compilador acusa as que faltam.
-Uma tela metade num idioma e metade em outro é pior que não ter tradução.
-
-O compilador garante que toda entrada tem os dois idiomas, mas não sabe se uma frase ficou
-escrita direto no código, sem nunca virar entrada. Para isso existe o `npm run i18n:check`,
-que procura frases em português fora do catálogo.
+Recovering also restores what was lost with the process: the authorization to write to that path
+and the original bytes of the `.docx`. Without them, saving over the recovered file would be
+refused, and the surgical save would have nothing to compare against.
 
 ---
 
-<a id="desempenho-medido"></a>
+<a id="languages-and-appearance"></a>
 
-## ⚡ Desempenho, medido
+## 🌐 Languages and appearance
 
-Uma planilha de 20 mil linhas e **120 mil células**, com 20 mil fórmulas, gerada pelo
-LibreOffice, abre em **cerca de 3,5 s** do clique até a tela.
+The interface speaks **Portuguese** and **English**, and the **View** menu changes the language,
+the theme (light, dark or the system's) and turns on **reading mode**.
 
-| Etapa | Tempo |
+The interface text lives in a catalog in [`src/shared/i18n/`](src/shared/i18n), with both
+languages side by side in each entry. Why only two, and not an open list? Because each new
+language needs a translation in **every** entry, and the compiler flags the missing ones. A screen
+half in one language and half in another is worse than having no translation.
+
+The compiler guarantees every entry has both languages, but it does not know whether a sentence
+was written directly in the code, never becoming an entry. For that there is
+`npm run i18n:check`, which looks for Portuguese sentences outside the catalog.
+
+---
+
+<a id="performance-measured"></a>
+
+## ⚡ Performance, measured
+
+A spreadsheet of 20 thousand rows and **120 thousand cells**, with 20 thousand formulas,
+generated by LibreOffice, opens in **about 3.5 s** from the click to the screen.
+
+| Step | Time |
 | --- | --- |
-| Serviço de formatos (ClosedXML lendo o pacote) | 1,9 s na primeira vez, 0,9 s depois |
-| `parseWorkbook` (validar 120 mil células com Zod) | 245 ms |
-| `recalculate` (20 mil fórmulas) | 279 ms |
-| Converter o modelo em JSON (7,4 MB) | 50 ms |
-| Rascunho de um documento de 6 mil parágrafos | 4 ms, imperceptível |
+| Format service (ClosedXML reading the package) | 1.9 s the first time, 0.9 s afterward |
+| `parseWorkbook` (validating 120 thousand cells with Zod) | 245 ms |
+| `recalculate` (20 thousand formulas) | 279 ms |
+| Converting the model to JSON (7.4 MB) | 50 ms |
+| Draft of a 6-thousand-paragraph document | 4 ms, imperceptible |
 
 <details>
-<summary><b>Duas decisões que vieram dessa medição</b></summary>
+<summary><b>Two decisions that came from this measurement</b></summary>
 
-**Compilação antecipada (ReadyToRun) no sidecar, ligada.** Sem ela, a primeira abertura leva
-3,8 s; com ela, 1,9 s. Depois de aquecido, o código pré-compilado fica uns 100 ms mais lento
-que o otimizado em tempo de execução. Ninguém nota 100 ms, mas todo mundo nota a primeira
-abertura demorando. O custo é de 41 MB por plataforma.
+**Ahead-of-time compilation (ReadyToRun) in the sidecar, on.** Without it, the first open takes
+3.8 s; with it, 1.9 s. Once warmed up, the precompiled code is about 100 ms slower than code
+optimized at run time. Nobody notices 100 ms, but everyone notices the first open dragging. The
+cost is 41 MB per platform.
 
-**Formatos numéricos guardados.** Uma planilha grande tem meia dúzia de máscaras de número e
-centenas de milhares de células. Agora cada máscara é interpretada uma vez só. O tempo que
-sobra nesse trecho é do ClosedXML montando o estilo de cada célula.
+**Number formats cached.** A large spreadsheet has half a dozen number masks and hundreds of
+thousands of cells. Now each mask is parsed only once. The time left in that step is ClosedXML
+building each cell's style.
 
 </details>
 
 ---
 
-<a id="requisitos"></a>
+<a id="requirements"></a>
 
-## 🧰 Requisitos
+## 🧰 Requirements
 
-### Para usar
+### To use
 
-| Sistema | Pacote | Observação |
+| System | Package | Note |
 | --- | --- | --- |
-| Linux x64 | AppImage | roda sem instalar |
-| Linux x64 (Debian, Ubuntu e derivados) | `.deb` | instala no menu de aplicativos |
-| Windows 10 ou mais novo, x64 | instalador NSIS | instala só para o seu usuário, sem senha de administrador |
+| Linux x64 | AppImage | runs without installing |
+| Linux x64 (Debian, Ubuntu and derivatives) | `.deb` | installs in the applications menu |
+| Windows 10 or newer, x64 | NSIS installer | installs only for your user, without an administrator password |
 
-O runtime do .NET vai **dentro** do instalador. Quem usa não precisa instalar nada além dele.
+The .NET runtime goes **inside** the installer. Users do not need to install anything besides it.
 
-### Para compilar
+### To build
 
-| Ferramenta | Versão | Para quê |
+| Tool | Version | What for |
 | --- | --- | --- |
-| Node.js | 22 ou mais novo | build, testes e o próprio Electron |
-| .NET SDK | 10 | publicar e testar o sidecar |
-| Sistema | Linux ou Windows | o Windows é necessário só para gerar o instalador NSIS |
+| Node.js | 22 or newer | build, tests and Electron itself |
+| .NET SDK | 10 | publishing and testing the sidecar |
+| System | Linux or Windows | Windows is only needed to build the NSIS installer |
 
-Uma máquina Linux consegue publicar o sidecar para as duas plataformas; o CI confere isso.
+A Linux machine can publish the sidecar for both platforms; CI checks this.
 
 ---
 
-<a id="rodando-localmente"></a>
+<a id="running-locally"></a>
 
-## ▶️ Rodando localmente
+## ▶️ Running locally
 
 ```bash
-# 1. clonar e instalar
+# 1. clone and install
 git clone https://github.com/VStorch/LibreviaWorkspace.git
 cd LibreviaWorkspace
 npm install
 
-# 2. publicar o sidecar .NET (baixa os pacotes NuGet na primeira vez)
+# 2. publish the .NET sidecar (downloads the NuGet packages the first time)
 npm run sidecar:build
 
-# 3. abrir o aplicativo em modo de desenvolvimento, com recarga automática
+# 3. open the application in development mode, with automatic reload
 npm run dev
 ```
 
-### Comandos
+### Commands
 
-| Comando | O que faz |
+| Command | What it does |
 | --- | --- |
-| `npm run dev` | aplicativo em modo de desenvolvimento, com recarga automática |
-| `npm run build` | confere os tipos e gera o build de produção em `out/` |
-| `npm test` | testes de unidade (Vitest) |
-| `npm run sidecar:test` | testes do sidecar (.NET) |
-| `npm run e2e` | build e testes de ponta a ponta no aplicativo montado |
-| `npm run lint` | lint, incluindo as fronteiras entre as camadas |
-| `npm run i18n:check` | procura texto da interface fora do catálogo de traduções |
-| `npm run verify` | tipos, lint, testes dos dois lados, licenças e traduções |
-| `npm run format:check` | confere a formatação, que o `verify` não cobre; `npm run format` corrige |
-| `npm run dist` | instaladores AppImage e `.deb` em `release/` |
-| `npm run dist:win` | instalador NSIS (rodando no Windows) |
+| `npm run dev` | application in development mode, with automatic reload |
+| `npm run build` | checks the types and generates the production build in `out/` |
+| `npm test` | unit tests (Vitest) |
+| `npm run sidecar:test` | sidecar tests (.NET) |
+| `npm run e2e` | build and end-to-end tests on the assembled application |
+| `npm run lint` | lint, including the boundaries between layers |
+| `npm run i18n:check` | looks for interface text outside the translation catalog |
+| `npm run verify` | types, lint, tests on both sides, licenses and translations |
+| `npm run format:check` | checks formatting, which `verify` does not cover; `npm run format` fixes it |
+| `npm run dist` | AppImage and `.deb` installers in `release/` |
+| `npm run dist:win` | NSIS installer (running on Windows) |
 
-> O `npm run verify` publica o sidecar antes dos testes, porque um deles conversa com o
-> executável de verdade.
+> `npm run verify` publishes the sidecar before the tests, because one of them talks to the real
+> executable.
 
 ---
 
-<a id="testes"></a>
+<a id="tests"></a>
 
-## 🧪 Testes
+## 🧪 Tests
 
-São três camadas, e cada uma prova algo que a anterior não alcança:
+There are three layers, and each proves something the previous one cannot reach:
 
-| Camada | Ferramenta | O que prova |
+| Layer | Tool | What it proves |
 | --- | --- | --- |
-| **Unidade** | Vitest | lógica pura, processo principal, contratos de IPC |
-| **Sidecar** | xUnit (.NET) | leitura e escrita de DOCX, ODT, XLSX e PDF, ida e volta byte a byte |
-| **Ponta a ponta** | Playwright + Electron | o aplicativo montado, com o preload isolado e o sidecar publicado |
+| **Unit** | Vitest | pure logic, main process, IPC contracts |
+| **Sidecar** | xUnit (.NET) | reading and writing DOCX, ODT, XLSX and PDF, round trip byte for byte |
+| **End to end** | Playwright + Electron | the assembled application, with the isolated preload and the published sidecar |
 
-Somadas, são mais de 2 mil.
+Together, they add up to more than 2 thousand.
 
-Alguns testes de ponta a ponta usam documentos reais, que não entram no repositório. Eles são
-**pulados** quando a variável `LIBREVIA_CORPUS_DOC` não aponta para um desses arquivos.
+Some end-to-end tests use real documents, which do not go into the repository. They are
+**skipped** when the `LIBREVIA_CORPUS_DOC` variable does not point to one of those files.
 
-Os testes de ponta a ponta também rodam sobre o **pacote montado**. É a diferença entre "os
-testes passam" e "o instalador funciona":
+The end-to-end tests also run on the **assembled package**. It is the difference between "the
+tests pass" and "the installer works":
 
 ```bash
 npm run dist
@@ -788,145 +791,145 @@ LIBREVIA_E2E_BINARY=release/linux-unpacked/librevia npm run test:e2e
 
 ## 🔄 CI/CD
 
-O GitHub Actions roda a cada push na `main` e em todo pull request.
+GitHub Actions runs on every push to `main` and on every pull request.
 
 ```mermaid
 flowchart LR
-    T(["push na main<br/>ou pull request"]) --> V & I & X
+    T(["push to main<br/>or pull request"]) --> V & I & X
 
-    subgraph V["verify · Linux e Windows"]
+    subgraph V["verify · Linux and Windows"]
         direction TB
-        v1["formatação"] --> v2["tipos"] --> v3["lint e fronteiras"]
-        v3 --> v4["testes do sidecar"] --> v5["publicar sidecar"]
-        v5 --> v6["testes de unidade"] --> v7["licenças npm e NuGet"]
+        v1["formatting"] --> v2["types"] --> v3["lint and boundaries"]
+        v3 --> v4["sidecar tests"] --> v5["publish sidecar"]
+        v5 --> v6["unit tests"] --> v7["npm and NuGet licenses"]
     end
 
-    subgraph I["instalador · Linux e Windows"]
+    subgraph I["installer · Linux and Windows"]
         direction TB
-        i1["empacotar"] --> i2["ponta a ponta<br/>sobre o pacote"]
+        i1["package"] --> i2["end to end<br/>on the package"]
     end
 
-    subgraph X["publicação cruzada · Linux"]
+    subgraph X["cross publishing · Linux"]
         direction TB
-        x1["publicar linux-x64<br/>e win-x64"] --> x2["conferir os<br/>dois binários"]
+        x1["publish linux-x64<br/>and win-x64"] --> x2["check both<br/>binaries"]
     end
 
     classDef trig fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
     class T trig
 ```
 
-| Job | Por que existe |
+| Job | Why it exists |
 | --- | --- |
-| `verify` | roda nos **dois sistemas**, porque o sidecar sobe um processo filho e resolve caminhos, duas coisas que mudam de um sistema para o outro |
-| `instalador` | prova que os recursos, o asar e o binário do sidecar continuam onde o código espera **depois de empacotar** |
-| `publicacao-cruzada` | prova que uma máquina só consegue publicar os binários das duas plataformas |
+| `verify` | runs on **both systems**, because the sidecar starts a child process and resolves paths, two things that change from one system to the other |
+| `instalador` (installer) | proves that the resources, the asar and the sidecar binary are still where the code expects them **after packaging** |
+| `publicacao-cruzada` (cross publishing) | proves that a single machine can publish the binaries for both platforms |
 
 ---
 
-<a id="empacotamento"></a>
+<a id="packaging"></a>
 
-## 📦 Empacotamento
+## 📦 Packaging
 
-`npm run dist` gera o AppImage e o `.deb`; `npm run dist:win` gera o instalador NSIS. O
-instalador leva, além do aplicativo:
+`npm run dist` generates the AppImage and the `.deb`; `npm run dist:win` generates the NSIS
+installer. Besides the application, the installer carries:
 
-| Recurso | De onde vem |
+| Resource | Where it comes from |
 | --- | --- |
-| binário do sidecar, só o da plataforma | `resources/sidecar/` |
-| fontes com as medidas das do Office | `resources/fonts/` |
-| dicionário de português do Brasil | `resources/dictionaries/` |
-| modelos: em branco, carta, relatório e ata de reunião | `resources/templates/` |
-| avisos de licença de terceiros | `THIRD-PARTY-NOTICES.md` |
+| sidecar binary, only the platform's | `resources/sidecar/` |
+| fonts with the metrics of the Office ones | `resources/fonts/` |
+| Brazilian Portuguese dictionary | `resources/dictionaries/` |
+| templates: blank, letter, report and meeting minutes | `resources/templates/` |
+| third-party license notices | `THIRD-PARTY-NOTICES.md` |
 
-O sidecar fica **fora** do asar. Um executável dentro de um arquivo compactado não roda.
+The sidecar stays **outside** the asar. An executable inside a compressed archive does not run.
 
-No Linux, o aplicativo se registra para `.docx`, `.dotx`, `.odt`, `.ott`, `.xlsx`, `.txt` e
-`.pdf`; no Windows, para `.docx`, `.dotx`, `.odt`, `.ott` e `.xlsx`.
+On Linux, the application registers for `.docx`, `.dotx`, `.odt`, `.ott`, `.xlsx`, `.txt` and
+`.pdf`; on Windows, for `.docx`, `.dotx`, `.odt`, `.ott` and `.xlsx`.
 
-`npm run notices` gera o `THIRD-PARTY-NOTICES.md`. Ele cobre **três** conjuntos: as
-dependências npm de produção, o Electron inteiro (com Chromium e Node.js) e os pacotes NuGet
-do sidecar, que leva o runtime do .NET junto. O portão `licenses:check` olha só o primeiro.
-Deixar os outros dois de fora daria a impressão de estar em dia sem estar.
+`npm run notices` generates `THIRD-PARTY-NOTICES.md`. It covers **three** sets: the production
+npm dependencies, the whole of Electron (with Chromium and Node.js) and the sidecar's NuGet
+packages, which carries the .NET runtime along. The `licenses:check` gate only looks at the first.
+Leaving the other two out would give the impression of being up to date without being so.
 
-O ícone é desenhado em `build/icon.svg`. `npm run icon` gera o `build/icon.png` a partir dele.
+The icon is drawn in `build/icon.svg`. `npm run icon` generates `build/icon.png` from it.
 
 ---
 
-<a id="regras-do-código"></a>
+<a id="code-rules"></a>
 
-## 📐 Regras do código
+## 📐 Code rules
 
-O código segue **Clean Code**, **Clean Architecture** e **SOLID**, e a maior parte das regras é
-conferida por máquina. O `npm run verify` reprova:
+The code follows **Clean Code**, **Clean Architecture** and **SOLID**, and most of the rules are
+checked by machine. `npm run verify` fails on:
 
-- um `import` que atravesse as fronteiras entre as camadas (o renderer importando `electron`, por
-  exemplo);
-- uma função acima dos limites de tamanho e complexidade;
-- tipos que não fecham, testes que falham, texto da interface fora do catálogo;
-- uma dependência sem licença permissiva declarada.
+- an `import` that crosses the boundaries between layers (the renderer importing `electron`, for
+  example);
+- a function above the size and complexity limits;
+- types that do not check, failing tests, interface text outside the catalog;
+- a dependency without a declared permissive license.
 
-Os detalhes, com exemplos, estão no [CONTRIBUTING](CONTRIBUTING.pt-BR.md#princípios).
+The details, with examples, are in [CONTRIBUTING](CONTRIBUTING.md#principles).
 
 <details>
-<summary><b>Por que o portão de licenças reprova quem não declara licença</b></summary>
+<summary><b>Why the license gate rejects packages that declare no license</b></summary>
 
-O aplicativo é pensado para uso em empresas. Uma dependência GPL ou AGPL entrando sem querer
-é um problema jurídico, e não técnico. O portão cobre npm e NuGet, e reprova o pacote que
-**não declara licença SPDX**, e não só o que declara uma proibida.
+The application is meant for use in companies. A GPL or AGPL dependency slipping in by accident
+is a legal problem, not a technical one. The gate covers npm and NuGet, and rejects a package
+that **declares no SPDX license**, not only one that declares a forbidden one.
 
-Foi assim que se descobriu a troca de licença da Six Labors, de Apache-2.0 para uma licença
-própria, numa dependência indireta do ClosedXML. Quem só procura licenças proibidas não vê uma
-troca dessas chegando.
+That is how Six Labors' license change was discovered, from Apache-2.0 to a license of its own, in
+an indirect dependency of ClosedXML. Whoever only looks for forbidden licenses does not see a
+change like that coming.
 
 </details>
 
 ---
 
-<a id="limites-conhecidos"></a>
+<a id="known-limits"></a>
 
-## 🚧 Limites conhecidos
+## 🚧 Known limits
 
-Os principais: `.ods` não abre, macros de um `.dotm` ficam de fora, a planilha ainda não mescla
-células e arquivos acima de 20 MB não abrem. A lista completa, com o que fazer em cada caso, está
-no [manual](MANUAL.md#limites-conhecidos).
+The main ones: `.ods` does not open, a `.dotm`'s macros are left out, the spreadsheet does not
+merge cells yet and files over 20 MB do not open. The full list, with what to do in each case, is
+in the [manual](MANUAL.md#known-limits).
 
 ---
 
-<a id="onde-saber-mais"></a>
+<a id="where-to-learn-more"></a>
 
-## 📚 Onde saber mais
+## 📚 Where to learn more
 
-| Onde | O que tem |
+| Where | What it has |
 | --- | --- |
-| [`MANUAL.md`](MANUAL.md) | como usar: atalhos, formatação, fórmulas, avisos, exportação |
-| [`CONTRIBUTING.md`](CONTRIBUTING.pt-BR.md) | como relatar um problema e preparar uma mudança, e os padrões do código |
-| [`SECURITY.md`](SECURITY.pt-BR.md) | como relatar uma falha de segurança em particular |
-| [`AGENTS.md`](AGENTS.md) | instruções curtas para agentes de código que trabalham no repositório |
-| `git log` | o motivo de cada decisão, com as medições |
+| [`MANUAL.md`](MANUAL.md) | how to use it: shortcuts, formatting, formulas, warnings, export |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | how to report a problem and prepare a change, and the code standards |
+| [`SECURITY.md`](SECURITY.md) | how to report a security flaw privately |
+| [`AGENTS.md`](AGENTS.md) | short instructions for coding agents working in the repository |
+| `git log` | the reason for each decision, with the measurements |
 
 ---
 
-<a id="contribuindo"></a>
+<a id="contributing"></a>
 
-## 🤝 Contribuindo
+## 🤝 Contributing
 
-O Librevia é **open source**, sob licença MIT. Pode usar, estudar, modificar e redistribuir.
-Issues, ideias, relatos de arquivo que abriu errado e pull requests são bem-vindos.
+Librevia is **open source**, under the MIT license. You may use, study, modify and redistribute
+it. Issues, ideas, reports of files that opened wrong and pull requests are welcome.
 
-O relato mais útil é **um arquivo que não abriu direito**: cada `.docx` ou `.xlsx` real que se
-comporta de um jeito inesperado ensina mais que uma função nova. Antes de abrir uma issue ou um
-pull request, leia o [CONTRIBUTING](CONTRIBUTING.pt-BR.md). Falhas de segurança não vão em issue
-pública; veja a [política de segurança](SECURITY.pt-BR.md).
+The most useful report is **a file that did not open right**: every real `.docx` or `.xlsx` that
+behaves unexpectedly teaches more than a new feature. Before opening an issue or a pull request,
+read [CONTRIBUTING](CONTRIBUTING.md). Security flaws do not go in a public issue; see the
+[security policy](SECURITY.md).
 
 ---
 
-<a id="licença"></a>
+<a id="license"></a>
 
-## 📜 Licença
+## 📜 License
 
 [MIT](LICENSE) — © 2026 Vinícius Storch.
 
-As dependências vêm com as próprias licenças, todas permissivas e conferidas a cada build pelo
-`npm run licenses:check`. O `THIRD-PARTY-NOTICES.md` que acompanha o instalador é gerado por
-`npm run notices` e cobre os três conjuntos distribuídos: pacotes npm, o Electron inteiro e os
-pacotes NuGet do sidecar.
+The dependencies come with their own licenses, all permissive and checked on every build by
+`npm run licenses:check`. The `THIRD-PARTY-NOTICES.md` that ships with the installer is generated
+by `npm run notices` and covers the three distributed sets: npm packages, the whole of Electron
+and the sidecar's NuGet packages.

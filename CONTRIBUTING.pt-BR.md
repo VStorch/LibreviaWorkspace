@@ -57,7 +57,7 @@ npm run sidecar:build   # publica o serviço de formatos .NET
 npm run dev             # abre o aplicativo com recarga automática
 ```
 
-A lista completa de comandos está no [README](README.md#rodando-localmente).
+A lista completa de comandos está no [README](README.pt-BR.md#rodando-localmente).
 
 ---
 
