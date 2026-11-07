@@ -1,40 +1,40 @@
-name: Erro
-description: Algo no aplicativo não funciona como deveria.
-title: '[erro] '
+name: Bug
+description: Something in the application does not work as it should.
+title: '[bug] '
 labels: ['bug']
 body:
   - type: markdown
     attributes:
       value: |
-        Se o problema é com um arquivo específico, use o modelo **Arquivo que abriu errado**.
-        Se é uma falha de segurança, **não abra issue**: veja a [política de segurança](https://github.com/VStorch/LibreviaWorkspace/blob/main/SECURITY.md).
+        If the problem is with a specific file, use the **File that opened wrong** template.
+        If it is a security flaw, **do not open an issue**: see the [security policy](https://github.com/VStorch/LibreviaWorkspace/blob/main/SECURITY.md).
   - type: textarea
-    id: passos
+    id: steps
     attributes:
-      label: Passos para reproduzir
+      label: Steps to reproduce
       placeholder: |
-        1. Abra um documento novo
-        2. Insira uma tabela de 3 × 3
+        1. Open a new document
+        2. Insert a 3 × 3 table
         3. …
     validations:
       required: true
   - type: textarea
-    id: esperado
+    id: expected
     attributes:
-      label: O que você esperava
+      label: What you expected
     validations:
       required: true
   - type: textarea
-    id: obtido
+    id: actual
     attributes:
-      label: O que aconteceu
-      description: Inclua o texto de mensagens de erro e capturas de tela, se houver.
+      label: What happened
+      description: Include the text of error messages and screenshots, if any.
     validations:
       required: true
   - type: input
-    id: versao
+    id: version
     attributes:
-      label: Versão do Librevia e sistema
-      placeholder: 'ex.: 0.5.0, Ubuntu 24.04, AppImage'
+      label: Librevia version and system
+      placeholder: 'e.g. 0.5.0, Ubuntu 24.04, AppImage'
     validations:
       required: true
