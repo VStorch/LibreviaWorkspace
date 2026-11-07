@@ -1,16 +1,16 @@
-## O que muda
+## What changes
 
-<!-- Uma ou duas frases. Se fecha uma issue: "Fecha #123". -->
+<!-- One or two sentences. If it closes an issue: "Closes #123". -->
 
-## Como conferir
+## How to check
 
-<!-- O que fazer no aplicativo para ver a mudança funcionando, se não for óbvio. -->
+<!-- What to do in the application to see the change working, if it is not obvious. -->
 
-## Lista
+## Checklist
 
-- [ ] O título segue o padrão `type(scope): description`
-- [ ] `npm run format:check` e `npm run verify` passam
-- [ ] A mudança tem teste novo ou ajustado
-- [ ] Todo texto novo da interface está no catálogo, em português e em inglês
-- [ ] Nenhuma dependência nova, ou ela passou pelo portão de licenças
-- [ ] Mudou a interface: há uma captura de tela abaixo
+- [ ] The title follows the `type(scope): description` pattern
+- [ ] `npm run format:check` and `npm run verify` pass
+- [ ] The change has a new or adjusted test
+- [ ] All new interface text is in the catalog, in Portuguese and English
+- [ ] No new dependency, or it went through the license gate
+- [ ] The interface changed: there is a screenshot below
