@@ -226,7 +226,7 @@ company document has an anchored image; locking for that would block everyday us
 would learn to unlock without reading.
 
 When the file carries a structural loss, it opens locked, and a banner says **exactly what is at
-stake**. A click on "Editar mesmo assim" (edit anyway) unlocks that file, and only that one.
+stake**. A click on **Edit anyway** unlocks that file, and only that one.
 
 The classification lives in `Inventory.cs`. The labels are **constants** used by the format
 readers. If they were loose sentences, changing one of them in one place would make the document

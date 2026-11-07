@@ -16,7 +16,7 @@ arquivos do Word e do Excel e, ao salvar, **regrava só o que você editou**.
 ![Licença MIT](https://img.shields.io/badge/Licença-MIT-22C55E?style=for-the-badge)
 
 Este README é para quem lê ou mexe no código. Quem só quer **usar** o aplicativo deve ler o
-**[manual](MANUAL.md)**.
+**[manual](MANUAL.pt-BR.md)**.
 
 ---
 
@@ -152,7 +152,7 @@ Ele também:
 
 O `.odt` segue a mesma gravação cirúrgica do `.docx`: cada bloco do `content.xml` recebe uma
 identificação ao abrir, e o bloco que você não editou volta com o texto exato que tinha. O que o
-Librevia mostra e o que só preserva estão no [manual](MANUAL.md#documentos-do-libreoffice-odt).
+Librevia mostra e o que só preserva estão no [manual](MANUAL.pt-BR.md#documentos-do-libreoffice-odt).
 Planilhas `.ods` não abrem: a biblioteca de planilha do sidecar não lê o formato.
 
 ---
@@ -244,7 +244,7 @@ A limpeza trabalha parte por parte no pacote: um documento sem miniatura nem nom
 comentários; os pixels, o perfil de cor e a orientação ficam. O arquivo passa a guardar o pedido de
 não gravar nomes (`w:removePersonalInformation` no Word, `filterPrivacy` no Excel), que o Word, o
 Excel e o Librevia respeitam. O ODF não tem esse pedido; o Librevia grava o seu no `settings.xml`.
-O que o inspetor procura está no [manual](MANUAL.md#inspecionar-documento).
+O que o inspetor procura está no [manual](MANUAL.pt-BR.md#inspecionar-documento).
 
 </details>
 
@@ -295,7 +295,7 @@ Excel em português. Se a vírgula já marca o decimal, não pode separar mais n
 Quem escreve `SOMA(A1,B1)` recebe uma frase que diz qual é o separador certo, e não um erro
 genérico.
 
-- **52 funções**, em seis grupos: [lista completa no manual](MANUAL.md#funções-disponíveis).
+- **52 funções**, em seis grupos: [lista completa no manual](MANUAL.pt-BR.md#funções-disponíveis).
 - **Dois idiomas:** `SOMA` e `SUM` são a mesma função, assim como `SE` e `IF`, `PROCV` e
   `VLOOKUP`.
 - **Erro é um valor:** `=A1/0` dá `#DIV/0!`, e o erro passa adiante para quem depende da
@@ -892,7 +892,7 @@ troca dessas chegando.
 
 Os principais: `.ods` não abre, macros de um `.dotm` ficam de fora, a planilha ainda não mescla
 células e arquivos acima de 20 MB não abrem. A lista completa, com o que fazer em cada caso, está
-no [manual](MANUAL.md#limites-conhecidos).
+no [manual](MANUAL.pt-BR.md#limites-conhecidos).
 
 ---
 
@@ -902,7 +902,7 @@ no [manual](MANUAL.md#limites-conhecidos).
 
 | Onde | O que tem |
 | --- | --- |
-| [`MANUAL.md`](MANUAL.md) | como usar: atalhos, formatação, fórmulas, avisos, exportação |
+| [`MANUAL.md`](MANUAL.pt-BR.md) | como usar: atalhos, formatação, fórmulas, avisos, exportação |
 | [`CONTRIBUTING.md`](CONTRIBUTING.pt-BR.md) | como relatar um problema e preparar uma mudança, e os padrões do código |
 | [`SECURITY.md`](SECURITY.pt-BR.md) | como relatar uma falha de segurança em particular |
 | [`AGENTS.md`](AGENTS.md) | instruções curtas para agentes de código que trabalham no repositório |

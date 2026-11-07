@@ -1,52 +1,58 @@
-# Librevia — manual de uso
+# Librevia — user manual
 
-Editor de documentos e planilhas que funciona **sem internet**. Abre e grava arquivos do Word
-(`.docx`) e do Excel (`.xlsx`) e, ao salvar, regrava só o que você editou.
+**English** · [Português (Brasil)](MANUAL.pt-BR.md)
 
-> 📖 Este manual é para quem **usa** o aplicativo.
-> Quem for mexer no código deve ler o [README](README.md).
+Document and spreadsheet editor that works **without internet**. It opens and saves Word
+(`.docx`) and Excel (`.xlsx`) files and, when saving, rewrites only what you edited.
+
+> 📖 This manual is for people who **use** the application.
+> If you are going to work on the code, read the [README](README.md).
+
+> ℹ️ The application speaks Portuguese and English. This manual names the menus and buttons as
+> they appear in English; **View → Language** switches the interface.
 
 ---
 
-<a id="o-que-tem-aqui"></a>
+<a id="contents"></a>
 
-## 📑 O que tem aqui
+## 📑 What is here
 
-| Começar | Escrever | Cuidar do arquivo |
+| Getting started | Writing | Taking care of the file |
 | --- | --- | --- |
-| [💿 Instalar](#instalar) | [✍️ Texto e parágrafo](#formatar) | [🔒 Arquivos que abrem travados](#arquivos-que-abrem-travados) |
-| [📄 Arquivos e modelos](#os-arquivos-que-ele-abre) | [📋 Listas](#listas) | [⚠️ Os avisos](#os-avisos) |
-| [⌨️ Atalhos](#atalhos) | [📐 Páginas, seções e colunas](#paginas) | [💾 Se o aplicativo fechar sozinho](#se-o-aplicativo-fechar-sozinho) |
-| [👁️ Ver o documento](#exibir) | [📊 Tabelas e imagens](#tabelas-e-imagens) | [🛟 Salvar não custa o que você não editou](#salvar-não-custa) |
-| | [🔗 Sumário e referências](#referencias) | [🖨️ Imprimir e exportar](#imprimir-e-exportar-pdf) |
-| | [📝 Notas de rodapé e de fim](#notas) | [🚧 Limites conhecidos](#limites-conhecidos) |
-| | [➗ Equações](#equacoes) | |
-| | [💬 Comentários e revisões](#revisao) | |
-| | [🔤 Ortografia, símbolos e contagem](#ferramentas) | |
-| | [🧮 Fórmulas da planilha](#fórmulas-em-português) | |
+| [💿 Install](#install) | [✍️ Text and paragraph](#formatting) | [🔒 Files that open locked](#files-that-open-locked) |
+| [📄 Files and templates](#files-it-opens) | [📋 Lists](#lists) | [⚠️ The warnings](#warnings) |
+| [⌨️ Shortcuts](#shortcuts) | [📐 Pages, sections and columns](#pages) | [💾 If the application closes on its own](#if-the-application-closes) |
+| [👁️ Viewing the document](#view) | [📊 Tables and images](#tables-and-images) | [🛟 Saving does not cost what you did not edit](#saving-does-not-cost) |
+| | [🔗 Table of contents and references](#references) | [🖨️ Print and export](#print-and-export) |
+| | [📝 Footnotes and endnotes](#notes) | [🚧 Known limits](#known-limits) |
+| | [➗ Equations](#equations) | |
+| | [💬 Comments and revisions](#review) | |
+| | [🔤 Spelling, symbols and counting](#tools) | |
+| | [🤖 AI assistant](#ai-assistant) | |
+| | [🧮 Spreadsheet formulas](#formulas) | |
 
 ---
 
-<a id="instalar"></a>
+<a id="install"></a>
 
-## 💿 Instalar
+## 💿 Install
 
-Nada aqui precisa de internet. **O aplicativo não acessa a rede**, nem para conferir a ortografia.
-A única exceção é o [assistente de IA](#assistente-de-ia), que vem desligado e só envia texto
-depois que você o configura e permite.
+Nothing here needs internet. **The application does not access the network**, not even to check
+spelling. The only exception is the [AI assistant](#ai-assistant), which comes turned off and
+only sends text after you configure it and allow it.
 
 ### 🐧 Linux — AppImage
 
-Baixe o arquivo, dê permissão de execução e abra:
+Download the file, make it executable and open it:
 
 ```bash
 chmod +x Librevia-*.AppImage
 ./Librevia-*.AppImage
 ```
 
-### 🐧 Linux — pacote `.deb`
+### 🐧 Linux — `.deb` package
 
-Instala no menu de aplicativos, como qualquer outro programa:
+It installs in the applications menu, like any other program:
 
 ```bash
 sudo apt install ./librevia_*_amd64.deb
@@ -54,1072 +60,1084 @@ sudo apt install ./librevia_*_amd64.deb
 
 ### 🪟 Windows
 
-Execute o instalador. Ele instala **só para o seu usuário** e não pede senha de administrador.
-O instalador ainda não é assinado, então o Windows pode mostrar "O Windows protegeu o computador":
-clique em **Mais informações** e depois em **Executar assim mesmo**.
-Depois disso, um `.docx`, `.dotx`, `.odt`, `.ott` ou `.xlsx` pode ser aberto com o Librevia pelo
-botão direito do Explorador de Arquivos.
+Run the installer. It installs **only for your user** and does not ask for an administrator
+password. The installer is not signed yet, so Windows may show "Windows protected your PC": click
+**More info** and then **Run anyway**. After that, a `.docx`, `.dotx`, `.odt`, `.ott` or `.xlsx`
+can be opened with Librevia from the right-click menu in File Explorer.
 
 ---
 
-<a id="os-arquivos-que-ele-abre"></a>
+<a id="files-it-opens"></a>
 
-## 📄 Os arquivos que ele abre
+## 📄 The files it opens
 
-| Extensão | O que é | O que o Librevia faz com ele |
+| Extension | What it is | What Librevia does with it |
 | --- | --- | --- |
-| `.docx` | documento do Word | abre e grava; um documento novo também pode ser salvo assim |
-| `.dotx` | modelo do Word | abrir cria um documento novo a partir dele; "Salvar como" também grava modelo |
-| `.dotm` | modelo do Word com macros | abre como o `.dotx`, mas as macros ficam de fora, e o aplicativo avisa |
-| `.xlsx` | planilha do Excel | abre e grava |
-| `.odt` | documento do LibreOffice | abre e grava; o que você não editou volta intacto |
-| `.ott` | modelo do LibreOffice | abrir cria um documento novo a partir dele; "Salvar como" também grava modelo |
-| `.sdoc` | documento do Librevia | guarda tudo, sem perda nenhuma |
-| `.ssheet` | planilha do Librevia | guarda tudo, sem perda nenhuma |
-| `.txt` | texto puro | abre e grava; salvar nele descarta a formatação, e o aplicativo avisa antes |
-| `.pdf` | documento PDF | abre só para ler, no lugar do arquivo aberto, como os outros. A barra de status mostra a página e o zoom; **Editar → Localizar** busca no texto; um PDF protegido pede a senha, que não fica guardada; **Arquivo → Propriedades** altera título, autor, assunto e palavras-chave, e **Salvar** acrescenta só isso no fim do arquivo; **Arquivo → Imprimir** abre o PDF na janela de impressão, onde também dá para salvar uma cópia |
+| `.docx` | Word document | opens and saves; a new document can also be saved this way |
+| `.dotx` | Word template | opening it creates a new document from it; "Save as" also writes templates |
+| `.dotm` | Word template with macros | opens like `.dotx`, but the macros are left out, and the application warns |
+| `.xlsx` | Excel spreadsheet | opens and saves |
+| `.odt` | LibreOffice document | opens and saves; what you did not edit comes back intact |
+| `.ott` | LibreOffice template | opening it creates a new document from it; "Save as" also writes templates |
+| `.sdoc` | Librevia document | keeps everything, with no loss at all |
+| `.ssheet` | Librevia spreadsheet | keeps everything, with no loss at all |
+| `.txt` | plain text | opens and saves; saving to it discards the formatting, and the application warns first |
+| `.pdf` | PDF document | opens read-only, in place of the open file, like the others. The status bar shows the page and the zoom; **Edit → Find and replace…** searches the text; a protected PDF asks for the password, which is not stored; **File → Properties…** changes title, author, subject and keywords, and **Save** appends only that at the end of the file; **File → Print…** opens the PDF in the print window, where you can also save a copy |
 
-E estes, o Librevia **cria**. O `.pdf` também abre para leitura, como mostra a tabela acima:
+And these Librevia **creates**. `.pdf` also opens for reading, as the table above shows:
 
-| Extensão | Como |
+| Extension | How |
 | --- | --- |
-| `.pdf` | **Arquivo → Exportar para PDF…**, para documentos e planilhas |
-| `.docx`, `.odt`, `.html`, `.md` | **Arquivo → Exportar como**, só para documentos |
+| `.pdf` | **File → Export to PDF…**, for documents and spreadsheets |
+| `.docx`, `.odt`, `.html`, `.md` | **File → Export as**, for documents only |
 
-<a id="documentos-do-libreoffice-odt"></a>
+<a id="libreoffice-documents-odt"></a>
 
-### Documentos do LibreOffice (`.odt`)
+### LibreOffice documents (`.odt`)
 
-Um `.odt` abre e salva como o `.docx`: só o bloco que você editou é escrito de novo, e o resto volta
-como estava. O "Salvar como" oferece `.odt` para qualquer documento: um documento novo, um `.sdoc`
-ou um `.docx` vão inteiros para um `.odt` novo, que passa a ser o arquivo aberto.
+An `.odt` opens and saves like a `.docx`: only the block you edited is written again, and the rest
+comes back as it was. "Save as" offers `.odt` for any document: a new document, an `.sdoc` or a
+`.docx` go whole into a new `.odt`, which becomes the open file.
 
-Abrem e voltam ao arquivo: notas de rodapé e de fim, comentários com respostas, equações,
-cabeçalho e rodapé (com versões para a primeira página e para as pares), seções com papel, margens
-e colunas próprios, e alterações controladas (texto inserido, excluído e parágrafo unido).
-Número de página, total de páginas, data, hora, título e autor viram campos, como no `.docx`.
+These open and come back to the file: footnotes and endnotes, comments with replies, equations,
+header and footer (with versions for the first page and for even pages), sections with their own
+paper, margins and columns, and tracked changes (inserted text, deleted text and joined
+paragraphs). Page number, total pages, date, time, title and author become fields, as in `.docx`.
 
-O que o Librevia não mostra (mudança de formatação controlada, indicador, seção sem colunas ou
-dentro de outra, caixa de texto, desenho, formulário, outros campos) fica no arquivo enquanto você
-não edita o bloco onde está. O aplicativo avisa ao abrir; se você editar esse bloco, ele se perde
-ali, e o aviso aparece ao salvar.
+What Librevia does not show (tracked formatting changes, index markers, sections without columns or
+inside another, text boxes, drawings, forms, other fields) stays in the file as long as you do not
+edit the block it is in. The application warns on opening; if you edit that block, it is lost
+there, and the warning appears on saving.
 
-**Planilhas `.ods` não abrem.** Peça a quem enviou que salve como `.xlsx`. O LibreOffice faz isso
-pelo "Salvar como".
+**`.ods` spreadsheets do not open.** Ask whoever sent it to save it as `.xlsx`. LibreOffice does
+this through "Save as".
 
-### Modelos
+### Templates
 
-Um modelo é um documento pronto para servir de ponto de partida, como um papel timbrado.
+A template is a document ready to serve as a starting point, like letterhead paper.
 
-**Arquivo → Novo a partir de modelo…** mostra os modelos que vêm com o aplicativo — documento em
-branco, carta, relatório com capa e sumário, e ata de reunião — e também os seus, que ficam na
-pasta de modelos. O botão **Abrir pasta de modelos** mostra essa pasta, e **Procurar…** aceita
-qualquer `.dotx` ou `.ott` do computador.
+**File → New from template…** shows the templates that come with the application — blank
+document, letter, report with cover and table of contents, and meeting minutes — and also yours,
+which live in the templates folder. The **Open templates folder** button shows that folder, and
+**Browse…** accepts any `.dotx` or `.ott` on the computer.
 
-O documento criado é novo e sem título. Estilos, cabeçalho, rodapé e tamanho de página vêm do
-modelo. Ao salvar, o aplicativo pergunta onde gravar, e **o modelo nunca é sobrescrito**.
+The document created is new and untitled. Styles, header, footer and page size come from the
+template. When saving, the application asks where to save, and **the template is never
+overwritten**.
 
-Para criar um modelo seu, use **Salvar como → Modelo do Word (.dotx)** ou **Modelo ODT (.ott)** e
-grave na pasta de modelos.
+To create a template of your own, use **Save as → Word template (.dotx)** or **ODT template
+(.ott)** and save it in the templates folder.
 
-Um documento criado de um `.ott` recebe o nome `.odt`. Salvo em `.odt`, ele grava sobre o pacote
-do modelo: o que você não editou volta como estava no modelo.
+A document created from an `.ott` gets the `.odt` name. Saved as `.odt`, it writes over the
+template's package: what you did not edit comes back as it was in the template.
 
-### Propriedades do documento
+### Document properties
 
-**Arquivo → Propriedades…** tem três partes:
+**File → Properties…** has three parts:
 
-- **Resumo**: título, assunto, autores, gerente, empresa, categoria, status (por exemplo,
-  "Rascunho" ou "Final"), palavras-chave e comentários. Você pode preencher e alterar.
-- **Personalizadas**: campos com nome próprio, como "Cliente" ou "Nº do processo", cada um do
-  tipo texto, número, data ou sim ou não. **Adicionar propriedade** cria uma; o **×** apaga. São
-  as mesmas da aba **Personalizar** das propriedades avançadas do Word e do Excel. Um tipo que o
-  Librevia não mostra, como uma lista, continua no arquivo.
-- **Informações e estatísticas**: quando o documento foi criado, modificado e impresso pela
-  última vez, por quem, o número da revisão, o tempo total de edição e o idioma, quando o arquivo
-  o informa.
+- **Summary**: title, subject, authors, manager, company, category, status (for example, "Draft"
+  or "Final"), keywords and comments. You can fill them in and change them.
+- **Custom**: fields with their own names, such as "Client" or "Case no.", each of type text,
+  number, date or yes or no. **Add property** creates one; the **×** deletes it. They are the same
+  as in the **Custom** tab of the advanced properties in Word and Excel. A type Librevia does not
+  show, such as a list, stays in the file.
+- **Information and statistics**: when the document was created, modified and last printed, by
+  whom, the revision number, the total editing time and the language, when the file provides it.
 
-Ao salvar um `.docx` com o texto alterado, o Librevia grava também as páginas, palavras,
-caracteres e parágrafos, como o Word. O gerenciador de arquivos e a busca do sistema leem esses
-números sem abrir o documento. Se só as propriedades mudaram, essa parte do arquivo fica como
-estava.
+When saving a `.docx` with changed text, Librevia also writes the pages, words, characters and
+paragraphs, as Word does. The file manager and the system search read these numbers without
+opening the document. If only the properties changed, that part of the file stays as it was.
 
-Numa planilha é igual. As estatísticas contam as abas, as células preenchidas e as fórmulas. As
-propriedades vão para o `.xlsx` e o Excel as mostra em **Arquivo → Informações**.
+A spreadsheet works the same way. The statistics count the tabs, the filled cells and the
+formulas. The properties go into the `.xlsx`, and Excel shows them in **File → Info**.
 
-Para levar uma propriedade ao texto, use **Inserir → Propriedade do documento…**: escolha, por
-exemplo, "Cliente" e o texto mostra "XPTO". Quando você muda o valor e clica em **Aplicar** nas
-propriedades, o texto passa a mostrar o novo valor. É o mesmo campo `DOCPROPERTY` (ou `TITLE`,
-`AUTHOR`…) do Word, que o atualiza com `F9`. Ainda só funciona no corpo do texto, não no cabeçalho
-nem no rodapé.
+To bring a property into the text, use **Insert → Document property…**: choose, for example,
+"Client", and the text shows "ACME". When you change the value and click **Apply** in the
+properties, the text starts showing the new value. It is the same `DOCPROPERTY` (or `TITLE`,
+`AUTHOR`…) field as in Word, which updates it with `F9`. It only works in the body of the text
+for now, not in the header or footer.
 
-### Inspecionar documento
+### Inspect document
 
-Antes de mandar um arquivo para fora, **Arquivo → Inspecionar documento…** mostra o que ele
-revela além do conteúdo, e remove o que você marcar:
+Before sending a file out, **File → Inspect document…** shows what it reveals beyond its content,
+and removes what you tick:
 
-- **Nomes de pessoas e da empresa**: autor, último a salvar, gerente, empresa e quem escreveu
-  cada comentário e alteração. Os autores passam a se chamar "Autor", como faz o Word, e o
-  arquivo passa a pedir que nada seja assinado com nome: comentários e alterações novos também
-  saem como "Autor", aqui, no Word e no Excel.
-- **Pastas do computador**: o caminho do modelo anexado a um documento do Word, ou a última pasta
-  onde o Excel salvou a planilha. Costumam trazer o nome do usuário, como `C:\Users\ana\...`.
-- **Propriedades personalizadas**: campos criados por pessoas ou por sistemas da empresa.
-- **Miniatura da primeira página**: a imagem que o gerenciador de arquivos mostra.
-- **Metadados das imagens**: os dados da câmera ou do programa guardados nas fotos JPEG e PNG,
-  às vezes com o local GPS. A imagem e a orientação ficam.
+- **Names of people and of the company**: author, last saved by, manager, company and who wrote
+  each comment and change. The authors become "Author", as Word does, and the file starts asking
+  that nothing be signed with a name: new comments and changes also come out as "Author", here, in
+  Word and in Excel.
+- **Computer folders**: the path of the template attached to a Word document, or the last folder
+  where Excel saved the spreadsheet. They usually carry the user name, such as
+  `C:\Users\ana\...`.
+- **Custom properties**: fields created by people or by company systems.
+- **First-page thumbnail**: the image the file manager shows.
+- **Image metadata**: the camera or program data stored in JPEG and PNG photos, sometimes with the
+  GPS location. The image and its orientation stay.
 
-Remover marca o arquivo como alterado: só **Salvar** grava a versão limpa, e fechar sem salvar
-deixa o arquivo como estava. Num `.docx`, `.odt` ou `.xlsx` com alterações não salvas, o inspetor
-pede para salvar antes, porque ele lê o arquivo como está gravado. Num `.sdoc` ou `.ssheet` só há
-nomes para remover.
+Removing marks the file as changed: only **Save** writes the clean version, and closing without
+saving leaves the file as it was. In a `.docx`, `.odt` or `.xlsx` with unsaved changes, the
+inspector asks you to save first, because it reads the file as it is saved. In an `.sdoc` or
+`.ssheet` there are only names to remove.
 
-Num `.odt`, o inspetor procura os mesmos dados. O formato não tem um pedido de não gravar nomes;
-o Librevia grava o seu no arquivo e o respeita, mas o LibreOffice o ignora.
+In an `.odt`, the inspector looks for the same data. The format has no request not to record
+names; Librevia writes its own into the file and respects it, but LibreOffice ignores it.
 
-Num PDF, o inspetor só mostra: o autor das propriedades e quantas versões anteriores o arquivo
-guarda. Cada alteração de um PDF, feita aqui ou em outro programa, é acrescentada no fim e deixa a
-versão anterior dentro do arquivo, com o autor e o título que tinha. Para um PDF sem esses dados,
-exporte de novo a partir do documento original.
+In a PDF, the inspector only shows: the author in the properties and how many earlier versions
+the file keeps. Each change to a PDF, made here or in another program, is appended at the end and
+leaves the earlier version inside the file, with the author and title it had. For a PDF without
+that data, export it again from the original document.
 
 ---
 
-<a id="atalhos"></a>
+<a id="shortcuts"></a>
 
-## ⌨️ Atalhos
+## ⌨️ Shortcuts
 
-São os atalhos do Word, com poucas exceções, explicadas no fim da tabela.
+They are Word's shortcuts, with few exceptions, explained at the end of the table.
 
-### Arquivo e edição
+### File and editing
 
-| Atalho | O que faz |
+| Shortcut | What it does |
 | --- | --- |
-| `Ctrl+N` | novo documento |
-| `Ctrl+Shift+N` | nova planilha |
-| `Ctrl+O` | abrir |
-| `Ctrl+S` | salvar |
-| `Ctrl+Shift+S` | salvar como |
-| `Ctrl+W` | fechar o arquivo |
-| `Ctrl+P` | imprimir |
-| `Ctrl+F` | localizar e substituir |
-| `Ctrl+Shift+V` | colar sem formatação |
-| `Ctrl+Shift+G` | contar palavras |
-| `Ctrl+Shift+Y` | abrir e fechar o assistente de IA |
+| `Ctrl+N` | new document |
+| `Ctrl+Shift+N` | new spreadsheet |
+| `Ctrl+O` | open |
+| `Ctrl+S` | save |
+| `Ctrl+Shift+S` | save as |
+| `Ctrl+W` | close the file |
+| `Ctrl+P` | print |
+| `Ctrl+F` | find and replace |
+| `Ctrl+Shift+V` | paste without formatting |
+| `Ctrl+Shift+G` | word count |
+| `Ctrl+Shift+Y` | open and close the AI assistant |
 
-### Texto e parágrafo
+### Text and paragraph
 
-| Atalho | O que faz |
+| Shortcut | What it does |
 | --- | --- |
-| `Ctrl+B` / `Ctrl+I` / `Ctrl+U` | negrito, itálico, sublinhado |
-| `Ctrl+Shift+=` / `Ctrl+=` | sobrescrito e subscrito (também `Ctrl+.` e `Ctrl+,`) |
-| `Ctrl+L` / `Ctrl+E` / `Ctrl+R` / `Ctrl+J` | alinhar à esquerda, centralizar, à direita, justificar |
-| `Ctrl+1` / `Ctrl+5` / `Ctrl+2` | entrelinha simples, 1,5 e dupla |
-| `Ctrl+Alt+1` … `Ctrl+Alt+6` | Título 1 a Título 6 |
-| `Ctrl+Alt+0` | volta o parágrafo para corpo de texto |
-| `Ctrl+]` / `Ctrl+[` | aumentar e diminuir o recuo |
-| `Ctrl+Shift+8` / `Ctrl+Shift+7` | lista com marcadores e lista numerada |
-| `Tab` / `Shift+Tab` | numa lista, desce o item um nível ou o devolve |
+| `Ctrl+B` / `Ctrl+I` / `Ctrl+U` | bold, italic, underline |
+| `Ctrl+Shift+=` / `Ctrl+=` | superscript and subscript (also `Ctrl+.` and `Ctrl+,`) |
+| `Ctrl+L` / `Ctrl+E` / `Ctrl+R` / `Ctrl+J` | align left, center, right, justify |
+| `Ctrl+1` / `Ctrl+5` / `Ctrl+2` | single, 1.5 and double line spacing |
+| `Ctrl+Alt+1` … `Ctrl+Alt+6` | Heading 1 to Heading 6 |
+| `Ctrl+Alt+0` | turns the paragraph back into body text |
+| `Ctrl+]` / `Ctrl+[` | increase and decrease the indent |
+| `Ctrl+Shift+8` / `Ctrl+Shift+7` | bulleted list and numbered list |
+| `Tab` / `Shift+Tab` | in a list, moves the item down a level or back up |
 
-### Inserir
+### Insert
 
-| Atalho | O que faz |
+| Shortcut | What it does |
 | --- | --- |
-| `Ctrl+Enter` | quebra de página |
-| `Ctrl+F12` | tabela (pergunta linhas e colunas) |
-| `Ctrl+Alt+F` | nota de rodapé |
-| `Ctrl+Alt+D` | nota de fim |
-| `Ctrl+Alt+M` | comentário |
-| `Alt+=` | equação |
-| `Ctrl+Shift+F5` | marcador |
-| `F9` | atualizar campos (números de página, referências) |
+| `Ctrl+Enter` | page break |
+| `Ctrl+F12` | table (asks for rows and columns) |
+| `Ctrl+Alt+F` | footnote |
+| `Ctrl+Alt+D` | endnote |
+| `Ctrl+Alt+M` | comment |
+| `Alt+=` | equation |
+| `Ctrl+Shift+F5` | bookmark |
+| `F9` | update fields (page numbers, references) |
 
-### Exibir e revisar
+### View and review
 
-| Atalho | O que faz |
+| Shortcut | What it does |
 | --- | --- |
-| `Ctrl+F5` | painel de navegação |
-| `Ctrl+F10` | mostrar e ocultar as marcas de formatação |
-| `Ctrl+F11` | modo de leitura (`Esc` sai) |
-| `Ctrl+Shift+E` | ligar e desligar o controle de alterações |
-| `Ctrl` + `+` do teclado numérico / `Ctrl+-` | ampliar e reduzir |
-| `Ctrl+0` | voltar ao tamanho normal |
+| `Ctrl+F5` | navigation pane |
+| `Ctrl+F10` | show and hide formatting marks |
+| `Ctrl+F11` | reading mode (`Esc` leaves) |
+| `Ctrl+Shift+E` | turn track changes on and off |
+| `Ctrl` + numeric keypad `+` / `Ctrl+-` | zoom in and out |
+| `Ctrl+0` | back to actual size |
 
-> ℹ️ **As exceções ao Word, e por quê.**
+> ℹ️ **The exceptions to Word, and why.**
 >
-> - **Corpo de texto** é `Ctrl+Alt+0`, e não `Ctrl+Shift+N`, porque aqui essa combinação abre
->   uma planilha nova.
-> - **Ampliar** usa o `+` do teclado numérico, para não ocupar o `Ctrl+Shift+=` do sobrescrito.
->   O menu **Exibir** também tem ampliar e reduzir. Num PDF, que não tem texto para formatar,
->   `Ctrl+=` e `Ctrl++` também ampliam.
-> - **Marcas de formatação** são `Ctrl+F10`, como no LibreOffice. O `Ctrl+*` do Word já é usado
->   pela lista com marcadores.
+> - **Body text** is `Ctrl+Alt+0`, not `Ctrl+Shift+N`, because here that combination opens a new
+>   spreadsheet.
+> - **Zoom in** uses the numeric keypad `+`, so as not to take `Ctrl+Shift+=` from superscript.
+>   The **View** menu also has zoom in and out. In a PDF, which has no text to format, `Ctrl+=`
+>   and `Ctrl++` also zoom in.
+> - **Formatting marks** are `Ctrl+F10`, as in LibreOffice. Word's `Ctrl+*` is already used by
+>   the bulleted list.
 
-### Na planilha
+### In the spreadsheet
 
-`Ctrl+B`, `Ctrl+I` e `Ctrl+U` valem para as células selecionadas. O **botão direito** numa célula
-abre o menu de inserir e excluir linhas e colunas.
+`Ctrl+B`, `Ctrl+I` and `Ctrl+U` apply to the selected cells. **Right-clicking** a cell opens the
+menu to insert and delete rows and columns.
 
-`Ctrl+Z` desfaz a última edição da planilha (uma célula, uma colagem, uma linha inserida, uma aba
-nova) e `Ctrl+Y` ou `Ctrl+Shift+Z` a refaz. São até 100 passos, e o histórico recomeça a cada
-arquivo aberto. Enquanto você digita numa célula ou na barra de fórmulas, o `Ctrl+Z` desfaz só a
-digitação.
+`Ctrl+Z` undoes the last spreadsheet edit (a cell, a paste, an inserted row, a new tab) and
+`Ctrl+Y` or `Ctrl+Shift+Z` redoes it. There are up to 100 steps, and the history starts over with
+each file opened. While you type in a cell or in the formula bar, `Ctrl+Z` undoes only the typing.
 
-**A alça de preenchimento** é o quadradinho no canto inferior direito da seleção. Arraste-o, e as
-células seguintes são preenchidas. Se a célula de origem tiver uma fórmula, ela **acompanha**:
-`=B2*C2` arrastada para baixo vira `=B3*C3`. Uma referência com `$` não se mexe.
+**The fill handle** is the little square at the bottom-right corner of the selection. Drag it, and
+the following cells are filled. If the source cell has a formula, it **follows along**: `=B2*C2`
+dragged down becomes `=B3*C3`. A reference with `$` does not move.
 
 ---
 
-<a id="formatar"></a>
+<a id="formatting"></a>
 
-## ✍️ Texto e parágrafo
+## ✍️ Text and paragraph
 
-A barra do documento tem, da esquerda para a direita: estilo do parágrafo, fonte, tamanho, a
-formatação da letra, o parágrafo, as listas, o que se insere e a página.
+The document toolbar has, from left to right: paragraph style, font, size, character formatting,
+paragraph, lists, what can be inserted and the page.
 
-### A letra
+### Characters
 
-Além de negrito, itálico, sublinhado e tachado:
+Besides bold, italic, underline and strikethrough:
 
-| Botão | O que faz |
+| Button | What it does |
 | --- | --- |
-| **Sobrescrito** e **Subscrito** | põem o trecho acima ou abaixo da linha: `m³`, `H₂O` |
-| **Caixa alta** | mostra em maiúsculas sem trocar o que você digitou; tirar a formatação devolve o texto como era |
-| **Versalete** | maiúsculas pequenas, da altura das minúsculas |
-| **Cor do texto** | a cor da letra |
-| **Cor de fundo do texto** | pinta o fundo do trecho, com qualquer cor |
-| **Destaque** | o marca-texto do Word, que tem catorze cores fixas |
+| **Superscript** and **Subscript** | put the passage above or below the line: `m³`, `H₂O` |
+| **All caps** | shows capitals without changing what you typed; clearing the formatting brings the text back as it was |
+| **Small caps** | small capitals, the height of the lowercase letters |
+| **Font color** | the color of the letters |
+| **Text background color** | paints the background of the passage, in any color |
+| **Highlight** | Word's highlighter, which has fourteen fixed colors |
 
-> ℹ️ **Por que dois tipos de fundo?** No arquivo do Word são duas coisas diferentes: o
-> marca-texto e o sombreamento do trecho. Um documento recebido pode ter os dois, e o aplicativo
-> mantém cada um onde estava.
+> ℹ️ **Why two kinds of background?** In a Word file they are two different things: the
+> highlighter and the passage's shading. A document you receive may have both, and the
+> application keeps each where it was.
 
-### Os estilos
+### Styles
 
-Um estilo é uma formatação com nome. Em vez de deixar cada título em negrito, 14 pt e azul, um
-por um, você aplica o estilo **Título 1**. Se depois decidir que os títulos devem ser verdes,
-muda o estilo uma vez e todos os títulos mudam juntos.
+A style is formatting with a name. Instead of making each heading bold, 14 pt and blue, one by
+one, you apply the **Heading 1** style. If you later decide headings should be green, you change
+the style once and all the headings change together.
 
-Num `.docx` feito no Word, quase toda a formatação mora nos estilos. É por isso que um título pode
-aparecer como uma faixa colorida, e não só como letra grande.
+In a `.docx` made in Word, almost all the formatting lives in the styles. That is why a heading
+may show up as a colored band, and not just as large letters.
 
-O botão **A≡**, ao lado do tamanho da fonte, abre o painel de **Estilos**. Ele mostra os estilos
-que **este documento** define e diz qual é o do parágrafo onde está o cursor. Ali você pode:
+The **A≡** button, next to the font size, opens the **Styles** pane. It shows the styles **this
+document** defines and says which one the paragraph at the cursor uses. There you can:
 
-- **Aplicar** um estilo ao parágrafo ou ao trecho selecionado;
-- **Modificar…** um estilo: nome, estilo em que ele se baseia, estilo do parágrafo seguinte,
-  fonte e tamanho. **Atualizar a partir da seleção** copia para o estilo a formatação do texto
-  selecionado;
-- criar um **Novo estilo…**, de parágrafo ou de caractere;
-- **Limpar formatação**, que tira a formatação direta e deixa só a do estilo.
+- **Apply** a style to the paragraph or to the selected passage;
+- **Modify…** a style: name, the style it is based on, the style of the next paragraph, font and
+  size. **Update to match selection** copies the formatting of the selected text into the style;
+- create a **New style…**, for paragraphs or characters;
+- **Clear formatting**, which removes direct formatting and leaves only the style's.
 
-A lista pode mostrar todos os estilos, só os de parágrafo ou só os de caractere.
+The list can show all styles, only paragraph styles or only character styles.
 
-Documentos novos começam em **Calibri 11**, como no Word.
+New documents start in **Calibri 11**, as in Word.
 
-### A lista de fontes
+### The font list
 
-O seletor mostra, nesta ordem:
+The selector shows, in this order:
 
-1. **as fontes que o documento aberto usa**;
-2. as cinco que vêm com o aplicativo: Calibri, Cambria, Arial, Times New Roman e Courier New;
-3. **as instaladas no seu computador**, em ordem alfabética.
+1. **the fonts the open document uses**;
+2. the five that come with the application: Calibri, Cambria, Arial, Times New Roman and Courier
+   New;
+3. **the ones installed on your computer**, in alphabetical order.
 
-As cinco do meio funcionam igual em qualquer computador, porque vão dentro do instalador. As
-suas funcionam no seu. Num computador que não as tenha, o documento aparece com outra fonte, e as
-páginas podem quebrar em lugares diferentes.
+The five in the middle work the same on any computer, because they go inside the installer. Yours
+work on yours. On a computer that does not have them, the document shows up in another font, and
+the pages may break in different places.
 
-### O diálogo de parágrafo
+### The paragraph dialog
 
-O botão **¶**, ou **Formatar → Parágrafo…**, reúne numa tela tudo o que é do parágrafo, já
-preenchido com o que ele tem:
+The **¶** button, or **Format → Paragraph…**, gathers on one screen everything that belongs to the
+paragraph, already filled in with what it has:
 
-- **alinhamento**: esquerda, centro, direita, justificado;
-- **entrelinha**: simples, 1,15, 1,5, dupla, um múltiplo qualquer ou uma medida em pontos;
-- **espaçamento** antes e depois, em pontos;
-- **recuo** à esquerda e à direita, em milímetros;
-- **primeira linha**: recuo (a primeira linha entra) ou deslocamento (ela sai, e as outras
-  entram, como numa referência bibliográfica);
-- **manter com o próximo**: o parágrafo não fica sozinho no pé da página, longe do que vem
-  depois.
+- **alignment**: left, center, right, justified;
+- **line spacing**: single, 1.15, 1.5, double, any multiple or a measure in points;
+- **spacing** before and after, in points;
+- **indentation** left and right, in millimeters;
+- **first line**: indent (the first line moves in) or hanging (it moves out, and the others move
+  in, as in a bibliographic reference);
+- **keep with next**: the paragraph does not stay alone at the foot of the page, away from what
+  comes after.
 
-Vale para todos os parágrafos que a seleção tocar. `Enter` aplica; `Esc` fecha sem aplicar.
+It applies to every paragraph the selection touches. `Enter` applies; `Esc` closes without
+applying.
 
-> ℹ️ **"Simples" não é "1,0".** A entrelinha simples é a altura que a própria fonte pede. Nenhum
-> número a reproduz exatamente, e trocar uma pela outra muda onde as páginas quebram.
+> ℹ️ **"Single" is not "1.0".** Single line spacing is the height the font itself asks for. No
+> number reproduces it exactly, and swapping one for the other changes where the pages break.
 
 ---
 
-<a id="listas"></a>
+<a id="lists"></a>
 
-## 📋 Listas
+## 📋 Lists
 
-`Ctrl+Shift+8` começa uma lista com marcadores; `Ctrl+Shift+7`, uma lista numerada. Os mesmos
-botões estão na barra.
+`Ctrl+Shift+8` starts a bulleted list; `Ctrl+Shift+7`, a numbered list. The same buttons are on
+the toolbar.
 
-Uma lista pode ter vários níveis, como um índice: `1.`, depois `1.1.`, depois `1.1.1.`. **Tab**
-desce o item um nível, e **Shift+Tab** o devolve. A numeração segue as mesmas regras do Word, então
-um documento recebido mostra os mesmos números que mostrava lá.
+A list can have several levels, like an index: `1.`, then `1.1.`, then `1.1.1.`. **Tab** moves
+the item down a level, and **Shift+Tab** brings it back. The numbering follows the same rules as
+Word, so a document you receive shows the same numbers it showed there.
 
-**Formato de lista…** escolhe a aparência:
+**List format…** chooses the appearance:
 
-- **Listas prontas**: `1. a. i.`, `1. 1.1. 1.1.1.`, `I. A. 1. a.`, `1) a) i)` e três tipos de
-  marcadores;
-- ou nível por nível: o formato do número (`1, 2, 3`, `01, 02`, `a, b, c`, `A, B, C`, `i, ii`,
-  `I, II` ou marcador), o texto em volta dele e o número inicial. A **prévia** mostra o resultado
-  antes de aplicar.
+- **List library**: `1. a. i.`, `1. 1.1. 1.1.1.`, `I. A. 1. a.`, `1) a) i)` and three kinds of
+  bullets;
+- or level by level: the number format (`1, 2, 3`, `01, 02`, `a, b, c`, `A, B, C`, `i, ii`,
+  `I, II` or bullet), the text around it and the starting number. The **preview** shows the
+  result before applying.
 
-O **botão direito** num item numerado oferece:
+**Right-clicking** a numbered item offers:
 
-| Opção | Quando usar |
+| Option | When to use it |
 | --- | --- |
-| **Reiniciar em 1** | a lista nova começou colada na anterior e herdou a numeração dela |
-| **Continuar numeração** | o contrário: um parágrafo comum no meio partiu a lista em duas |
-| **Definir valor inicial…** | a lista precisa começar em outro número, como `5.` |
+| **Restart at 1** | the new list started right after the previous one and inherited its numbering |
+| **Continue numbering** | the opposite: a regular paragraph in the middle split the list in two |
+| **Set numbering value…** | the list needs to start at another number, such as `5.` |
 
 ---
 
-<a id="paginas"></a>
+<a id="pages"></a>
 
-## 📐 Páginas, seções e colunas
+## 📐 Pages, sections and columns
 
-### A tela mostra as folhas de verdade
+### The screen shows the real sheets
 
-O documento aparece dividido em folhas, como vai sair no papel. A quebra é feita **linha por
-linha**, do mesmo jeito que o Word e o LibreOffice fazem:
+The document appears divided into sheets, as it will come out on paper. The break is made **line
+by line**, the same way Word and LibreOffice do it:
 
-- um parágrafo pode começar numa folha e terminar na seguinte;
-- uma linha não fica sozinha no topo ou no pé da folha (são as "viúvas" e "órfãs");
-- a linha de cabeçalho de uma tabela se repete no alto de cada folha em que a tabela continua.
+- a paragraph can start on one sheet and end on the next;
+- a line does not stay alone at the top or bottom of the sheet (these are "widows" and
+  "orphans");
+- a table's header row repeats at the top of each sheet the table continues on.
 
-O número de páginas da barra de status é o mesmo do PDF e do papel.
+The page count in the status bar is the same as in the PDF and on paper.
 
-### Configuração de página
+### Page setup
 
-**Arquivo → Configuração de página…** define:
+**File → Page setup…** defines:
 
-- **tamanho** do papel e **orientação** (retrato ou paisagem);
-- **margens**, em milímetros;
-- **cabeçalho e rodapé**, com os botões **Número da página** e **Total de páginas**;
-- **Primeira página diferente**, para uma capa sem número;
-- **Pares e ímpares diferentes**, para um livro em que o número fica sempre do lado de fora;
-- **numeração de página**: o formato (`1, 2, 3`, `i, ii, iii`, `A, B, C`…) e o número em que começa.
+- paper **size** and **orientation** (portrait or landscape);
+- **margins**, in millimeters;
+- **header and footer**, with the **Page number** and **Total pages** buttons;
+- **Different first page**, for a cover without a number;
+- **Different odd and even pages**, for a book where the number always sits on the outer side;
+- **page numbering**: the format (`1, 2, 3`, `i, ii, iii`, `A, B, C`…) and the number it starts
+  at.
 
-O cabeçalho e o rodapé também se editam direto na folha: clique no texto e digite.
+Header and footer can also be edited directly on the sheet: click the text and type.
 
-### Seções
+### Sections
 
-Uma seção é um pedaço do documento com a própria configuração de página. Serve, por exemplo, para
-pôr uma tabela larga numa folha em paisagem, no meio de um relatório em retrato, ou para numerar a
-introdução com `i, ii, iii` e o resto com `1, 2, 3`.
+A section is a part of the document with its own page setup. It is useful, for example, to put a
+wide table on a landscape sheet in the middle of a portrait report, or to number the introduction
+with `i, ii, iii` and the rest with `1, 2, 3`.
 
-**Inserir → Quebra de seção** oferece quatro tipos:
+**Insert → Section break** offers four kinds:
 
-| Tipo | A seção nova começa… |
+| Kind | The new section starts… |
 | --- | --- |
-| **Próxima página** | na folha seguinte |
-| **Contínua** | na mesma folha, logo abaixo |
-| **Página par** | na próxima folha par |
-| **Página ímpar** | na próxima folha ímpar, como um capítulo de livro |
+| **Next page** | on the next sheet |
+| **Continuous** | on the same sheet, right below |
+| **Even page** | on the next even sheet |
+| **Odd page** | on the next odd sheet, like a book chapter |
 
-Com seções, a configuração de página pergunta onde **Aplicar**: **Nesta seção** ou **No documento
-todo**. O rodapé de uma seção pode **vincular ao anterior**, isto é, repetir o da seção de cima, ou
-ter texto próprio.
+With sections, page setup asks where to **Apply to**: **This section** or **Whole document**. A
+section's footer can **link to the previous one**, that is, repeat the one of the section above,
+or have its own text.
 
-**Inserir → Excluir quebra de seção** junta a seção com a de cima.
+**Insert → Delete section break** joins the section with the one above.
 
-### Colunas
+### Columns
 
-**Formatar → Colunas…** divide a seção em colunas, como num jornal: o **número de colunas**, o
-**espaço entre elas**, em milímetros, e uma **linha entre colunas**, se quiser.
+**Format → Columns…** divides the section into columns, as in a newspaper: the **number of
+columns**, the **space between them**, in millimeters, and a **line between columns**, if you
+want.
 
-**Inserir → Quebra de coluna** manda o texto seguinte para o alto da próxima coluna.
-
----
-
-<a id="tabelas-e-imagens"></a>
-
-## 📊 Tabelas e imagens
-
-**Inserir tabela** fica no menu **Tabela**, no botão de tabela da barra e em `Ctrl+F12`, e
-pergunta quantas linhas e colunas você quer. A primeira linha vem marcada como **cabeçalho**: é a
-linha que se repete no alto de cada folha quando a tabela continua na próxima.
-
-Com o cursor numa célula, o menu **Tabela** e o **botão direito** oferecem:
-
-- inserir linha acima ou abaixo, coluna à esquerda ou à direita;
-- excluir linha, coluna ou a tabela inteira;
-- **mesclar células** (selecione-as arrastando o mouse) e **dividir célula**;
-- ligar e desligar a **linha de cabeçalho**;
-- **Propriedades da tabela…**: a largura da coluna do cursor, em milímetros; a borda das células
-  selecionadas (estilo, espessura, cor e quais lados); o sombreamento; e a repetição do
-  cabeçalho.
-
-A divisória entre duas colunas também pode ser **arrastada** com o mouse, em qualquer zoom.
-
-> ℹ️ O diálogo só oferece o que o `.docx` guarda. Bordas que o Word tem e a tela não desenha,
-> como linha dupla grossa e fina ou ondulada, aparecem como linha simples, e **voltam intactas**
-> ao salvar, desde que você não formate aquela célula. Se formatar, o aviso de perda diz isso.
-
-**Redimensionar imagem**: clique nela e arraste uma das oito alças. Nos cantos, a proporção fica
-travada; segure `Shift` para esticar livremente. As alças dos lados mudam uma medida só. A imagem
-não passa da largura da coluna de texto, e um `Ctrl+Z` desfaz o arrasto inteiro. Com uma alça
-selecionada, as setas do teclado também redimensionam.
-
-**Texto alternativo e alinhamento**: com a imagem selecionada, o botão de imagem da barra passa a
-se chamar **Propriedades da imagem** (também em **Formatar → Imagem…**). O texto alternativo é o
-que um leitor de tela lê no lugar da imagem, e vai para o arquivo.
-
-**Mesclagem**: células mescladas num `.docx`, na horizontal ou na vertical, continuam mescladas, e
-as que você mescla aqui também vão para o arquivo.
+**Insert → Column break** sends the following text to the top of the next column.
 
 ---
 
-<a id="referencias"></a>
+<a id="tables-and-images"></a>
 
-## 🔗 Sumário e referências
+## 📊 Tables and images
 
-### Painel de navegação
+**Insert table** is in the **Table** menu, on the toolbar's table button and at `Ctrl+F12`, and
+asks how many rows and columns you want. The first row comes marked as the **header**: it is the
+row that repeats at the top of each sheet when the table continues on the next.
 
-**Exibir → Painel de navegação** (`Ctrl+F5`) mostra os títulos do documento numa coluna ao lado,
-como um índice. Clique num título para ir até ele. Num documento de cem páginas, é o jeito mais
-rápido de achar um capítulo.
+With the cursor in a cell, the **Table** menu and the **right-click** menu offer:
 
-### Sumário
+- insert a row above or below, a column to the left or right;
+- delete a row, a column or the whole table;
+- **Merge cells** (select them by dragging the mouse) and **Split cell**;
+- turn the **Header row** on and off;
+- **Table properties…**: the width of the cursor's column, in millimeters; the border of the
+  selected cells (style, width, color and which sides); the shading; and repeating the header.
 
-**Referências → Inserir sumário** monta o sumário a partir dos parágrafos com estilo **Título 1**,
-**Título 2** e assim por diante, com o número da página de cada um.
+The divider between two columns can also be **dragged** with the mouse, at any zoom.
 
-O sumário não muda sozinho enquanto você escreve. Depois de acrescentar capítulos ou de as páginas
-mudarem, use **Referências → Atualizar sumário**.
+> ℹ️ The dialog only offers what `.docx` stores. Borders Word has and the screen does not draw,
+> such as thick-and-thin double or wavy lines, show up as a single line, and **come back intact**
+> on saving, as long as you do not format that cell. If you do, the loss warning says so.
 
-### Marcadores
+**Merging**: cells merged in a `.docx`, horizontally or vertically, stay merged, and the ones you
+merge here also go into the file.
 
-Um marcador é um nome dado a um ponto do documento, como um marcador de página num livro.
-**Inserir → Marcador…** (`Ctrl+Shift+F5`) cria, lista, leva até um marcador ou o exclui. A lista
-pode ser ordenada por nome ou pela posição no documento.
+**Resizing an image**: click it and drag one of the eight handles. At the corners, the proportion
+is locked; hold `Shift` to stretch freely. The side handles change only one measure. The image
+does not go beyond the width of the text column, and one `Ctrl+Z` undoes the whole drag. With a
+handle selected, the arrow keys also resize.
 
-O diálogo de **link** também aponta para dentro do documento: em vez de um endereço da internet,
-escolha um título ou um marcador.
-
-### Legendas
-
-**Referências → Inserir legenda…** numera figuras, tabelas e equações: `Figura 1`, `Figura 2`…
-Escolha o rótulo, o texto depois do número e se a legenda fica acima ou abaixo do item onde está o
-cursor.
-
-### Referência cruzada
-
-Uma referência cruzada é uma frase como "veja a Figura 3, na página 12" em que o **3** e o **12**
-se atualizam sozinhos. **Referências → Referência cruzada…** pergunta:
-
-- o **tipo**: título, marcador, nota de rodapé, nota de fim ou legenda;
-- **para qual** deles;
-- o que inserir: o **texto**, o **número**, o **número da nota** ou o **número da página**;
-- e se a referência deve funcionar como **hiperlink**, levando até o ponto ao ser clicada.
-
-### Atualizar campos
-
-Números de página, total de páginas, referências cruzadas, legendas e propriedades do documento
-são **campos**: texto que o aplicativo calcula. `F9`, ou **Referências → Atualizar campos**, recalcula todos.
+**Alt text and alignment**: with the image selected, the toolbar's image button becomes **Image
+properties** (also in **Format → Image…**). Alt text is what a screen reader reads in place of the
+image, and it goes into the file.
 
 ---
 
-<a id="notas"></a>
+<a id="references"></a>
 
-## 📝 Notas de rodapé e de fim
+## 🔗 Table of contents and references
 
-Uma **nota de rodapé** fica no pé da mesma folha; uma **nota de fim** fica no fim do documento.
+### Navigation pane
 
-- **Inserir → Nota de rodapé** (`Ctrl+Alt+F`)
-- **Inserir → Nota de fim** (`Ctrl+Alt+D`)
+**View → Navigation pane** (`Ctrl+F5`) shows the document's headings in a column at the side, like
+an index. Click a heading to go to it. In a hundred-page document, it is the fastest way to find a
+chapter.
 
-O número aparece no texto, e o cursor vai para a nota, **no pé da própria folha**, onde você
-escreve. Os números das notas seguem a ordem em que elas aparecem no texto.
+### Table of contents
 
-O **botão direito** numa nota permite **convertê-la** de rodapé para fim, ou o contrário.
+**References → Insert table of contents** builds the table of contents from the paragraphs with the
+**Heading 1**, **Heading 2** styles and so on, with each one's page number.
+
+The table of contents does not change on its own as you write. After adding chapters or after the
+pages move, use **References → Update table of contents**.
+
+### Bookmarks
+
+A bookmark is a name given to a point in the document, like a bookmark in a book. **Insert →
+Bookmark…** (`Ctrl+Shift+F5`) creates, lists, goes to or deletes a bookmark. The list can be
+sorted by name or by position in the document.
+
+The **link** dialog also points inside the document: instead of a web address, choose a heading or
+a bookmark.
+
+### Captions
+
+**References → Insert caption…** numbers figures, tables and equations: `Figura 1`, `Figura 2`…
+Choose the label, the text after the number and whether the caption goes above or below the item
+where the cursor is.
+
+### Cross-reference
+
+A cross-reference is a phrase such as "see Figure 3, on page 12" where the **3** and the **12**
+update on their own. **References → Cross-reference…** asks:
+
+- the **type**: heading, bookmark, footnote, endnote or caption;
+- **which one**;
+- what to insert: the **text**, the **number**, the **note number** or the **page number**;
+- and whether the reference should work as a **hyperlink**, going to that point when clicked.
+
+### Update fields
+
+Page numbers, total pages, cross-references, captions and document properties are **fields**:
+text the application calculates. `F9`, or **References → Update fields**, recalculates them all.
 
 ---
 
-<a id="equacoes"></a>
+<a id="notes"></a>
 
-## ➗ Equações
+## 📝 Footnotes and endnotes
 
-As equações de um documento do Word aparecem desenhadas na folha. As novas são escritas em
-**LaTeX**, a forma de escrever matemática usada em artigos científicos: `\frac{a}{b}` é uma fração,
-`x^2` é um quadrado, `\sqrt{x}` é uma raiz.
+A **footnote** sits at the foot of the same sheet; an **endnote** sits at the end of the document.
 
-- **Inserir → Equação** (`Alt+=`) põe a equação no meio da linha, junto do texto.
-- **Inserir → Equação em destaque** põe a equação numa linha só dela, centralizada.
+- **Insert → Footnote** (`Ctrl+Alt+F`)
+- **Insert → Endnote** (`Ctrl+Alt+D`)
 
-O diálogo tem o campo de **LaTeX**, uma **Visualização** que acompanha o que você digita e uma
-paleta de **Modelos** para quem não sabe os comandos de cor: frações, raízes, índices, somatórios,
-integrais, acentos, funções como seno e logaritmo, e símbolos como ∈, ∀ e ⇒.
+The number appears in the text, and the cursor goes to the note, **at the foot of its own sheet**,
+where you write. The note numbers follow the order in which they appear in the text.
 
-Para alterar uma equação, **clique duas vezes** nela.
-
-> ℹ️ Uma equação do Word com alguma construção que a tela não sabe desenhar aparece **travada**,
-> com o que deu para desenhar. Ela volta ao arquivo inteira, exatamente como veio.
+**Right-clicking** a note lets you **convert** it from footnote to endnote, or the other way
+around.
 
 ---
 
-<a id="revisao"></a>
+<a id="equations"></a>
 
-## 💬 Comentários e revisões
+## ➗ Equations
 
-### Comentários
+The equations in a Word document appear drawn on the sheet. New ones are written in **LaTeX**, the
+way of writing mathematics used in scientific papers: `\frac{a}{b}` is a fraction, `x^2` is a
+square, `\sqrt{x}` is a root.
 
-Selecione o trecho e use **Inserir → Comentário** (`Ctrl+Alt+M`). O comentário aparece no painel
-ao lado, ligado ao trecho. **Exibir → Comentários** mostra e esconde esse painel.
+- **Insert → Equation** (`Alt+=`) puts the equation in the middle of the line, with the text.
+- **Insert → Display equation** puts the equation on a line of its own, centered.
 
-Em cada comentário você pode **Responder**, **Editar**, **Resolver** (ele fica marcado como
-resolvido, mas continua no arquivo), **Reabrir** e **Excluir**. **Inserir → Próximo comentário** e
-**Comentário anterior** andam de um a outro.
+The dialog has the **LaTeX** field, a **Preview** that follows what you type and a palette of
+**Templates** for those who do not know the commands by heart: fractions, roots, indices, sums,
+integrals, accents, functions such as sine and logarithm, and symbols such as ∈, ∀ and ⇒.
 
-O nome que aparece nos seus comentários e revisões é definido em **Ferramentas → Nome do autor…**.
+To change an equation, **double-click** it.
 
-Comentários de um `.docx` vêm junto e voltam ao arquivo, inclusive as respostas.
+> ℹ️ A Word equation with some construct the screen cannot draw appears **locked**, with what
+> could be drawn. It goes back to the file whole, exactly as it came.
 
-### Controle de alterações
+---
 
-Com o controle de alterações ligado, cada mudança fica registrada em vez de simplesmente feita:
-texto inserido aparece sublinhado, texto apagado aparece riscado, cada um com o nome de quem mudou.
-Quem recebe o documento decide o que fica.
+<a id="review"></a>
 
-**Revisão → Controlar alterações** (`Ctrl+Shift+E`) liga e desliga. O menu **Revisão** também tem:
+## 💬 Comments and revisions
 
-- **Aceitar alteração** e **Rejeitar alteração**, para a que está no cursor;
-- **Aceitar todas** e **Rejeitar todas**;
-- **Próxima alteração** e **Alteração anterior**.
+### Comments
 
-**Revisão → Mostrar** escolhe como ver o documento:
+Select the passage and use **Insert → Comment** (`Ctrl+Alt+M`). The comment appears in the pane at
+the side, linked to the passage. **View → Comments** shows and hides that pane.
 
-| Modo | O que aparece |
+On each comment you can **Reply**, **Edit**, **Resolve** (it is marked as resolved, but stays in
+the file), **Reopen** and **Delete**. **Insert → Next comment** and **Previous comment** move from
+one to the next.
+
+The name that appears on your comments and revisions is set in **Tools → Author name…**.
+
+Comments in a `.docx` come along and go back to the file, replies included.
+
+### Track changes
+
+With track changes on, each change is recorded instead of simply made: inserted text appears
+underlined, deleted text appears struck through, each with the name of whoever changed it.
+Whoever receives the document decides what stays.
+
+**Review → Track changes** (`Ctrl+Shift+E`) turns it on and off. The **Review** menu also has:
+
+- **Accept change** and **Reject change**, for the one at the cursor;
+- **Accept all changes** and reject all;
+- **Next change** and **Previous change**.
+
+**Review → Show** chooses how to see the document:
+
+| Mode | What appears |
 | --- | --- |
-| **Marcação completa** | tudo à vista: o inserido sublinhado e o excluído riscado |
-| **Marcação simples** | o texto como vai ficar, com uma barra na margem ao lado de cada parágrafo alterado |
-| **Sem marcação** | o texto como vai ficar, limpo |
-| **Original** | o texto de antes das alterações; nesse modo o editor fica só para leitura |
+| **All markup** | everything in view: the inserted underlined and the deleted struck through |
+| **Simple markup** | the text as it will be, with a bar in the margin next to each changed paragraph |
+| **No markup** | the text as it will be, clean |
+| **Original** | the text from before the changes; in this mode the editor is read-only |
 
-Trocar de modo não altera o documento, e a impressão segue o modo escolhido.
+Switching modes does not change the document, and printing follows the chosen mode.
 
 ---
 
-<a id="ferramentas"></a>
+<a id="tools"></a>
 
-## 🔤 Ortografia, símbolos e contagem
+## 🔤 Spelling, symbols and counting
 
-### A ortografia é em português e não usa internet
+### Spelling is in Portuguese and does not use the internet
 
-O dicionário de português do Brasil **vem dentro do instalador**. Na primeira vez que o aplicativo
-abre, ele é copiado para a pasta do seu usuário, e é ali que o corretor o procura.
+The Brazilian Portuguese dictionary **comes inside the installer**. The first time the application
+opens, it is copied to your user folder, and that is where the checker looks for it.
 
-Por que isso importa? O corretor que acompanha o Chromium, sozinho, baixaria o dicionário da
-internet. Num computador sem rede, ele simplesmente não marcaria nada, e não avisaria.
+Why does this matter? The checker that comes with Chromium, on its own, would download the
+dictionary from the internet. On a computer without a network, it would simply mark nothing, and
+it would not warn you.
 
-A palavra errada ganha o sublinhado ondulado de sempre, **no texto e também no cabeçalho e no
-rodapé**, onde um erro de digitação se repete em todas as folhas.
+A misspelled word gets the usual wavy underline, **in the text and also in the header and
+footer**, where a typo repeats on every sheet.
 
-Clique com o **botão direito** na palavra sublinhada para:
+**Right-click** the underlined word to:
 
-- escolher uma das sugestões, que troca a palavra;
-- **Adicionar ao dicionário**, para nunca mais ser avisado dela, em nenhum documento;
-- **Ignorar nesta sessão**, que vale até você fechar o aplicativo. Serve para o nome de um cliente
-  que aparece dez vezes neste documento e em nenhum outro.
+- choose one of the suggestions, which replaces the word;
+- **Add to dictionary**, so you are never warned about it again, in any document;
+- **Ignore in this session**, which lasts until you close the application. It is useful for the
+  name of a client that appears ten times in this document and in no other.
 
-Para desligar: **Ferramentas → Verificação ortográfica**.
+To turn it off: **Tools → Spell check**.
 
-### O botão direito no documento
+### Right-clicking the document
 
-Além das sugestões de ortografia, o menu tem **recortar**, **copiar**, **colar** e **colar sem
-formatação**. Dentro de uma tabela, traz também as ações dela. Um item apagado não se aplica ali:
-"colar" fica apagado quando não há nada copiado, por exemplo.
+Besides the spelling suggestions, the menu has **cut**, **copy**, **paste** and **paste without
+formatting**. Inside a table, it also brings the table's actions. A greyed-out item does not apply
+there: "paste" is greyed out when nothing has been copied, for example.
 
-### Colar sem formatação
+### Paste without formatting
 
-`Ctrl+Shift+V`, o menu **Editar** ou o botão direito. O texto entra com a formatação do documento,
-e não com a de onde veio. É o que evita que um trecho copiado de um site chegue com outra fonte,
-outro tamanho e outra cor. Cada quebra de linha do texto copiado vira um parágrafo.
+`Ctrl+Shift+V`, the **Edit** menu or the right-click menu. The text comes in with the document's
+formatting, not with the formatting of where it came from. It is what keeps a passage copied from
+a website from arriving with another font, another size and another color. Each line break in the
+copied text becomes a paragraph.
 
-### Contar palavras
+### Word count
 
-`Ctrl+Shift+G` ou **Ferramentas → Contar palavras…** mostra palavras, caracteres com e sem
-espaço, parágrafos e páginas, em duas colunas: o **documento** e a **seleção**. Sem nada
-selecionado, a coluna da seleção mostra um travessão, porque "nada selecionado" não é o mesmo que
-"zero palavras". O diálogo acompanha o que você digita, então pode ficar aberto.
+`Ctrl+Shift+G` or **Tools → Word count…** shows words, characters with and without spaces,
+paragraphs and pages, in two columns: the **document** and the **selection**. With nothing
+selected, the selection column shows a dash, because "nothing selected" is not the same as "zero
+words". The dialog follows what you type, so it can stay open.
 
-Parágrafo vazio não conta: é um `Enter` batido para abrir espaço, e o Word também não o conta.
+An empty paragraph does not count: it is an `Enter` pressed to open space, and Word does not count
+it either.
 
-### Caracteres especiais
+### Special characters
 
-**Inserir → Caractere especial…** abre um painel com o que costuma faltar no teclado: aspas
-tipográficas, travessão, símbolos de moeda, sinais de matemática, letras gregas e marcas como © e
-®. Clique no símbolo, ou ande pela grade com as setas e insira com `Enter`. O painel fica aberto,
-porque quem o abre em geral quer mais de um símbolo.
+**Insert → Special character…** opens a pane with what the keyboard usually lacks: typographic
+quotes, dashes, currency symbols, math signs, Greek letters and marks such as © and ®. Click the
+symbol, or move around the grid with the arrows and insert with `Enter`. The pane stays open,
+because whoever opens it usually wants more than one symbol.
 
-O `␣` do grupo "Pontuação" é o **espaço inquebrável**. É ele que impede que o `R$` fique no fim de
-uma linha e o valor no começo da seguinte.
+The `␣` in the "Punctuation" group is the **non-breaking space**. It is what keeps `R$` from
+sitting at the end of one line and the amount at the start of the next.
 
-### Marcas de formatação (¶)
+### Formatting marks (¶)
 
-`Ctrl+F10`, o botão `¶` da barra ou **Exibir → Marcas de formatação** mostram o que existe no texto
-mas não tem tinta: um ponto em cada espaço, uma seta em cada tabulação, um `¬` em cada quebra de
-linha e um `¶` no fim de cada parágrafo. Servem para descobrir por que um alinhamento saiu errado.
-Quase sempre é um espaço a mais, ou uma tabulação onde devia haver recuo.
+`Ctrl+F10`, the toolbar's `¶` button or **View → Formatting marks** show what exists in the text
+but has no ink: a dot for each space, an arrow for each tab, a `¬` for each line break and a `¶`
+at the end of each paragraph. They help find out why an alignment came out wrong. It is almost
+always an extra space, or a tab where there should be an indent.
 
-As marcas **não saem no papel nem no PDF**, e não mudam onde as páginas quebram.
+The marks **do not come out on paper or in the PDF**, and they do not change where the pages
+break.
 
-### Autocorreção tipográfica
+### Smart typography
 
-Vem ligada. Enquanto você digita, ela troca:
+It comes turned on. As you type, it replaces:
 
-| O que você digita | O que sai |
+| What you type | What comes out |
 | --- | --- |
-| `"aspas"` | `“aspas”` |
-| `'aspas'` | `‘aspas’` |
-| `--` | `—` (travessão) |
+| `"quotes"` | `“quotes”` |
+| `'quotes'` | `‘quotes’` |
+| `--` | `—` (em dash) |
 | `...` | `…` |
 | `(c)` `(r)` `(tm)` | `©` `®` `™` |
 | `1/2` `1/4` `3/4` | `½` `¼` `¾` |
 | `+/-` `!=` `<<` `>>` | `±` `≠` `«` `»` |
 
-É o que o Word faz em português. `->` e `3 x 4` **não** viram flecha e `×`, de propósito: em texto
-técnico isso atrapalha mais do que ajuda.
+It is what Word does in Portuguese. `->` and `3 x 4` do **not** become an arrow and `×`, on
+purpose: in technical text that gets in the way more than it helps.
 
-Um `Backspace` logo depois de uma troca desfaz **só aquela troca**. Escreva `--silent`, apague uma
-vez, e o travessão volta a ser dois hifens. É a saída para escrever um comando sem desligar nada.
+A `Backspace` right after a replacement undoes **only that replacement**. Write `--silent`, delete
+once, and the dash goes back to being two hyphens. It is the way to write a command without
+turning anything off.
 
-Para desligar: **Ferramentas → Autocorreção tipográfica**. O que já foi trocado continua trocado.
+To turn it off: **Tools → Smart typography**. What has already been replaced stays replaced.
 
 ---
 
-<a id="assistente-de-ia"></a>
+<a id="ai-assistant"></a>
 
-## 🤖 Assistente de IA
+## 🤖 AI assistant
 
-O assistente reescreve, resume, revisa ou traduz o trecho que você selecionar, e conversa sobre o
-documento. Na planilha, ele explica e cria fórmulas e preenche colunas (veja
-[Nas planilhas](#nas-planilhas)).
+The assistant rewrites, summarizes, proofreads or translates the passage you select, and chats
+about the document. In the spreadsheet, it explains and writes formulas and fills columns (see
+[In spreadsheets](#in-spreadsheets)).
 
-Duas garantias valem em todo este capítulo:
+Two guarantees hold throughout this chapter:
 
-- ele vem **desligado**: enquanto nenhum assistente estiver configurado, nada sai do computador;
-- **nada muda no documento ou na planilha sem um clique seu.**
+- it comes **turned off**: as long as no assistant is configured, nothing leaves the computer;
+- **nothing changes in the document or the spreadsheet without a click from you.**
 
-### Configurar
+### Configure
 
-Abra **Ferramentas → Assistentes de IA…**. Há dois caminhos:
+Open **Tools → AI assistants…**. There are two ways:
 
-- **Procurar assistentes** olha, só quando você clica, o que já está neste computador: o Ollama
-  (`localhost:11434`), o LM Studio (`localhost:1234`), o programa `claude` (Claude Code) e os
-  agentes ACP instalados (veja abaixo). O que responder aparece com um botão **Adicionar**.
-- **Adicionar à mão** aceita um servidor compatível com OpenAI (endereço e, se ele pedir, uma
-  chave), a API da Anthropic (chave) ou um agente ACP.
+- **Find assistants** looks, only when you click, at what is already on this computer: Ollama
+  (`localhost:11434`), LM Studio (`localhost:1234`), the `claude` program (Claude Code) and the
+  installed ACP agents (see below). Whatever answers appears with an **Add** button.
+- **Add manually** accepts an OpenAI-compatible server (address and, if it asks, a key), the
+  Anthropic API (key) or an ACP agent.
 
-**Agentes ACP.** O ACP (Agent Client Protocol) é um protocolo aberto que vários agentes de IA
-falam. A procura encontra estes, se o programa estiver no `PATH`: Gemini CLI (`gemini`), Claude
-Agent (`claude-agent-acp`), Codex (`codex-acp`), OpenCode, Goose, GitHub Copilot (`copilot`),
-Qwen Code (`qwen`), Kimi CLI, Cursor Agent (`cursor-agent`), Kilo Code (`kilo`), Auggie, Cline,
-Mistral Vibe (`vibe-acp`) e Amp (`amp-acp`). Um agente instalado em outro lugar entra por
-**Adicionar à mão → Agente ACP → Escolher o programa…**, com os argumentos que ele pede.
+**ACP agents.** ACP (Agent Client Protocol) is an open protocol that several AI agents speak. The
+search finds these, if the program is on the `PATH`: Gemini CLI (`gemini`), Claude Agent
+(`claude-agent-acp`), Codex (`codex-acp`), OpenCode, Goose, GitHub Copilot (`copilot`), Qwen Code
+(`qwen`), Kimi CLI, Cursor Agent (`cursor-agent`), Kilo Code (`kilo`), Auggie, Cline, Mistral Vibe
+(`vibe-acp`) and Amp (`amp-acp`). An agent installed elsewhere comes in through **Add manually →
+ACP agent → Choose the program…**, with the arguments it asks for.
 
-- O login é feito no próprio agente: abra-o uma vez no terminal e entre na sua conta.
-- O Librevia não baixa nem instala agentes, não oferece a eles seus arquivos nem um terminal, e
-  os roda numa pasta temporária vazia.
-- As ferramentas próprias do agente (as do Gemini CLI, do Codex, do Claude Agent…) seguem a
-  configuração dele, não a do Librevia. Para restringir o que ele pode fazer, configure o agente.
-- No Windows, só funcionam agentes que sejam um `.exe`; os instalados pelo npm (`.cmd`) não.
+- Login happens in the agent itself: open it once in the terminal and sign in to your account.
+- Librevia does not download or install agents, does not offer them your files or a terminal, and
+  runs them in an empty temporary folder.
+- The agent's own tools (those of Gemini CLI, Codex, Claude Agent…) follow its configuration, not
+  Librevia's. To restrict what it can do, configure the agent.
+- On Windows, only agents that are an `.exe` work; the ones installed by npm (`.cmd`) do not.
 
-A chave fica cifrada pelo cofre de senhas do sistema e nunca volta para a tela. No Linux sem cofre
-(sem GNOME Keyring nem KWallet), o Librevia recusa guardar a chave; os assistentes locais
-continuam funcionando, porque não precisam dela.
+The key is encrypted by the system's password vault and never comes back to the screen. On Linux
+without a vault (no GNOME Keyring or KWallet), Librevia refuses to store the key; local assistants
+keep working, because they do not need one.
 
-No mesmo diálogo você escolhe o assistente padrão. **Editar** muda o nome, o endereço e a chave de
-um assistente; a chave em branco mantém a guardada. Mudar o endereço apaga a chave e a permissão,
-para que elas não sigam para outro servidor. Num servidor compatível com OpenAI, **Contexto
-máximo** diz quantos caracteres do documento vão junto (veja
-[O que é enviado](#o-que-é-enviado-e-para-onde)).
+In the same dialog you choose the default assistant. **Edit** changes an assistant's name, address
+and key; a blank key keeps the stored one. Changing the address erases the key and the
+permission, so they do not follow along to another server. On an OpenAI-compatible server,
+**Maximum context** says how many characters of the document go along (see
+[What is sent](#what-is-sent-and-where)).
 
-Em **Preferências**, no mesmo diálogo:
+In **Preferences**, in the same dialog:
 
-- **Manter a formatação nas revisões** (ligada de fábrica): ao reescrever, revisar ou traduzir, o
-  trecho vai com negrito, itálico, tachado, títulos, listas e links, e a resposta volta com eles.
-  Desligada, o trecho vai e volta como texto simples.
-- **Se o modelo da Anthropic recusar, tentar outro modelo recomendado pela Anthropic** (desligada
-  de fábrica): vale só para a API da Anthropic. Se houver troca, o autor da alteração é o modelo
-  que terminou a resposta.
+- **Keep the formatting in revisions** (on by default): when rewriting, proofreading or
+  translating, the passage goes with bold, italic, strikethrough, headings, lists and links, and
+  the answer comes back with them. Turned off, the passage goes and comes back as plain text.
+- **If the Anthropic model refuses, try another model Anthropic recommends** (off by default): it
+  only applies to the Anthropic API. If there is a switch, the author of the change is the model
+  that finished the answer.
 
-### Usar
+### Use
 
-1. Selecione o trecho.
-2. Clique com o botão direito e abra **Assistente de IA ▸**: Reescrever, Resumir, Revisar
-   ortografia e gramática, Traduzir ou Pedido livre. Pelo teclado, `Shift+F10` abre o menu. O
-   painel também abre por **Ferramentas → Assistente de IA…** (`Ctrl+Shift+Y`), e o mesmo atalho o
-   fecha.
-3. Na aba **Ações**, **Modelo** escolhe o modelo: **Automático** usa o padrão do assistente, e
-   **Listar modelos** pergunta quais ele tem.
-4. A resposta aparece no painel enquanto é escrita, já formatada. **Parar** interrompe.
-5. Escolha o que fazer com ela:
-   - **Aplicar** troca o trecho pela resposta como **alteração controlada**, com o nome do modelo
-     como autor, mesmo com o controle de alterações desligado;
-   - **Inserir abaixo** põe a resposta em parágrafos novos depois do trecho, também marcados;
-   - **Copiar** leva a resposta para a área de transferência.
+1. Select the passage.
+2. Right-click and open **AI assistant ▸**: Rewrite, Summarize, Fix spelling and grammar,
+   Translate or Custom request. From the keyboard, `Shift+F10` opens the menu. The panel also
+   opens through **Tools → AI assistant…** (`Ctrl+Shift+Y`), and the same shortcut closes it.
+3. In the **Actions** tab, **Model** chooses the model: **Automatic** uses the assistant's
+   default, and **List models** asks which ones it has.
+4. The answer appears in the panel as it is written, already formatted. **Stop** interrupts it.
+5. Choose what to do with it:
+   - **Apply** replaces the passage with the answer as a **tracked change**, with the model's name
+     as author, even with track changes turned off;
+   - **Insert below** puts the answer in new paragraphs after the passage, also marked;
+   - **Copy** takes the answer to the clipboard.
 
-Se você editar o trecho enquanto a resposta chega, **Aplicar** fica apagado e o painel avisa "O
-trecho mudou". Inserir abaixo e Copiar continuam valendo.
+If you edit the passage while the answer arrives, **Apply** is greyed out and the panel warns that
+the passage changed. Insert below and Copy still work.
 
-### Conversar
+### Chat
 
-A aba **Conversa** troca várias mensagens com o assistente sobre o documento aberto. `Enter`
-envia; `Shift+Enter` quebra a linha. Cada resposta tem **Inserir abaixo**, que põe o texto depois
-da seleção ou do cursor como alteração controlada, e **Copiar**. **Nova conversa** começa do zero.
+The **Chat** tab exchanges several messages with the assistant about the open document. `Enter`
+sends; `Shift+Enter` breaks the line. Each answer has **Insert below**, which puts the text after
+the selection or the cursor as a tracked change, and **Copy**. **New chat** starts from scratch.
 
-A cada mensagem vai o documento **como ele está naquele momento**. Com um trecho selecionado, o
-modelo entende "isto" como esse trecho.
+With each message goes the document **as it is at that moment**. With a passage selected, the
+model understands "this" as that passage.
 
-A conversa fica só na memória: não vai para o arquivo nem para o disco, e some quando você fecha o
-documento.
+The chat lives only in memory: it does not go into the file or onto the disk, and it disappears
+when you close the document.
 
-#### Propostas de alteração e comentários
+#### Proposed edits and comments
 
-Abaixo do campo de mensagem fica a caixa **Deixar o assistente propor alterações e comentários**.
-Ela vem desligada. Ligada, o assistente pode ler e procurar no documento e **propor**: a troca ou
-a remoção de um trecho, texto novo depois de um parágrafo (é assim que ele escreve num documento
-vazio) e comentários. O texto proposto vem formatado, com títulos, listas, citações, negrito,
-itálico e links. Tabelas e imagens ainda não entram por proposta.
+Below the message field is the **Let the assistant propose edits and comments** box. It comes
+turned off. Turned on, the assistant can read and search the document and **propose**: replacing
+or removing a passage, new text after a paragraph (that is how it writes in an empty document) and
+comments. The proposed text comes formatted, with headings, lists, quotes, bold, italic and links.
+Tables and images cannot be proposed yet.
 
-Cada proposta aparece de dois jeitos, com os botões **Aceitar** e **Rejeitar**:
+Each proposal shows up in two ways, with the **Accept** and **Reject** buttons:
 
-- **na folha, como diferença**: a palavra que sai riscada em vermelho, a que entra em verde, um
-  comentário marcado em amarelo. Você pode continuar escrevendo, e a diferença acompanha o texto;
-- **no painel**, abaixo da resposta, com **Aceitar todas** e **Rejeitar todas**.
+- **on the sheet, as a difference**: the outgoing word struck through in red, the incoming one in
+  green, a comment marked in yellow. You can keep writing, and the difference follows the text;
+- **in the panel**, below the answer, with **Accept all** and **Reject all**.
 
-Aceitar põe a mudança no texto, e `Ctrl+Z` a tira. Com o controle de alterações ligado, ela entra
-como alteração controlada, com o nome do modelo como autor. Antes de aceitar, o Librevia confere
-se o parágrafo ainda tem o texto que o modelo leu; se você o mudou, Aceitar mostra "O texto mudou"
-e não mexe em nada.
+Accepting puts the change in the text, and `Ctrl+Z` takes it out. With track changes on, it goes
+in as a tracked change, with the model's name as author. Before accepting, Librevia checks that the
+paragraph still has the text the model read; if you changed it, Accept says the text changed and
+touches nothing.
 
-Todos os assistentes oferecem isso. Um modelo local sem suporte a ferramentas recusa o pedido, e o
-Librevia avisa para desligar a caixa ou trocar de modelo.
+All assistants offer this. A local model without tool support refuses the request, and Librevia
+tells you to turn the box off or switch models.
 
 <details>
-<summary><b>Os limites das propostas</b></summary>
+<summary><b>The limits of proposals</b></summary>
 
-- No máximo 30 propostas por mensagem, 10 ferramentas por rodada e 8 rodadas.
-- O que o modelo lê do documento numa resposta não passa do limite de contexto do assistente.
-- O assistente não grava, não abre arquivos, não acessa a internet e não roda programas: ele só lê
-  o texto enviado com a mensagem e propõe.
-- O Claude Code recebe só as cinco ferramentas do Librevia, por uma chave que vale para uma
-  mensagem, e continua sem as dele e sem os servidores MCP que você tenha configurado nele.
-- Um agente ACP recebe as mesmas cinco ferramentas. O Librevia permite só o uso delas, mas o
-  agente pode ter ferramentas próprias que não pedem permissão.
+- At most 30 proposals per message, 10 tools per round and 8 rounds.
+- What the model reads from the document in one answer does not go beyond the assistant's context
+  limit.
+- The assistant does not save, does not open files, does not access the internet and does not run
+  programs: it only reads the text sent with the message and proposes.
+- Claude Code receives only Librevia's five tools, through a key valid for one message, and stays
+  without its own tools and without any MCP servers you configured in it.
+- An ACP agent receives the same five tools. Librevia only permits their use, but the agent may
+  have tools of its own that do not ask for permission.
 
 </details>
 
-### Nas planilhas
+<a id="in-spreadsheets"></a>
 
-No editor de planilhas, **Ferramentas → Assistente de IA…** (`Ctrl+Shift+Y`) abre o painel. O
-assistente e o modelo são os mesmos do documento. Há três tarefas:
+### In spreadsheets
 
-- **Explicar fórmula** explica a fórmula da célula ativa. Nada é gravado.
-- **Criar fórmula**: escreva o que você quer (por exemplo, "soma dos preços da coluna B") e
-  clique em **Gerar**. O painel mostra a fórmula e o valor que ela daria. **Inserir na célula**
-  grava, e `Ctrl+Z` desfaz. A fórmula precisa passar pela mesma conferência da barra de fórmulas.
-- **Preencher coluna**: selecione as células, numa única coluna e com no máximo 500 linhas, e
-  escreva o pedido (por exemplo, "categoria do produto da coluna A"). O painel mostra uma prévia
-  com o valor atual e o novo. **Aplicar** grava todos, e `Ctrl+Z` desfaz todos. Entram valores,
-  nunca fórmulas.
+In the spreadsheet editor, **Tools → AI assistant…** (`Ctrl+Shift+Y`) opens the panel. The
+assistant and the model are the same as in the document. There are three tasks:
 
-Na planilha não há conversa, e cada pedido é independente.
+- **Explain formula** explains the formula in the active cell. Nothing is written.
+- **Write a formula**: write what you want (for example, "sum of the prices in column B") and
+  click **Generate**. The panel shows the formula and the value it would give. **Insert into
+  cell** writes it, and `Ctrl+Z` undoes it. The formula must pass the same check as the formula
+  bar.
+- **Fill a column**: select the cells, in a single column and with at most 500 rows, and write the
+  request (for example, "category of the product in column A"). The panel shows a preview with the
+  current value and the new one. **Apply** writes them all, and `Ctrl+Z` undoes them all. Values
+  go in, never formulas.
 
-### Programas externos (MCP)
+In the spreadsheet there is no chat, and each request is independent.
 
-O Claude Code no terminal, o Claude Desktop ou outro programa que fale o protocolo MCP podem
-trabalhar no documento ou na planilha aberta no Librevia, inclusive no que ainda não foi salvo.
+### External programs (MCP)
 
-1. Abra **Ferramentas → Assistentes de IA…** e ligue **Permitir que programas externos leiam o
-   documento aberto e proponham alterações (MCP)**. Vem desligado.
-2. Registre o Librevia no programa, uma vez só:
-   - **Claude Code:** copie o comando que aparece embaixo e rode no terminal. Ele começa com
+Claude Code in the terminal, Claude Desktop or another program that speaks the MCP protocol can
+work on the document or spreadsheet open in Librevia, including what has not been saved yet.
+
+1. Open **Tools → AI assistants…** and turn on **Let external programs read the open document and
+   propose changes (MCP)**. It comes turned off.
+2. Register Librevia in the program, once:
+   - **Claude Code:** copy the command shown below it and run it in the terminal. It starts with
      `claude mcp add --scope user librevia --`.
-   - **Claude Desktop e outros:** copie a configuração JSON e cole em `claude_desktop_config.json`
-     ou no `.mcp.json` do projeto.
-3. Com o Librevia aberto, peça ao programa, por exemplo: "leia o documento aberto no Librevia e
-   comente as frases longas demais".
+   - **Claude Desktop and others:** copy the JSON configuration and paste it into
+     `claude_desktop_config.json` or into the project's `.mcp.json`.
+3. With Librevia open, ask the program, for example: "read the document open in Librevia and
+   comment on the sentences that are too long".
 
-No documento, o programa lê, procura, propõe trocas, insere texto e comenta. **Cada proposta entra
-na hora como alteração controlada ou comentário**, com o nome do programa seguido de "(MCP)" como
-autor, por exemplo "Claude Code (MCP)". Você aceita ou rejeita como qualquer revisão.
+In the document, the program reads, searches, proposes replacements, inserts text and comments.
+**Each proposal goes in right away as a tracked change or a comment**, with the program's name
+followed by "(MCP)" as author, for example "Claude Code (MCP)". You accept or reject it like any
+revision.
 
-Na planilha, que não tem controle de alterações, o programa lê as células e propõe escritas, que
-**não entram na hora**: aparecem numa faixa acima da grade, com uma prévia. **Aplicar** grava, e
-`Ctrl+Z` desfaz; **Descartar** joga fora.
+In the spreadsheet, which has no track changes, the program reads the cells and proposes writes,
+which **do not go in right away**: they appear in a banner above the grid, with a preview.
+**Apply** writes, and `Ctrl+Z` undoes; **Discard** throws it away.
 
-O programa não abre nem salva arquivos, não aceita nem rejeita revisões, não vê o nome nem o
-caminho do arquivo e não mexe em PDFs.
+The program does not open or save files, does not accept or reject revisions, does not see the
+file's name or path and does not touch PDFs.
 
-- Enquanto um programa estiver conectado, a barra de status mostra o nome dele e o botão
-  **Desconectar**. No máximo 2 programas ao mesmo tempo.
-- A ligação não usa a rede: o programa roda `librevia --mcp-bridge`, que conversa com o Librevia
-  aberto por um arquivo de comunicação (socket) que só o seu usuário abre, com uma chave que muda a
-  cada abertura.
-- No Linux, o programa precisa rodar dentro da sessão gráfica (com `DISPLAY` ou Wayland).
+- While a program is connected, the status bar shows its name and the **Disconnect** button. At
+  most 2 programs at the same time.
+- The connection does not use the network: the program runs `librevia --mcp-bridge`, which talks
+  to the open Librevia through a communication file (socket) only your user can open, with a key
+  that changes at every start.
+- On Linux, the program must run inside the graphical session (with `DISPLAY` or Wayland).
 
-<a id="o-que-é-enviado-e-para-onde"></a>
+<a id="what-is-sent-and-where"></a>
 
-### O que é enviado, e para onde
+### What is sent, and where
 
-| Quando | O que vai |
+| When | What goes |
 | --- | --- |
-| **Ações** | o trecho, até 20 000 caracteres; a instrução do pedido livre; e o texto do documento antes e depois do trecho, como contexto, sem formatação e sem o que foi excluído |
-| **Conversa** | a cada mensagem, o documento atual, a sua mensagem (até 2 000 caracteres) e as mensagens anteriores, até 40. As anteriores ocupam no máximo metade do limite de contexto; acima disso, as mais antigas ficam de fora |
-| **Conversa com propostas** | o documento em parágrafos numerados, sem o que foi excluído nem as notas de rodapé. Se não couber, vai o começo, e o modelo pede o resto |
-| **Planilha** | a planilha ativa: a célula ativa, os cabeçalhos e as células preenchidas mais próximas, até 200 caracteres cada. Para preencher, as outras colunas de cada linha selecionada |
-| **Programa MCP** | o texto inteiro do documento, ou as células que ele pedir. Ele envia para onde estiver configurado: o Claude Code e o Claude Desktop mandam para a Anthropic |
+| **Actions** | the passage, up to 20,000 characters; the instruction of the custom request; and the document's text before and after the passage, as context, without formatting and without what was deleted |
+| **Chat** | with each message, the current document, your message (up to 2,000 characters) and the previous messages, up to 40. The previous ones take at most half of the context limit; beyond that, the oldest are left out |
+| **Chat with proposals** | the document in numbered paragraphs, without what was deleted or the footnotes. If it does not fit, the beginning goes, and the model asks for the rest |
+| **Spreadsheet** | the active sheet: the active cell, the headers and the nearest filled cells, up to 200 characters each. To fill, the other columns of each selected row |
+| **MCP program** | the whole text of the document, or the cells it asks for. It sends them wherever it is configured to: Claude Code and Claude Desktop send them to Anthropic |
 
-- **Nunca vão** o nome do arquivo, as propriedades nem as outras abas da planilha.
-- **O limite de contexto** é de 200 000 caracteres, ou 6 000 num assistente deste computador, que
-  lê pouco de uma vez. Num documento maior, vai o texto mais próximo do trecho, e o modelo é
-  avisado de que vê só uma parte.
-- **O modelo é avisado** de que o documento é material de consulta e de que instruções escritas
-  nele não vêm de você.
-- **Um assistente em `localhost` ou `127.0.0.1`** roda neste computador: o texto não sai dele.
-- **Um assistente fora do computador** (outro endereço, a API da Anthropic, o Claude Code ou um
-  agente ACP) pergunta antes do primeiro envio, mostrando o destino. Para um agente ACP, o destino é
-  o programa com os argumentos, e trocá-los faz a pergunta voltar. **Pedir permissão de novo**
-  também.
-- O Claude Code e os agentes ACP não guardam a conversa, por isso recebem a conversa inteira a cada
-  mensagem. O Claude Code informa o custo do pedido, e o painel o mostra.
+- **Never sent**: the file name, the properties or the other tabs of the spreadsheet.
+- **The context limit** is 200,000 characters, or 6,000 for an assistant on this computer, which
+  reads little at a time. In a larger document, the text nearest the passage goes, and the model is
+  told that it sees only a part.
+- **The model is told** that the document is reference material and that instructions written in
+  it do not come from you.
+- **An assistant at `localhost` or `127.0.0.1`** runs on this computer: the text does not leave
+  it.
+- **An assistant outside the computer** (another address, the Anthropic API, Claude Code or an ACP
+  agent) asks before the first send, showing the destination. For an ACP agent, the destination is
+  the program with its arguments, and changing them brings the question back. **Ask permission
+  again** does too.
+- Claude Code and ACP agents do not keep the chat, so they receive the whole chat with each
+  message. Claude Code reports the cost of the request, and the panel shows it.
 
-### Limites
+### Limits
 
-- Com **Manter a formatação** ligada, sublinhado, cor e fonte não passam pelo modelo: a resposta
-  recebe os do começo do trecho.
-- Uma lista na resposta usa a numeração padrão do Librevia, não a de uma lista do Word que estava
-  no trecho.
-- A seleção não pode ter imagens, equações, notas nem campos, nem passar de uma célula de tabela
-  para outra.
-- Com o arquivo só para leitura, dá para pedir e conversar, mas Aplicar, Inserir e Aceitar ficam
-  apagados, e as propostas de programas MCP são recusadas.
+- With **Keep the formatting** on, underline, color and font do not pass through the model: the
+  answer gets those of the start of the passage.
+- A list in the answer uses Librevia's default numbering, not that of a Word list that was in the
+  passage.
+- The selection cannot have images, equations, notes or fields, nor go from one table cell to
+  another.
+- With the file read-only, you can ask and chat, but Apply, Insert and Accept are greyed out, and
+  proposals from MCP programs are refused.
 
 ---
 
-<a id="fórmulas-em-português"></a>
+<a id="formulas"></a>
 
-## 🧮 Fórmulas da planilha
+## 🧮 Spreadsheet formulas
 
 ```excel
 =SOMA(1,5;2)
 ```
 
-Isso soma um e meio com dois, e dá 3,5. Duas regras andam juntas, e são as mesmas do Excel em
-português:
+This adds one and a half to two, and gives 3,5. Two rules go together, and they are the same as in
+Excel in Portuguese:
 
-- **a vírgula separa os decimais**;
-- **o ponto e vírgula separa os argumentos**, justamente porque a vírgula já está ocupada.
+- **the comma separates the decimals**;
+- **the semicolon separates the arguments**, precisely because the comma is already taken.
 
-Se você digitar `=SOMA(A1,B1)`, o aplicativo diz qual é o separador certo, em vez de mostrar um
-erro qualquer.
+If you type `=SOMA(A1,B1)`, the application tells you which separator is right, instead of
+showing some error.
 
-Os nomes funcionam nos **dois idiomas**: `SOMA` e `SUM` são a mesma função, assim como `SE` e
-`IF`, `PROCV` e `VLOOKUP`. Uma fórmula copiada de uma planilha em inglês não precisa ser traduzida
-à mão.
+The names work in **both languages**: `SOMA` and `SUM` are the same function, as are `SE` and
+`IF`, `PROCV` and `VLOOKUP`. A formula copied from a spreadsheet in English does not need to be
+translated by hand.
 
-<a id="funções-disponíveis"></a>
+<a id="available-functions"></a>
 
-### Funções disponíveis
+### Available functions
 
-São 52, em seis grupos:
+There are 52, in six groups. Each also answers to its English name (`SOMA` is `SUM`):
 
-| Grupo | Funções |
+| Group | Functions |
 | --- | --- |
-| **Contas** | `SOMA` `SOMASE` `ARRED` `ARREDONDAR.PARA.CIMA` `ARREDONDAR.PARA.BAIXO` `ABS` `INT` `TRUNCAR` `RESTO` `RAIZ` `POTÊNCIA` |
-| **Estatística** | `MÉDIA` `MÁXIMO` `MÍNIMO` `CONT.NÚM` `CONT.VALORES` `CONTAR.VAZIO` `CONT.SE` |
-| **Lógica** | `SE` `SEERRO` `SENÃODISP` `E` `OU` `NÃO` `ÉERROS` `É.NÃO.DISP` `ÉNÚM` `ÉTEXTO` `ÉCÉL.VAZIA` |
-| **Texto** | `CONCATENAR` `NÚM.CARACT` `ESQUERDA` `DIREITA` `EXT.TEXTO` `MAIÚSCULA` `MINÚSCULA` `ARRUMAR` `SUBSTITUIR` `PROCURAR` `LOCALIZAR` `VALOR` |
-| **Procura** | `PROCV` `PROCH` `CORRESP` `ÍNDICE` |
-| **Data** | `HOJE` `AGORA` `DATA` `ANO` `MÊS` `DIA` `DIA.DA.SEMANA` |
+| **Math** | `SOMA` `SOMASE` `ARRED` `ARREDONDAR.PARA.CIMA` `ARREDONDAR.PARA.BAIXO` `ABS` `INT` `TRUNCAR` `RESTO` `RAIZ` `POTÊNCIA` |
+| **Statistics** | `MÉDIA` `MÁXIMO` `MÍNIMO` `CONT.NÚM` `CONT.VALORES` `CONTAR.VAZIO` `CONT.SE` |
+| **Logic** | `SE` `SEERRO` `SENÃODISP` `E` `OU` `NÃO` `ÉERROS` `É.NÃO.DISP` `ÉNÚM` `ÉTEXTO` `ÉCÉL.VAZIA` |
+| **Text** | `CONCATENAR` `NÚM.CARACT` `ESQUERDA` `DIREITA` `EXT.TEXTO` `MAIÚSCULA` `MINÚSCULA` `ARRUMAR` `SUBSTITUIR` `PROCURAR` `LOCALIZAR` `VALOR` |
+| **Lookup** | `PROCV` `PROCH` `CORRESP` `ÍNDICE` |
+| **Date** | `HOJE` `AGORA` `DATA` `ANO` `MÊS` `DIA` `DIA.DA.SEMANA` |
 
-### O que ainda não existe
+### What does not exist yet
 
-Matrizes dinâmicas, referências de coluna inteira (`A:A`) e intervalos nomeados.
+Dynamic arrays, whole-column references (`A:A`) and named ranges.
 
-> ✅ Uma fórmula com uma função fora da lista mostra `#NOME?` na célula, mas **continua no
-> arquivo, intacta**, e o Excel volta a calculá-la normalmente. O aviso na abertura diz quais são
-> essas funções.
+> ✅ A formula with a function outside the list shows `#NOME?` in the cell, but **stays in the
+> file, intact**, and Excel calculates it normally again. The warning on opening says which
+> functions those are.
 
 ---
 
-<a id="exibir"></a>
+<a id="view"></a>
 
-## 👁️ Ver o documento
+## 👁️ Viewing the document
 
-| No menu Exibir | O que faz |
+| In the View menu | What it does |
 | --- | --- |
-| **Ampliar**, **Reduzir**, **Tamanho normal** | zoom de 50 % a 200 %; os botões da barra de status fazem o mesmo |
-| **Ajustar à largura** | a folha ocupa a largura da janela |
-| **Modo de leitura** (`Ctrl+F11`) | esconde as barras e deixa só o texto; o documento fica só para leitura enquanto durar, e `Esc` sai |
-| **Tema** | **Claro**, **Escuro** ou **Do sistema**, que acompanha o que o computador usa |
-| **Idioma** | **Português** ou **English**, para menus, botões e mensagens |
-| **Mostrar barra de ferramentas**, **Mostrar barra de status** | escondem as barras para ganhar espaço |
-| **Tela cheia** | ocupa a tela inteira |
+| **Zoom in**, **Zoom out**, **Actual size** | zoom from 50 % to 200 %; the status bar buttons do the same |
+| **Fit to width** | the sheet takes up the width of the window |
+| **Reading mode** (`Ctrl+F11`) | hides the bars and leaves only the text; the document is read-only while it lasts, and `Esc` leaves |
+| **Theme** | **Light**, **Dark** or **System**, which follows what the computer uses |
+| **Language** | **Português** or **English**, for menus, buttons and messages |
+| **Show toolbar**, **Show status bar** | hide the bars to gain space |
+| **Full screen** | takes up the whole screen |
 
-O zoom muda só o tamanho na tela. As páginas quebram nos mesmos lugares em qualquer zoom.
-
----
-
-<a id="arquivos-que-abrem-travados"></a>
-
-## 🔒 Alguns arquivos abrem travados — e como destravar
-
-Alguns documentos abrem **somente para leitura**, com uma faixa laranja no topo dizendo
-exatamente o que eles têm. Acontece quando o arquivo tem algo que o editor mostra, mas não sabe
-escrever de volta caso você edite o trecho:
-
-- um **campo** de um tipo que o editor não sabe recalcular. O texto que o Word guardou aparece,
-  mas reescrever o parágrafo o transformaria em texto comum;
-- **controles de conteúdo**, as caixinhas de formulário do Word;
-- **revisões de estrutura**, como uma célula inserida ou excluída numa tabela com o controle de
-  alterações ligado.
-
-Quem só precisa ler não corre risco nenhum. Quem precisa editar clica em **Editar mesmo assim** e
-segue, sabendo qual é o risco.
-
-Não é um cadeado: um clique libera, e vale só para aquele arquivo. Um arquivo comum abre
-editável, mesmo que tenha comentários, revisões ou notas, porque o Librevia sabe gravá-los de
-volta. Travar todo arquivo ensinaria você a clicar sem ler, e a proteção deixaria de proteger.
+Zoom only changes the size on screen. The pages break in the same places at any zoom.
 
 ---
 
-<a id="os-avisos"></a>
+<a id="files-that-open-locked"></a>
 
-## ⚠️ Os avisos: leia, eles são diferentes entre si
+## 🔒 Some files open locked — and how to unlock them
 
-Ao abrir um arquivo, o aplicativo pode mostrar um aviso. São três tipos, porque cada um pede uma
-atitude diferente:
+Some documents open **read-only**, with an orange banner at the top saying exactly what they have.
+It happens when the file has something the editor shows but cannot write back if you edit the
+passage:
 
-| Aviso | O que significa | O que você pode fazer |
+- a **field** of a kind the editor cannot recalculate. The text Word stored appears, but
+  rewriting the paragraph would turn it into plain text;
+- **content controls**, Word's little form boxes;
+- **structural revisions**, such as a cell inserted or deleted in a table with track changes on.
+
+Whoever only needs to read runs no risk at all. Whoever needs to edit clicks **Edit anyway** and
+goes on, knowing what the risk is.
+
+It is not a padlock: one click unlocks it, and it applies only to that file. A regular file opens
+editable, even if it has comments, revisions or notes, because Librevia knows how to write them
+back. Locking every file would teach you to click without reading, and the protection would stop
+protecting.
+
+---
+
+<a id="warnings"></a>
+
+## ⚠️ The warnings: read them, they differ from one another
+
+When opening a file, the application may show a warning. There are three kinds, because each one
+calls for a different attitude:
+
+| Warning | What it means | What you can do |
 | --- | --- | --- |
-| **Invisível** | o recurso continua no arquivo, mas não aparece aqui: gráficos, a sombra ou o degradê de uma forma, formatação condicional e filtros da planilha | editar e salvar à vontade: ele volta intacto |
-| **Perda** | algo some de verdade ao salvar | acontece só se você editar justamente o trecho onde ele está; o aviso diz qual é |
-| **Trava** | é a perda que fez o arquivo abrir [somente para leitura](#arquivos-que-abrem-travados) | ler à vontade; para editar, clique em **Editar mesmo assim** |
+| **Invisible** | the feature stays in the file, but does not appear here: charts, a shape's shadow or gradient, conditional formatting and spreadsheet filters | edit and save freely: it comes back intact |
+| **Loss** | something really vanishes on saving | it only happens if you edit exactly the passage where it is; the warning says which |
+| **Lock** | it is the loss that made the file open [read-only](#files-that-open-locked) | read freely; to edit, click **Edit anyway** |
 
-Se todo aviso dissesse a mesma coisa, você aprenderia a fechá-los sem ler.
+If every warning said the same thing, you would learn to close them without reading.
 
 ---
 
-<a id="se-o-aplicativo-fechar-sozinho"></a>
+<a id="if-the-application-closes"></a>
 
-## 💾 Se o aplicativo fechar sozinho
+## 💾 If the application closes on its own
 
-A cada oito segundos, o que está na tela é guardado num rascunho, **nunca por cima do seu
-arquivo**. Se o computador desligar ou o aplicativo fechar de repente, na próxima abertura aparece
-uma faixa azul oferecendo o trabalho de volta:
+Every eight seconds, what is on screen is kept in a draft, **never over your file**. If the
+computer shuts down or the application closes suddenly, on the next start a blue banner offers the
+work back:
 
-- **Recuperar** traz o conteúdo para a tela, marcado como *não salvo*, porque é isso que ele é.
-  Confira e salve onde quiser.
-- **Descartar** apaga o rascunho.
+- **Recover** brings the content to the screen, marked as *unsaved*, because that is what it is.
+  Check it and save it wherever you want.
+- **Discard** deletes the draft.
 
-Enquanto a faixa estiver na tela, o rascunho **não é sobrescrito**. Você pode ignorá-la por um
-tempo, abrir outro arquivo, e o trabalho continua guardado.
+While the banner is on screen, the draft **is not overwritten**. You can ignore it for a while,
+open another file, and the work stays kept.
 
-Quando você salva, o rascunho é apagado: o arquivo no disco já é a versão boa.
+When you save, the draft is deleted: the file on disk is already the good version.
 
-Se só a janela parar de funcionar, o aplicativo pergunta se quer **Reabrir**. Ao reabrir, a mesma
-faixa oferece o rascunho.
+If only the window stops working, the application asks whether you want to **Reopen**. On
+reopening, the same banner offers the draft.
 
-### O registro de erros
+### The error log
 
-Quando algo falha, o Librevia anota a causa num arquivo, `librevia.log`. Ele fica **só neste
-computador**: nada é enviado. **Ajuda → Abrir pasta de registros** mostra a pasta:
+When something fails, Librevia writes down the cause in a file, `librevia.log`. It stays **only on
+this computer**: nothing is sent. **Help → Open log folder** shows the folder:
 
-| Sistema | Pasta |
+| System | Folder |
 | --- | --- |
 | Linux | `~/.config/Librevia/logs` |
 | Windows | `%APPDATA%\Librevia\logs` |
 
-Ao relatar um problema, anexe esse arquivo. Ele traz a versão, o sistema e as mensagens de erro, e
-pode trazer o nome de um arquivo aberto. Passando de 1 MB, ele vira `librevia.old.log` e um novo
-começa.
+When reporting a problem, attach that file. It carries the version, the system and the error
+messages, and it may carry the name of an open file. Past 1 MB, it becomes `librevia.old.log` and
+a new one starts.
 
 ---
 
-<a id="salvar-não-custa"></a>
+<a id="saving-does-not-cost"></a>
 
-## 🛟 Salvar não custa o que você não editou
+## 🛟 Saving does not cost what you did not edit
 
-Muitos editores, ao salvar um `.docx`, escrevem o arquivo inteiro de novo, e no caminho perdem o
-que não entenderam. O Librevia faz diferente: **reescreve só o que você mexeu** e devolve o resto
-exatamente como estava.
+Many editors, when saving a `.docx`, write the whole file again, and along the way lose what they
+did not understand. Librevia does it differently: **it rewrites only what you touched** and hands
+back the rest exactly as it was.
 
-Na prática: fonte, alinhamento, bordas, gráficos, tabelas dinâmicas, comentários e filtros
-continuam no arquivo depois que você corrige uma vírgula. Num `.odt` é igual (veja
-[Documentos do LibreOffice](#documentos-do-libreoffice-odt)).
+In practice: font, alignment, borders, charts, pivot tables, comments and filters stay in the file
+after you fix a comma. An `.odt` works the same way (see
+[LibreOffice documents](#libreoffice-documents-odt)).
 
-**Documento novo em `.docx`.** Em "Salvar como", escolha "Documento do Word". Como não há arquivo
-de origem, o aplicativo cria um pacote mínimo, com estilos, página e propriedades, mas sem o seu
-nome dentro, e grava o documento nele. Cada gravação parte do mesmo pacote mínimo, e não do arquivo
-gravado da última vez. Assim, salvar dez vezes dá o mesmo arquivo que salvar uma.
-
----
-
-<a id="imprimir-e-exportar-pdf"></a>
-
-## 🖨️ Imprimir e exportar
-
-### Papel e PDF
-
-O que sai no papel é **o que está na tela**. O PDF é gerado pelo mesmo motor que desenha o editor,
-com o texto selecionável e as fontes embutidas.
-
-- **Documentos** saem com cabeçalho, rodapé, numeração, margens, orientação e colunas de cada
-  seção.
-- **Planilhas** saem com a aba ativa inteira, ajustada à largura da página. As linhas congeladas
-  viram cabeçalho e se repetem em cada folha.
-
-**Arquivo → Visualizar impressão** mostra as folhas antes de gastar papel.
-
-> 💡 Se as colunas da planilha ficarem apertadas, ponha a página em paisagem em
-> **Arquivo → Configuração de página…**.
-
-### Exportar como Word, ODT, HTML ou Markdown
-
-Em **Arquivo → Exportar como**, o documento vira uma **página da web** (`.html`), um texto em
-**Markdown** (`.md`) ou um **documento do OpenDocument** (`.odt`). É um arquivo novo: o documento
-continua aberto no mesmo lugar, do jeito que estava.
-
-**Documento do Word (.docx)** é diferente: funciona como **Salvar como**, só com o formato do Word.
-O documento passa a ser o `.docx`, e o próximo **Salvar** grava nele.
-
-- **HTML** sai numa página só, com os estilos, as listas, as tabelas e as imagens dentro dela. As
-  notas vão para o fim, com um link de volta ao texto.
-- **Markdown** leva títulos, ênfase, links, listas, tabelas e notas (`[^1]`). As imagens vão para
-  uma pasta ao lado, `nome_arquivos/`. Uma tabela com células mescladas sai em HTML, porque o
-  Markdown não tem como mesclar.
-- **ODT** abre no LibreOffice e em outros editores que leem OpenDocument, com os estilos, as listas
-  numeradas, as tabelas, as imagens, as notas, os marcadores e os links. Cada seção leva o próprio
-  papel, margens, colunas, cabeçalho e rodapé, e os comentários vão como anotações. Para trabalhar
-  no próprio `.odt`, use **Salvar como**.
-- No ODT, as **revisões** vão como alterações controladas: texto inserido, texto excluído e
-  parágrafo unido, com autor e data. O LibreOffice as mostra para você aceitar ou rejeitar. No HTML
-  e no Markdown, as revisões saem já aceitas e os **comentários** ficam de fora.
-- As **equações** vão junto em todos os formatos.
+**New document as `.docx`.** In "Save as", choose "Word document". Since there is no source file,
+the application creates a minimal package, with styles, page and properties, but without your name
+inside, and writes the document into it. Each save starts from the same minimal package, not from
+the file saved last time. So saving ten times gives the same file as saving once.
 
 ---
 
-<a id="limites-conhecidos"></a>
+<a id="print-and-export"></a>
 
-## 🚧 Limites conhecidos
+## 🖨️ Print and export
 
-| Limite | O que acontece |
+### Paper and PDF
+
+What comes out on paper is **what is on screen**. The PDF is generated by the same engine that
+draws the editor, with selectable text and embedded fonts.
+
+- **Documents** come out with the header, footer, numbering, margins, orientation and columns of
+  each section.
+- **Spreadsheets** come out with the whole active tab, fitted to the page width. Frozen rows
+  become a header and repeat on each sheet.
+
+**File → Print preview** shows the sheets before spending paper.
+
+> 💡 If the spreadsheet columns are cramped, put the page in landscape in **File → Page
+> setup…**.
+
+### Export as Word, ODT, HTML or Markdown
+
+In **File → Export as**, the document becomes a **web page** (`.html`), a **Markdown** text
+(`.md`) or an **OpenDocument text** (`.odt`). It is a new file: the document stays open in the same
+place, as it was.
+
+**Word document (.docx)** is different: it works like **Save as**, only with Word's format. The
+document becomes the `.docx`, and the next **Save** writes to it.
+
+- **HTML** comes out on a single page, with the styles, lists, tables and images inside it. The
+  notes go to the end, with a link back to the text.
+- **Markdown** carries headings, emphasis, links, lists, tables and notes (`[^1]`). The images go
+  to a folder next to it, `name_files/`. A table with merged cells comes out in HTML, because
+  Markdown has no way to merge.
+- **ODT** opens in LibreOffice and in other editors that read OpenDocument, with the styles,
+  numbered lists, tables, images, notes, bookmarks and links. Each section carries its own paper,
+  margins, columns, header and footer, and the comments go as annotations. To work on the `.odt`
+  itself, use **Save as**.
+- In ODT, the **revisions** go as tracked changes: inserted text, deleted text and joined
+  paragraphs, with author and date. LibreOffice shows them for you to accept or reject. In HTML and
+  Markdown, the revisions come out already accepted and the **comments** are left out.
+- **Equations** go along in all formats.
+
+---
+
+<a id="known-limits"></a>
+
+## 🚧 Known limits
+
+| Limit | What happens |
 | --- | --- |
-| **Arquivos acima de 20 MB** | não abrem |
-| **`.ods`** | não abre |
-| **Macros** | um `.dotm` abre, mas sem as macros |
-| **Mesclar células na planilha** | ainda não existe |
-| **Filtros de planilha** | são preservados no arquivo, mas não há tela para criar ou alterar |
-| **Fórmulas** | sem matrizes dinâmicas, referências de coluna inteira (`A:A`) ou intervalos nomeados |
-| **Comentários** | o texto do comentário é texto simples, sem negrito ou cor |
-| **Controle de alterações** | mudanças de **formatação** (pôr em negrito, trocar a fonte) não são registradas como revisão |
-| **Equações** | usam a fonte de matemática do computador; alguns comandos de espaçamento do LaTeX, como `\,` e `\quad`, se perdem ao salvar em `.docx` |
-| **Sumário** | **Atualizar sumário** refaz todas as entradas, inclusive as que você editou à mão |
+| **Files over 20 MB** | do not open |
+| **`.ods`** | does not open |
+| **Macros** | a `.dotm` opens, but without the macros |
+| **Merging cells in the spreadsheet** | does not exist yet |
+| **Spreadsheet filters** | are preserved in the file, but there is no screen to create or change them |
+| **Formulas** | no dynamic arrays, whole-column references (`A:A`) or named ranges |
+| **Comments** | the comment text is plain text, without bold or color |
+| **Track changes** | **formatting** changes (making something bold, changing the font) are not recorded as revisions |
+| **Equations** | use the computer's math font; some LaTeX spacing commands, such as `\,` and `\quad`, are lost when saving as `.docx` |
+| **Table of contents** | **Update table of contents** redoes all the entries, including the ones you edited by hand |

@@ -1,0 +1,1130 @@
+# Librevia — manual de uso
+
+[English](MANUAL.md) · **Português (Brasil)**
+
+> Tradução da [versão em inglês](MANUAL.md). Se as duas divergirem, vale a inglesa.
+
+Editor de documentos e planilhas que funciona **sem internet**. Abre e grava arquivos do Word
+(`.docx`) e do Excel (`.xlsx`) e, ao salvar, regrava só o que você editou.
+
+> 📖 Este manual é para quem **usa** o aplicativo.
+> Quem for mexer no código deve ler o [README](README.pt-BR.md).
+
+---
+
+<a id="o-que-tem-aqui"></a>
+
+## 📑 O que tem aqui
+
+| Começar | Escrever | Cuidar do arquivo |
+| --- | --- | --- |
+| [💿 Instalar](#instalar) | [✍️ Texto e parágrafo](#formatar) | [🔒 Arquivos que abrem travados](#arquivos-que-abrem-travados) |
+| [📄 Arquivos e modelos](#os-arquivos-que-ele-abre) | [📋 Listas](#listas) | [⚠️ Os avisos](#os-avisos) |
+| [⌨️ Atalhos](#atalhos) | [📐 Páginas, seções e colunas](#paginas) | [💾 Se o aplicativo fechar sozinho](#se-o-aplicativo-fechar-sozinho) |
+| [👁️ Ver o documento](#exibir) | [📊 Tabelas e imagens](#tabelas-e-imagens) | [🛟 Salvar não custa o que você não editou](#salvar-não-custa) |
+| | [🔗 Sumário e referências](#referencias) | [🖨️ Imprimir e exportar](#imprimir-e-exportar-pdf) |
+| | [📝 Notas de rodapé e de fim](#notas) | [🚧 Limites conhecidos](#limites-conhecidos) |
+| | [➗ Equações](#equacoes) | |
+| | [💬 Comentários e revisões](#revisao) | |
+| | [🔤 Ortografia, símbolos e contagem](#ferramentas) | |
+| | [🤖 Assistente de IA](#assistente-de-ia) | |
+| | [🧮 Fórmulas da planilha](#fórmulas-em-português) | |
+
+---
+
+<a id="instalar"></a>
+
+## 💿 Instalar
+
+Nada aqui precisa de internet. **O aplicativo não acessa a rede**, nem para conferir a ortografia.
+A única exceção é o [assistente de IA](#assistente-de-ia), que vem desligado e só envia texto
+depois que você o configura e permite.
+
+### 🐧 Linux — AppImage
+
+Baixe o arquivo, dê permissão de execução e abra:
+
+```bash
+chmod +x Librevia-*.AppImage
+./Librevia-*.AppImage
+```
+
+### 🐧 Linux — pacote `.deb`
+
+Instala no menu de aplicativos, como qualquer outro programa:
+
+```bash
+sudo apt install ./librevia_*_amd64.deb
+```
+
+### 🪟 Windows
+
+Execute o instalador. Ele instala **só para o seu usuário** e não pede senha de administrador.
+O instalador ainda não é assinado, então o Windows pode mostrar "O Windows protegeu o computador":
+clique em **Mais informações** e depois em **Executar assim mesmo**.
+Depois disso, um `.docx`, `.dotx`, `.odt`, `.ott` ou `.xlsx` pode ser aberto com o Librevia pelo
+botão direito do Explorador de Arquivos.
+
+---
+
+<a id="os-arquivos-que-ele-abre"></a>
+
+## 📄 Os arquivos que ele abre
+
+| Extensão | O que é | O que o Librevia faz com ele |
+| --- | --- | --- |
+| `.docx` | documento do Word | abre e grava; um documento novo também pode ser salvo assim |
+| `.dotx` | modelo do Word | abrir cria um documento novo a partir dele; "Salvar como" também grava modelo |
+| `.dotm` | modelo do Word com macros | abre como o `.dotx`, mas as macros ficam de fora, e o aplicativo avisa |
+| `.xlsx` | planilha do Excel | abre e grava |
+| `.odt` | documento do LibreOffice | abre e grava; o que você não editou volta intacto |
+| `.ott` | modelo do LibreOffice | abrir cria um documento novo a partir dele; "Salvar como" também grava modelo |
+| `.sdoc` | documento do Librevia | guarda tudo, sem perda nenhuma |
+| `.ssheet` | planilha do Librevia | guarda tudo, sem perda nenhuma |
+| `.txt` | texto puro | abre e grava; salvar nele descarta a formatação, e o aplicativo avisa antes |
+| `.pdf` | documento PDF | abre só para ler, no lugar do arquivo aberto, como os outros. A barra de status mostra a página e o zoom; **Editar → Localizar** busca no texto; um PDF protegido pede a senha, que não fica guardada; **Arquivo → Propriedades** altera título, autor, assunto e palavras-chave, e **Salvar** acrescenta só isso no fim do arquivo; **Arquivo → Imprimir** abre o PDF na janela de impressão, onde também dá para salvar uma cópia |
+
+E estes, o Librevia **cria**. O `.pdf` também abre para leitura, como mostra a tabela acima:
+
+| Extensão | Como |
+| --- | --- |
+| `.pdf` | **Arquivo → Exportar para PDF…**, para documentos e planilhas |
+| `.docx`, `.odt`, `.html`, `.md` | **Arquivo → Exportar como**, só para documentos |
+
+<a id="documentos-do-libreoffice-odt"></a>
+
+### Documentos do LibreOffice (`.odt`)
+
+Um `.odt` abre e salva como o `.docx`: só o bloco que você editou é escrito de novo, e o resto volta
+como estava. O "Salvar como" oferece `.odt` para qualquer documento: um documento novo, um `.sdoc`
+ou um `.docx` vão inteiros para um `.odt` novo, que passa a ser o arquivo aberto.
+
+Abrem e voltam ao arquivo: notas de rodapé e de fim, comentários com respostas, equações,
+cabeçalho e rodapé (com versões para a primeira página e para as pares), seções com papel, margens
+e colunas próprios, e alterações controladas (texto inserido, excluído e parágrafo unido).
+Número de página, total de páginas, data, hora, título e autor viram campos, como no `.docx`.
+
+O que o Librevia não mostra (mudança de formatação controlada, indicador, seção sem colunas ou
+dentro de outra, caixa de texto, desenho, formulário, outros campos) fica no arquivo enquanto você
+não edita o bloco onde está. O aplicativo avisa ao abrir; se você editar esse bloco, ele se perde
+ali, e o aviso aparece ao salvar.
+
+**Planilhas `.ods` não abrem.** Peça a quem enviou que salve como `.xlsx`. O LibreOffice faz isso
+pelo "Salvar como".
+
+### Modelos
+
+Um modelo é um documento pronto para servir de ponto de partida, como um papel timbrado.
+
+**Arquivo → Novo a partir de modelo…** mostra os modelos que vêm com o aplicativo — documento em
+branco, carta, relatório com capa e sumário, e ata de reunião — e também os seus, que ficam na
+pasta de modelos. O botão **Abrir pasta de modelos** mostra essa pasta, e **Procurar…** aceita
+qualquer `.dotx` ou `.ott` do computador.
+
+O documento criado é novo e sem título. Estilos, cabeçalho, rodapé e tamanho de página vêm do
+modelo. Ao salvar, o aplicativo pergunta onde gravar, e **o modelo nunca é sobrescrito**.
+
+Para criar um modelo seu, use **Salvar como → Modelo do Word (.dotx)** ou **Modelo ODT (.ott)** e
+grave na pasta de modelos.
+
+Um documento criado de um `.ott` recebe o nome `.odt`. Salvo em `.odt`, ele grava sobre o pacote
+do modelo: o que você não editou volta como estava no modelo.
+
+### Propriedades do documento
+
+**Arquivo → Propriedades…** tem três partes:
+
+- **Resumo**: título, assunto, autores, gerente, empresa, categoria, status (por exemplo,
+  "Rascunho" ou "Final"), palavras-chave e comentários. Você pode preencher e alterar.
+- **Personalizadas**: campos com nome próprio, como "Cliente" ou "Nº do processo", cada um do
+  tipo texto, número, data ou sim ou não. **Adicionar propriedade** cria uma; o **×** apaga. São
+  as mesmas da aba **Personalizar** das propriedades avançadas do Word e do Excel. Um tipo que o
+  Librevia não mostra, como uma lista, continua no arquivo.
+- **Informações e estatísticas**: quando o documento foi criado, modificado e impresso pela
+  última vez, por quem, o número da revisão, o tempo total de edição e o idioma, quando o arquivo
+  o informa.
+
+Ao salvar um `.docx` com o texto alterado, o Librevia grava também as páginas, palavras,
+caracteres e parágrafos, como o Word. O gerenciador de arquivos e a busca do sistema leem esses
+números sem abrir o documento. Se só as propriedades mudaram, essa parte do arquivo fica como
+estava.
+
+Numa planilha é igual. As estatísticas contam as abas, as células preenchidas e as fórmulas. As
+propriedades vão para o `.xlsx` e o Excel as mostra em **Arquivo → Informações**.
+
+Para levar uma propriedade ao texto, use **Inserir → Propriedade do documento…**: escolha, por
+exemplo, "Cliente" e o texto mostra "XPTO". Quando você muda o valor e clica em **Aplicar** nas
+propriedades, o texto passa a mostrar o novo valor. É o mesmo campo `DOCPROPERTY` (ou `TITLE`,
+`AUTHOR`…) do Word, que o atualiza com `F9`. Ainda só funciona no corpo do texto, não no cabeçalho
+nem no rodapé.
+
+### Inspecionar documento
+
+Antes de mandar um arquivo para fora, **Arquivo → Inspecionar documento…** mostra o que ele
+revela além do conteúdo, e remove o que você marcar:
+
+- **Nomes de pessoas e da empresa**: autor, último a salvar, gerente, empresa e quem escreveu
+  cada comentário e alteração. Os autores passam a se chamar "Autor", como faz o Word, e o
+  arquivo passa a pedir que nada seja assinado com nome: comentários e alterações novos também
+  saem como "Autor", aqui, no Word e no Excel.
+- **Pastas do computador**: o caminho do modelo anexado a um documento do Word, ou a última pasta
+  onde o Excel salvou a planilha. Costumam trazer o nome do usuário, como `C:\Users\ana\...`.
+- **Propriedades personalizadas**: campos criados por pessoas ou por sistemas da empresa.
+- **Miniatura da primeira página**: a imagem que o gerenciador de arquivos mostra.
+- **Metadados das imagens**: os dados da câmera ou do programa guardados nas fotos JPEG e PNG,
+  às vezes com o local GPS. A imagem e a orientação ficam.
+
+Remover marca o arquivo como alterado: só **Salvar** grava a versão limpa, e fechar sem salvar
+deixa o arquivo como estava. Num `.docx`, `.odt` ou `.xlsx` com alterações não salvas, o inspetor
+pede para salvar antes, porque ele lê o arquivo como está gravado. Num `.sdoc` ou `.ssheet` só há
+nomes para remover.
+
+Num `.odt`, o inspetor procura os mesmos dados. O formato não tem um pedido de não gravar nomes;
+o Librevia grava o seu no arquivo e o respeita, mas o LibreOffice o ignora.
+
+Num PDF, o inspetor só mostra: o autor das propriedades e quantas versões anteriores o arquivo
+guarda. Cada alteração de um PDF, feita aqui ou em outro programa, é acrescentada no fim e deixa a
+versão anterior dentro do arquivo, com o autor e o título que tinha. Para um PDF sem esses dados,
+exporte de novo a partir do documento original.
+
+---
+
+<a id="atalhos"></a>
+
+## ⌨️ Atalhos
+
+São os atalhos do Word, com poucas exceções, explicadas no fim da tabela.
+
+### Arquivo e edição
+
+| Atalho | O que faz |
+| --- | --- |
+| `Ctrl+N` | novo documento |
+| `Ctrl+Shift+N` | nova planilha |
+| `Ctrl+O` | abrir |
+| `Ctrl+S` | salvar |
+| `Ctrl+Shift+S` | salvar como |
+| `Ctrl+W` | fechar o arquivo |
+| `Ctrl+P` | imprimir |
+| `Ctrl+F` | localizar e substituir |
+| `Ctrl+Shift+V` | colar sem formatação |
+| `Ctrl+Shift+G` | contar palavras |
+| `Ctrl+Shift+Y` | abrir e fechar o assistente de IA |
+
+### Texto e parágrafo
+
+| Atalho | O que faz |
+| --- | --- |
+| `Ctrl+B` / `Ctrl+I` / `Ctrl+U` | negrito, itálico, sublinhado |
+| `Ctrl+Shift+=` / `Ctrl+=` | sobrescrito e subscrito (também `Ctrl+.` e `Ctrl+,`) |
+| `Ctrl+L` / `Ctrl+E` / `Ctrl+R` / `Ctrl+J` | alinhar à esquerda, centralizar, à direita, justificar |
+| `Ctrl+1` / `Ctrl+5` / `Ctrl+2` | entrelinha simples, 1,5 e dupla |
+| `Ctrl+Alt+1` … `Ctrl+Alt+6` | Título 1 a Título 6 |
+| `Ctrl+Alt+0` | volta o parágrafo para corpo de texto |
+| `Ctrl+]` / `Ctrl+[` | aumentar e diminuir o recuo |
+| `Ctrl+Shift+8` / `Ctrl+Shift+7` | lista com marcadores e lista numerada |
+| `Tab` / `Shift+Tab` | numa lista, desce o item um nível ou o devolve |
+
+### Inserir
+
+| Atalho | O que faz |
+| --- | --- |
+| `Ctrl+Enter` | quebra de página |
+| `Ctrl+F12` | tabela (pergunta linhas e colunas) |
+| `Ctrl+Alt+F` | nota de rodapé |
+| `Ctrl+Alt+D` | nota de fim |
+| `Ctrl+Alt+M` | comentário |
+| `Alt+=` | equação |
+| `Ctrl+Shift+F5` | marcador |
+| `F9` | atualizar campos (números de página, referências) |
+
+### Exibir e revisar
+
+| Atalho | O que faz |
+| --- | --- |
+| `Ctrl+F5` | painel de navegação |
+| `Ctrl+F10` | mostrar e ocultar as marcas de formatação |
+| `Ctrl+F11` | modo de leitura (`Esc` sai) |
+| `Ctrl+Shift+E` | ligar e desligar o controle de alterações |
+| `Ctrl` + `+` do teclado numérico / `Ctrl+-` | ampliar e reduzir |
+| `Ctrl+0` | voltar ao tamanho normal |
+
+> ℹ️ **As exceções ao Word, e por quê.**
+>
+> - **Corpo de texto** é `Ctrl+Alt+0`, e não `Ctrl+Shift+N`, porque aqui essa combinação abre
+>   uma planilha nova.
+> - **Ampliar** usa o `+` do teclado numérico, para não ocupar o `Ctrl+Shift+=` do sobrescrito.
+>   O menu **Exibir** também tem ampliar e reduzir. Num PDF, que não tem texto para formatar,
+>   `Ctrl+=` e `Ctrl++` também ampliam.
+> - **Marcas de formatação** são `Ctrl+F10`, como no LibreOffice. O `Ctrl+*` do Word já é usado
+>   pela lista com marcadores.
+
+### Na planilha
+
+`Ctrl+B`, `Ctrl+I` e `Ctrl+U` valem para as células selecionadas. O **botão direito** numa célula
+abre o menu de inserir e excluir linhas e colunas.
+
+`Ctrl+Z` desfaz a última edição da planilha (uma célula, uma colagem, uma linha inserida, uma aba
+nova) e `Ctrl+Y` ou `Ctrl+Shift+Z` a refaz. São até 100 passos, e o histórico recomeça a cada
+arquivo aberto. Enquanto você digita numa célula ou na barra de fórmulas, o `Ctrl+Z` desfaz só a
+digitação.
+
+**A alça de preenchimento** é o quadradinho no canto inferior direito da seleção. Arraste-o, e as
+células seguintes são preenchidas. Se a célula de origem tiver uma fórmula, ela **acompanha**:
+`=B2*C2` arrastada para baixo vira `=B3*C3`. Uma referência com `$` não se mexe.
+
+---
+
+<a id="formatar"></a>
+
+## ✍️ Texto e parágrafo
+
+A barra do documento tem, da esquerda para a direita: estilo do parágrafo, fonte, tamanho, a
+formatação da letra, o parágrafo, as listas, o que se insere e a página.
+
+### A letra
+
+Além de negrito, itálico, sublinhado e tachado:
+
+| Botão | O que faz |
+| --- | --- |
+| **Sobrescrito** e **Subscrito** | põem o trecho acima ou abaixo da linha: `m³`, `H₂O` |
+| **Caixa alta** | mostra em maiúsculas sem trocar o que você digitou; tirar a formatação devolve o texto como era |
+| **Versalete** | maiúsculas pequenas, da altura das minúsculas |
+| **Cor do texto** | a cor da letra |
+| **Cor de fundo do texto** | pinta o fundo do trecho, com qualquer cor |
+| **Destaque** | o marca-texto do Word, que tem catorze cores fixas |
+
+> ℹ️ **Por que dois tipos de fundo?** No arquivo do Word são duas coisas diferentes: o
+> marca-texto e o sombreamento do trecho. Um documento recebido pode ter os dois, e o aplicativo
+> mantém cada um onde estava.
+
+### Os estilos
+
+Um estilo é uma formatação com nome. Em vez de deixar cada título em negrito, 14 pt e azul, um
+por um, você aplica o estilo **Título 1**. Se depois decidir que os títulos devem ser verdes,
+muda o estilo uma vez e todos os títulos mudam juntos.
+
+Num `.docx` feito no Word, quase toda a formatação mora nos estilos. É por isso que um título pode
+aparecer como uma faixa colorida, e não só como letra grande.
+
+O botão **A≡**, ao lado do tamanho da fonte, abre o painel de **Estilos**. Ele mostra os estilos
+que **este documento** define e diz qual é o do parágrafo onde está o cursor. Ali você pode:
+
+- **Aplicar** um estilo ao parágrafo ou ao trecho selecionado;
+- **Modificar…** um estilo: nome, estilo em que ele se baseia, estilo do parágrafo seguinte,
+  fonte e tamanho. **Atualizar a partir da seleção** copia para o estilo a formatação do texto
+  selecionado;
+- criar um **Novo estilo…**, de parágrafo ou de caractere;
+- **Limpar formatação**, que tira a formatação direta e deixa só a do estilo.
+
+A lista pode mostrar todos os estilos, só os de parágrafo ou só os de caractere.
+
+Documentos novos começam em **Calibri 11**, como no Word.
+
+### A lista de fontes
+
+O seletor mostra, nesta ordem:
+
+1. **as fontes que o documento aberto usa**;
+2. as cinco que vêm com o aplicativo: Calibri, Cambria, Arial, Times New Roman e Courier New;
+3. **as instaladas no seu computador**, em ordem alfabética.
+
+As cinco do meio funcionam igual em qualquer computador, porque vão dentro do instalador. As
+suas funcionam no seu. Num computador que não as tenha, o documento aparece com outra fonte, e as
+páginas podem quebrar em lugares diferentes.
+
+### O diálogo de parágrafo
+
+O botão **¶**, ou **Formatar → Parágrafo…**, reúne numa tela tudo o que é do parágrafo, já
+preenchido com o que ele tem:
+
+- **alinhamento**: esquerda, centro, direita, justificado;
+- **entrelinha**: simples, 1,15, 1,5, dupla, um múltiplo qualquer ou uma medida em pontos;
+- **espaçamento** antes e depois, em pontos;
+- **recuo** à esquerda e à direita, em milímetros;
+- **primeira linha**: recuo (a primeira linha entra) ou deslocamento (ela sai, e as outras
+  entram, como numa referência bibliográfica);
+- **manter com o próximo**: o parágrafo não fica sozinho no pé da página, longe do que vem
+  depois.
+
+Vale para todos os parágrafos que a seleção tocar. `Enter` aplica; `Esc` fecha sem aplicar.
+
+> ℹ️ **"Simples" não é "1,0".** A entrelinha simples é a altura que a própria fonte pede. Nenhum
+> número a reproduz exatamente, e trocar uma pela outra muda onde as páginas quebram.
+
+---
+
+<a id="listas"></a>
+
+## 📋 Listas
+
+`Ctrl+Shift+8` começa uma lista com marcadores; `Ctrl+Shift+7`, uma lista numerada. Os mesmos
+botões estão na barra.
+
+Uma lista pode ter vários níveis, como um índice: `1.`, depois `1.1.`, depois `1.1.1.`. **Tab**
+desce o item um nível, e **Shift+Tab** o devolve. A numeração segue as mesmas regras do Word, então
+um documento recebido mostra os mesmos números que mostrava lá.
+
+**Formato de lista…** escolhe a aparência:
+
+- **Listas prontas**: `1. a. i.`, `1. 1.1. 1.1.1.`, `I. A. 1. a.`, `1) a) i)` e três tipos de
+  marcadores;
+- ou nível por nível: o formato do número (`1, 2, 3`, `01, 02`, `a, b, c`, `A, B, C`, `i, ii`,
+  `I, II` ou marcador), o texto em volta dele e o número inicial. A **prévia** mostra o resultado
+  antes de aplicar.
+
+O **botão direito** num item numerado oferece:
+
+| Opção | Quando usar |
+| --- | --- |
+| **Reiniciar em 1** | a lista nova começou colada na anterior e herdou a numeração dela |
+| **Continuar numeração** | o contrário: um parágrafo comum no meio partiu a lista em duas |
+| **Definir valor inicial…** | a lista precisa começar em outro número, como `5.` |
+
+---
+
+<a id="paginas"></a>
+
+## 📐 Páginas, seções e colunas
+
+### A tela mostra as folhas de verdade
+
+O documento aparece dividido em folhas, como vai sair no papel. A quebra é feita **linha por
+linha**, do mesmo jeito que o Word e o LibreOffice fazem:
+
+- um parágrafo pode começar numa folha e terminar na seguinte;
+- uma linha não fica sozinha no topo ou no pé da folha (são as "viúvas" e "órfãs");
+- a linha de cabeçalho de uma tabela se repete no alto de cada folha em que a tabela continua.
+
+O número de páginas da barra de status é o mesmo do PDF e do papel.
+
+### Configuração de página
+
+**Arquivo → Configuração de página…** define:
+
+- **tamanho** do papel e **orientação** (retrato ou paisagem);
+- **margens**, em milímetros;
+- **cabeçalho e rodapé**, com os botões **Número da página** e **Total de páginas**;
+- **Primeira página diferente**, para uma capa sem número;
+- **Pares e ímpares diferentes**, para um livro em que o número fica sempre do lado de fora;
+- **numeração de página**: o formato (`1, 2, 3`, `i, ii, iii`, `A, B, C`…) e o número em que começa.
+
+O cabeçalho e o rodapé também se editam direto na folha: clique no texto e digite.
+
+### Seções
+
+Uma seção é um pedaço do documento com a própria configuração de página. Serve, por exemplo, para
+pôr uma tabela larga numa folha em paisagem, no meio de um relatório em retrato, ou para numerar a
+introdução com `i, ii, iii` e o resto com `1, 2, 3`.
+
+**Inserir → Quebra de seção** oferece quatro tipos:
+
+| Tipo | A seção nova começa… |
+| --- | --- |
+| **Próxima página** | na folha seguinte |
+| **Contínua** | na mesma folha, logo abaixo |
+| **Página par** | na próxima folha par |
+| **Página ímpar** | na próxima folha ímpar, como um capítulo de livro |
+
+Com seções, a configuração de página pergunta onde **Aplicar**: **Nesta seção** ou **No documento
+todo**. O rodapé de uma seção pode **vincular ao anterior**, isto é, repetir o da seção de cima, ou
+ter texto próprio.
+
+**Inserir → Excluir quebra de seção** junta a seção com a de cima.
+
+### Colunas
+
+**Formatar → Colunas…** divide a seção em colunas, como num jornal: o **número de colunas**, o
+**espaço entre elas**, em milímetros, e uma **linha entre colunas**, se quiser.
+
+**Inserir → Quebra de coluna** manda o texto seguinte para o alto da próxima coluna.
+
+---
+
+<a id="tabelas-e-imagens"></a>
+
+## 📊 Tabelas e imagens
+
+**Inserir tabela** fica no menu **Tabela**, no botão de tabela da barra e em `Ctrl+F12`, e
+pergunta quantas linhas e colunas você quer. A primeira linha vem marcada como **cabeçalho**: é a
+linha que se repete no alto de cada folha quando a tabela continua na próxima.
+
+Com o cursor numa célula, o menu **Tabela** e o **botão direito** oferecem:
+
+- inserir linha acima ou abaixo, coluna à esquerda ou à direita;
+- excluir linha, coluna ou a tabela inteira;
+- **mesclar células** (selecione-as arrastando o mouse) e **dividir célula**;
+- ligar e desligar a **linha de cabeçalho**;
+- **Propriedades da tabela…**: a largura da coluna do cursor, em milímetros; a borda das células
+  selecionadas (estilo, espessura, cor e quais lados); o sombreamento; e a repetição do
+  cabeçalho.
+
+A divisória entre duas colunas também pode ser **arrastada** com o mouse, em qualquer zoom.
+
+> ℹ️ O diálogo só oferece o que o `.docx` guarda. Bordas que o Word tem e a tela não desenha,
+> como linha dupla grossa e fina ou ondulada, aparecem como linha simples, e **voltam intactas**
+> ao salvar, desde que você não formate aquela célula. Se formatar, o aviso de perda diz isso.
+
+**Redimensionar imagem**: clique nela e arraste uma das oito alças. Nos cantos, a proporção fica
+travada; segure `Shift` para esticar livremente. As alças dos lados mudam uma medida só. A imagem
+não passa da largura da coluna de texto, e um `Ctrl+Z` desfaz o arrasto inteiro. Com uma alça
+selecionada, as setas do teclado também redimensionam.
+
+**Texto alternativo e alinhamento**: com a imagem selecionada, o botão de imagem da barra passa a
+se chamar **Propriedades da imagem** (também em **Formatar → Imagem…**). O texto alternativo é o
+que um leitor de tela lê no lugar da imagem, e vai para o arquivo.
+
+**Mesclagem**: células mescladas num `.docx`, na horizontal ou na vertical, continuam mescladas, e
+as que você mescla aqui também vão para o arquivo.
+
+---
+
+<a id="referencias"></a>
+
+## 🔗 Sumário e referências
+
+### Painel de navegação
+
+**Exibir → Painel de navegação** (`Ctrl+F5`) mostra os títulos do documento numa coluna ao lado,
+como um índice. Clique num título para ir até ele. Num documento de cem páginas, é o jeito mais
+rápido de achar um capítulo.
+
+### Sumário
+
+**Referências → Inserir sumário** monta o sumário a partir dos parágrafos com estilo **Título 1**,
+**Título 2** e assim por diante, com o número da página de cada um.
+
+O sumário não muda sozinho enquanto você escreve. Depois de acrescentar capítulos ou de as páginas
+mudarem, use **Referências → Atualizar sumário**.
+
+### Marcadores
+
+Um marcador é um nome dado a um ponto do documento, como um marcador de página num livro.
+**Inserir → Marcador…** (`Ctrl+Shift+F5`) cria, lista, leva até um marcador ou o exclui. A lista
+pode ser ordenada por nome ou pela posição no documento.
+
+O diálogo de **link** também aponta para dentro do documento: em vez de um endereço da internet,
+escolha um título ou um marcador.
+
+### Legendas
+
+**Referências → Inserir legenda…** numera figuras, tabelas e equações: `Figura 1`, `Figura 2`…
+Escolha o rótulo, o texto depois do número e se a legenda fica acima ou abaixo do item onde está o
+cursor.
+
+### Referência cruzada
+
+Uma referência cruzada é uma frase como "veja a Figura 3, na página 12" em que o **3** e o **12**
+se atualizam sozinhos. **Referências → Referência cruzada…** pergunta:
+
+- o **tipo**: título, marcador, nota de rodapé, nota de fim ou legenda;
+- **para qual** deles;
+- o que inserir: o **texto**, o **número**, o **número da nota** ou o **número da página**;
+- e se a referência deve funcionar como **hiperlink**, levando até o ponto ao ser clicada.
+
+### Atualizar campos
+
+Números de página, total de páginas, referências cruzadas, legendas e propriedades do documento
+são **campos**: texto que o aplicativo calcula. `F9`, ou **Referências → Atualizar campos**, recalcula todos.
+
+---
+
+<a id="notas"></a>
+
+## 📝 Notas de rodapé e de fim
+
+Uma **nota de rodapé** fica no pé da mesma folha; uma **nota de fim** fica no fim do documento.
+
+- **Inserir → Nota de rodapé** (`Ctrl+Alt+F`)
+- **Inserir → Nota de fim** (`Ctrl+Alt+D`)
+
+O número aparece no texto, e o cursor vai para a nota, **no pé da própria folha**, onde você
+escreve. Os números das notas seguem a ordem em que elas aparecem no texto.
+
+O **botão direito** numa nota permite **convertê-la** de rodapé para fim, ou o contrário.
+
+---
+
+<a id="equacoes"></a>
+
+## ➗ Equações
+
+As equações de um documento do Word aparecem desenhadas na folha. As novas são escritas em
+**LaTeX**, a forma de escrever matemática usada em artigos científicos: `\frac{a}{b}` é uma fração,
+`x^2` é um quadrado, `\sqrt{x}` é uma raiz.
+
+- **Inserir → Equação** (`Alt+=`) põe a equação no meio da linha, junto do texto.
+- **Inserir → Equação em destaque** põe a equação numa linha só dela, centralizada.
+
+O diálogo tem o campo de **LaTeX**, uma **Visualização** que acompanha o que você digita e uma
+paleta de **Modelos** para quem não sabe os comandos de cor: frações, raízes, índices, somatórios,
+integrais, acentos, funções como seno e logaritmo, e símbolos como ∈, ∀ e ⇒.
+
+Para alterar uma equação, **clique duas vezes** nela.
+
+> ℹ️ Uma equação do Word com alguma construção que a tela não sabe desenhar aparece **travada**,
+> com o que deu para desenhar. Ela volta ao arquivo inteira, exatamente como veio.
+
+---
+
+<a id="revisao"></a>
+
+## 💬 Comentários e revisões
+
+### Comentários
+
+Selecione o trecho e use **Inserir → Comentário** (`Ctrl+Alt+M`). O comentário aparece no painel
+ao lado, ligado ao trecho. **Exibir → Comentários** mostra e esconde esse painel.
+
+Em cada comentário você pode **Responder**, **Editar**, **Resolver** (ele fica marcado como
+resolvido, mas continua no arquivo), **Reabrir** e **Excluir**. **Inserir → Próximo comentário** e
+**Comentário anterior** andam de um a outro.
+
+O nome que aparece nos seus comentários e revisões é definido em **Ferramentas → Nome do autor…**.
+
+Comentários de um `.docx` vêm junto e voltam ao arquivo, inclusive as respostas.
+
+### Controle de alterações
+
+Com o controle de alterações ligado, cada mudança fica registrada em vez de simplesmente feita:
+texto inserido aparece sublinhado, texto apagado aparece riscado, cada um com o nome de quem mudou.
+Quem recebe o documento decide o que fica.
+
+**Revisão → Controlar alterações** (`Ctrl+Shift+E`) liga e desliga. O menu **Revisão** também tem:
+
+- **Aceitar alteração** e **Rejeitar alteração**, para a que está no cursor;
+- **Aceitar todas** e **Rejeitar todas**;
+- **Próxima alteração** e **Alteração anterior**.
+
+**Revisão → Mostrar** escolhe como ver o documento:
+
+| Modo | O que aparece |
+| --- | --- |
+| **Marcação completa** | tudo à vista: o inserido sublinhado e o excluído riscado |
+| **Marcação simples** | o texto como vai ficar, com uma barra na margem ao lado de cada parágrafo alterado |
+| **Sem marcação** | o texto como vai ficar, limpo |
+| **Original** | o texto de antes das alterações; nesse modo o editor fica só para leitura |
+
+Trocar de modo não altera o documento, e a impressão segue o modo escolhido.
+
+---
+
+<a id="ferramentas"></a>
+
+## 🔤 Ortografia, símbolos e contagem
+
+### A ortografia é em português e não usa internet
+
+O dicionário de português do Brasil **vem dentro do instalador**. Na primeira vez que o aplicativo
+abre, ele é copiado para a pasta do seu usuário, e é ali que o corretor o procura.
+
+Por que isso importa? O corretor que acompanha o Chromium, sozinho, baixaria o dicionário da
+internet. Num computador sem rede, ele simplesmente não marcaria nada, e não avisaria.
+
+A palavra errada ganha o sublinhado ondulado de sempre, **no texto e também no cabeçalho e no
+rodapé**, onde um erro de digitação se repete em todas as folhas.
+
+Clique com o **botão direito** na palavra sublinhada para:
+
+- escolher uma das sugestões, que troca a palavra;
+- **Adicionar ao dicionário**, para nunca mais ser avisado dela, em nenhum documento;
+- **Ignorar nesta sessão**, que vale até você fechar o aplicativo. Serve para o nome de um cliente
+  que aparece dez vezes neste documento e em nenhum outro.
+
+Para desligar: **Ferramentas → Verificação ortográfica**.
+
+### O botão direito no documento
+
+Além das sugestões de ortografia, o menu tem **recortar**, **copiar**, **colar** e **colar sem
+formatação**. Dentro de uma tabela, traz também as ações dela. Um item apagado não se aplica ali:
+"colar" fica apagado quando não há nada copiado, por exemplo.
+
+### Colar sem formatação
+
+`Ctrl+Shift+V`, o menu **Editar** ou o botão direito. O texto entra com a formatação do documento,
+e não com a de onde veio. É o que evita que um trecho copiado de um site chegue com outra fonte,
+outro tamanho e outra cor. Cada quebra de linha do texto copiado vira um parágrafo.
+
+### Contar palavras
+
+`Ctrl+Shift+G` ou **Ferramentas → Contar palavras…** mostra palavras, caracteres com e sem
+espaço, parágrafos e páginas, em duas colunas: o **documento** e a **seleção**. Sem nada
+selecionado, a coluna da seleção mostra um travessão, porque "nada selecionado" não é o mesmo que
+"zero palavras". O diálogo acompanha o que você digita, então pode ficar aberto.
+
+Parágrafo vazio não conta: é um `Enter` batido para abrir espaço, e o Word também não o conta.
+
+### Caracteres especiais
+
+**Inserir → Caractere especial…** abre um painel com o que costuma faltar no teclado: aspas
+tipográficas, travessão, símbolos de moeda, sinais de matemática, letras gregas e marcas como © e
+®. Clique no símbolo, ou ande pela grade com as setas e insira com `Enter`. O painel fica aberto,
+porque quem o abre em geral quer mais de um símbolo.
+
+O `␣` do grupo "Pontuação" é o **espaço inquebrável**. É ele que impede que o `R$` fique no fim de
+uma linha e o valor no começo da seguinte.
+
+### Marcas de formatação (¶)
+
+`Ctrl+F10`, o botão `¶` da barra ou **Exibir → Marcas de formatação** mostram o que existe no texto
+mas não tem tinta: um ponto em cada espaço, uma seta em cada tabulação, um `¬` em cada quebra de
+linha e um `¶` no fim de cada parágrafo. Servem para descobrir por que um alinhamento saiu errado.
+Quase sempre é um espaço a mais, ou uma tabulação onde devia haver recuo.
+
+As marcas **não saem no papel nem no PDF**, e não mudam onde as páginas quebram.
+
+### Autocorreção tipográfica
+
+Vem ligada. Enquanto você digita, ela troca:
+
+| O que você digita | O que sai |
+| --- | --- |
+| `"aspas"` | `“aspas”` |
+| `'aspas'` | `‘aspas’` |
+| `--` | `—` (travessão) |
+| `...` | `…` |
+| `(c)` `(r)` `(tm)` | `©` `®` `™` |
+| `1/2` `1/4` `3/4` | `½` `¼` `¾` |
+| `+/-` `!=` `<<` `>>` | `±` `≠` `«` `»` |
+
+É o que o Word faz em português. `->` e `3 x 4` **não** viram flecha e `×`, de propósito: em texto
+técnico isso atrapalha mais do que ajuda.
+
+Um `Backspace` logo depois de uma troca desfaz **só aquela troca**. Escreva `--silent`, apague uma
+vez, e o travessão volta a ser dois hifens. É a saída para escrever um comando sem desligar nada.
+
+Para desligar: **Ferramentas → Autocorreção tipográfica**. O que já foi trocado continua trocado.
+
+---
+
+<a id="assistente-de-ia"></a>
+
+## 🤖 Assistente de IA
+
+O assistente reescreve, resume, revisa ou traduz o trecho que você selecionar, e conversa sobre o
+documento. Na planilha, ele explica e cria fórmulas e preenche colunas (veja
+[Nas planilhas](#nas-planilhas)).
+
+Duas garantias valem em todo este capítulo:
+
+- ele vem **desligado**: enquanto nenhum assistente estiver configurado, nada sai do computador;
+- **nada muda no documento ou na planilha sem um clique seu.**
+
+### Configurar
+
+Abra **Ferramentas → Assistentes de IA…**. Há dois caminhos:
+
+- **Procurar assistentes** olha, só quando você clica, o que já está neste computador: o Ollama
+  (`localhost:11434`), o LM Studio (`localhost:1234`), o programa `claude` (Claude Code) e os
+  agentes ACP instalados (veja abaixo). O que responder aparece com um botão **Adicionar**.
+- **Adicionar à mão** aceita um servidor compatível com OpenAI (endereço e, se ele pedir, uma
+  chave), a API da Anthropic (chave) ou um agente ACP.
+
+**Agentes ACP.** O ACP (Agent Client Protocol) é um protocolo aberto que vários agentes de IA
+falam. A procura encontra estes, se o programa estiver no `PATH`: Gemini CLI (`gemini`), Claude
+Agent (`claude-agent-acp`), Codex (`codex-acp`), OpenCode, Goose, GitHub Copilot (`copilot`),
+Qwen Code (`qwen`), Kimi CLI, Cursor Agent (`cursor-agent`), Kilo Code (`kilo`), Auggie, Cline,
+Mistral Vibe (`vibe-acp`) e Amp (`amp-acp`). Um agente instalado em outro lugar entra por
+**Adicionar à mão → Agente ACP → Escolher o programa…**, com os argumentos que ele pede.
+
+- O login é feito no próprio agente: abra-o uma vez no terminal e entre na sua conta.
+- O Librevia não baixa nem instala agentes, não oferece a eles seus arquivos nem um terminal, e
+  os roda numa pasta temporária vazia.
+- As ferramentas próprias do agente (as do Gemini CLI, do Codex, do Claude Agent…) seguem a
+  configuração dele, não a do Librevia. Para restringir o que ele pode fazer, configure o agente.
+- No Windows, só funcionam agentes que sejam um `.exe`; os instalados pelo npm (`.cmd`) não.
+
+A chave fica cifrada pelo cofre de senhas do sistema e nunca volta para a tela. No Linux sem cofre
+(sem GNOME Keyring nem KWallet), o Librevia recusa guardar a chave; os assistentes locais
+continuam funcionando, porque não precisam dela.
+
+No mesmo diálogo você escolhe o assistente padrão. **Editar** muda o nome, o endereço e a chave de
+um assistente; a chave em branco mantém a guardada. Mudar o endereço apaga a chave e a permissão,
+para que elas não sigam para outro servidor. Num servidor compatível com OpenAI, **Contexto
+máximo** diz quantos caracteres do documento vão junto (veja
+[O que é enviado](#o-que-é-enviado-e-para-onde)).
+
+Em **Preferências**, no mesmo diálogo:
+
+- **Manter a formatação nas revisões** (ligada de fábrica): ao reescrever, revisar ou traduzir, o
+  trecho vai com negrito, itálico, tachado, títulos, listas e links, e a resposta volta com eles.
+  Desligada, o trecho vai e volta como texto simples.
+- **Se o modelo da Anthropic recusar, tentar outro modelo recomendado pela Anthropic** (desligada
+  de fábrica): vale só para a API da Anthropic. Se houver troca, o autor da alteração é o modelo
+  que terminou a resposta.
+
+### Usar
+
+1. Selecione o trecho.
+2. Clique com o botão direito e abra **Assistente de IA ▸**: Reescrever, Resumir, Revisar
+   ortografia e gramática, Traduzir ou Pedido livre. Pelo teclado, `Shift+F10` abre o menu. O
+   painel também abre por **Ferramentas → Assistente de IA…** (`Ctrl+Shift+Y`), e o mesmo atalho o
+   fecha.
+3. Na aba **Ações**, **Modelo** escolhe o modelo: **Automático** usa o padrão do assistente, e
+   **Listar modelos** pergunta quais ele tem.
+4. A resposta aparece no painel enquanto é escrita, já formatada. **Parar** interrompe.
+5. Escolha o que fazer com ela:
+   - **Aplicar** troca o trecho pela resposta como **alteração controlada**, com o nome do modelo
+     como autor, mesmo com o controle de alterações desligado;
+   - **Inserir abaixo** põe a resposta em parágrafos novos depois do trecho, também marcados;
+   - **Copiar** leva a resposta para a área de transferência.
+
+Se você editar o trecho enquanto a resposta chega, **Aplicar** fica apagado e o painel avisa "O
+trecho mudou". Inserir abaixo e Copiar continuam valendo.
+
+### Conversar
+
+A aba **Conversa** troca várias mensagens com o assistente sobre o documento aberto. `Enter`
+envia; `Shift+Enter` quebra a linha. Cada resposta tem **Inserir abaixo**, que põe o texto depois
+da seleção ou do cursor como alteração controlada, e **Copiar**. **Nova conversa** começa do zero.
+
+A cada mensagem vai o documento **como ele está naquele momento**. Com um trecho selecionado, o
+modelo entende "isto" como esse trecho.
+
+A conversa fica só na memória: não vai para o arquivo nem para o disco, e some quando você fecha o
+documento.
+
+#### Propostas de alteração e comentários
+
+Abaixo do campo de mensagem fica a caixa **Deixar o assistente propor alterações e comentários**.
+Ela vem desligada. Ligada, o assistente pode ler e procurar no documento e **propor**: a troca ou
+a remoção de um trecho, texto novo depois de um parágrafo (é assim que ele escreve num documento
+vazio) e comentários. O texto proposto vem formatado, com títulos, listas, citações, negrito,
+itálico e links. Tabelas e imagens ainda não entram por proposta.
+
+Cada proposta aparece de dois jeitos, com os botões **Aceitar** e **Rejeitar**:
+
+- **na folha, como diferença**: a palavra que sai riscada em vermelho, a que entra em verde, um
+  comentário marcado em amarelo. Você pode continuar escrevendo, e a diferença acompanha o texto;
+- **no painel**, abaixo da resposta, com **Aceitar todas** e **Rejeitar todas**.
+
+Aceitar põe a mudança no texto, e `Ctrl+Z` a tira. Com o controle de alterações ligado, ela entra
+como alteração controlada, com o nome do modelo como autor. Antes de aceitar, o Librevia confere
+se o parágrafo ainda tem o texto que o modelo leu; se você o mudou, Aceitar mostra "O texto mudou"
+e não mexe em nada.
+
+Todos os assistentes oferecem isso. Um modelo local sem suporte a ferramentas recusa o pedido, e o
+Librevia avisa para desligar a caixa ou trocar de modelo.
+
+<details>
+<summary><b>Os limites das propostas</b></summary>
+
+- No máximo 30 propostas por mensagem, 10 ferramentas por rodada e 8 rodadas.
+- O que o modelo lê do documento numa resposta não passa do limite de contexto do assistente.
+- O assistente não grava, não abre arquivos, não acessa a internet e não roda programas: ele só lê
+  o texto enviado com a mensagem e propõe.
+- O Claude Code recebe só as cinco ferramentas do Librevia, por uma chave que vale para uma
+  mensagem, e continua sem as dele e sem os servidores MCP que você tenha configurado nele.
+- Um agente ACP recebe as mesmas cinco ferramentas. O Librevia permite só o uso delas, mas o
+  agente pode ter ferramentas próprias que não pedem permissão.
+
+</details>
+
+### Nas planilhas
+
+No editor de planilhas, **Ferramentas → Assistente de IA…** (`Ctrl+Shift+Y`) abre o painel. O
+assistente e o modelo são os mesmos do documento. Há três tarefas:
+
+- **Explicar fórmula** explica a fórmula da célula ativa. Nada é gravado.
+- **Criar fórmula**: escreva o que você quer (por exemplo, "soma dos preços da coluna B") e
+  clique em **Gerar**. O painel mostra a fórmula e o valor que ela daria. **Inserir na célula**
+  grava, e `Ctrl+Z` desfaz. A fórmula precisa passar pela mesma conferência da barra de fórmulas.
+- **Preencher coluna**: selecione as células, numa única coluna e com no máximo 500 linhas, e
+  escreva o pedido (por exemplo, "categoria do produto da coluna A"). O painel mostra uma prévia
+  com o valor atual e o novo. **Aplicar** grava todos, e `Ctrl+Z` desfaz todos. Entram valores,
+  nunca fórmulas.
+
+Na planilha não há conversa, e cada pedido é independente.
+
+### Programas externos (MCP)
+
+O Claude Code no terminal, o Claude Desktop ou outro programa que fale o protocolo MCP podem
+trabalhar no documento ou na planilha aberta no Librevia, inclusive no que ainda não foi salvo.
+
+1. Abra **Ferramentas → Assistentes de IA…** e ligue **Permitir que programas externos leiam o
+   documento aberto e proponham alterações (MCP)**. Vem desligado.
+2. Registre o Librevia no programa, uma vez só:
+   - **Claude Code:** copie o comando que aparece embaixo e rode no terminal. Ele começa com
+     `claude mcp add --scope user librevia --`.
+   - **Claude Desktop e outros:** copie a configuração JSON e cole em `claude_desktop_config.json`
+     ou no `.mcp.json` do projeto.
+3. Com o Librevia aberto, peça ao programa, por exemplo: "leia o documento aberto no Librevia e
+   comente as frases longas demais".
+
+No documento, o programa lê, procura, propõe trocas, insere texto e comenta. **Cada proposta entra
+na hora como alteração controlada ou comentário**, com o nome do programa seguido de "(MCP)" como
+autor, por exemplo "Claude Code (MCP)". Você aceita ou rejeita como qualquer revisão.
+
+Na planilha, que não tem controle de alterações, o programa lê as células e propõe escritas, que
+**não entram na hora**: aparecem numa faixa acima da grade, com uma prévia. **Aplicar** grava, e
+`Ctrl+Z` desfaz; **Descartar** joga fora.
+
+O programa não abre nem salva arquivos, não aceita nem rejeita revisões, não vê o nome nem o
+caminho do arquivo e não mexe em PDFs.
+
+- Enquanto um programa estiver conectado, a barra de status mostra o nome dele e o botão
+  **Desconectar**. No máximo 2 programas ao mesmo tempo.
+- A ligação não usa a rede: o programa roda `librevia --mcp-bridge`, que conversa com o Librevia
+  aberto por um arquivo de comunicação (socket) que só o seu usuário abre, com uma chave que muda a
+  cada abertura.
+- No Linux, o programa precisa rodar dentro da sessão gráfica (com `DISPLAY` ou Wayland).
+
+<a id="o-que-é-enviado-e-para-onde"></a>
+
+### O que é enviado, e para onde
+
+| Quando | O que vai |
+| --- | --- |
+| **Ações** | o trecho, até 20 000 caracteres; a instrução do pedido livre; e o texto do documento antes e depois do trecho, como contexto, sem formatação e sem o que foi excluído |
+| **Conversa** | a cada mensagem, o documento atual, a sua mensagem (até 2 000 caracteres) e as mensagens anteriores, até 40. As anteriores ocupam no máximo metade do limite de contexto; acima disso, as mais antigas ficam de fora |
+| **Conversa com propostas** | o documento em parágrafos numerados, sem o que foi excluído nem as notas de rodapé. Se não couber, vai o começo, e o modelo pede o resto |
+| **Planilha** | a planilha ativa: a célula ativa, os cabeçalhos e as células preenchidas mais próximas, até 200 caracteres cada. Para preencher, as outras colunas de cada linha selecionada |
+| **Programa MCP** | o texto inteiro do documento, ou as células que ele pedir. Ele envia para onde estiver configurado: o Claude Code e o Claude Desktop mandam para a Anthropic |
+
+- **Nunca vão** o nome do arquivo, as propriedades nem as outras abas da planilha.
+- **O limite de contexto** é de 200 000 caracteres, ou 6 000 num assistente deste computador, que
+  lê pouco de uma vez. Num documento maior, vai o texto mais próximo do trecho, e o modelo é
+  avisado de que vê só uma parte.
+- **O modelo é avisado** de que o documento é material de consulta e de que instruções escritas
+  nele não vêm de você.
+- **Um assistente em `localhost` ou `127.0.0.1`** roda neste computador: o texto não sai dele.
+- **Um assistente fora do computador** (outro endereço, a API da Anthropic, o Claude Code ou um
+  agente ACP) pergunta antes do primeiro envio, mostrando o destino. Para um agente ACP, o destino é
+  o programa com os argumentos, e trocá-los faz a pergunta voltar. **Pedir permissão de novo**
+  também.
+- O Claude Code e os agentes ACP não guardam a conversa, por isso recebem a conversa inteira a cada
+  mensagem. O Claude Code informa o custo do pedido, e o painel o mostra.
+
+### Limites
+
+- Com **Manter a formatação** ligada, sublinhado, cor e fonte não passam pelo modelo: a resposta
+  recebe os do começo do trecho.
+- Uma lista na resposta usa a numeração padrão do Librevia, não a de uma lista do Word que estava
+  no trecho.
+- A seleção não pode ter imagens, equações, notas nem campos, nem passar de uma célula de tabela
+  para outra.
+- Com o arquivo só para leitura, dá para pedir e conversar, mas Aplicar, Inserir e Aceitar ficam
+  apagados, e as propostas de programas MCP são recusadas.
+
+---
+
+<a id="fórmulas-em-português"></a>
+
+## 🧮 Fórmulas da planilha
+
+```excel
+=SOMA(1,5;2)
+```
+
+Isso soma um e meio com dois, e dá 3,5. Duas regras andam juntas, e são as mesmas do Excel em
+português:
+
+- **a vírgula separa os decimais**;
+- **o ponto e vírgula separa os argumentos**, justamente porque a vírgula já está ocupada.
+
+Se você digitar `=SOMA(A1,B1)`, o aplicativo diz qual é o separador certo, em vez de mostrar um
+erro qualquer.
+
+Os nomes funcionam nos **dois idiomas**: `SOMA` e `SUM` são a mesma função, assim como `SE` e
+`IF`, `PROCV` e `VLOOKUP`. Uma fórmula copiada de uma planilha em inglês não precisa ser traduzida
+à mão.
+
+<a id="funções-disponíveis"></a>
+
+### Funções disponíveis
+
+São 52, em seis grupos:
+
+| Grupo | Funções |
+| --- | --- |
+| **Contas** | `SOMA` `SOMASE` `ARRED` `ARREDONDAR.PARA.CIMA` `ARREDONDAR.PARA.BAIXO` `ABS` `INT` `TRUNCAR` `RESTO` `RAIZ` `POTÊNCIA` |
+| **Estatística** | `MÉDIA` `MÁXIMO` `MÍNIMO` `CONT.NÚM` `CONT.VALORES` `CONTAR.VAZIO` `CONT.SE` |
+| **Lógica** | `SE` `SEERRO` `SENÃODISP` `E` `OU` `NÃO` `ÉERROS` `É.NÃO.DISP` `ÉNÚM` `ÉTEXTO` `ÉCÉL.VAZIA` |
+| **Texto** | `CONCATENAR` `NÚM.CARACT` `ESQUERDA` `DIREITA` `EXT.TEXTO` `MAIÚSCULA` `MINÚSCULA` `ARRUMAR` `SUBSTITUIR` `PROCURAR` `LOCALIZAR` `VALOR` |
+| **Procura** | `PROCV` `PROCH` `CORRESP` `ÍNDICE` |
+| **Data** | `HOJE` `AGORA` `DATA` `ANO` `MÊS` `DIA` `DIA.DA.SEMANA` |
+
+### O que ainda não existe
+
+Matrizes dinâmicas, referências de coluna inteira (`A:A`) e intervalos nomeados.
+
+> ✅ Uma fórmula com uma função fora da lista mostra `#NOME?` na célula, mas **continua no
+> arquivo, intacta**, e o Excel volta a calculá-la normalmente. O aviso na abertura diz quais são
+> essas funções.
+
+---
+
+<a id="exibir"></a>
+
+## 👁️ Ver o documento
+
+| No menu Exibir | O que faz |
+| --- | --- |
+| **Ampliar**, **Reduzir**, **Tamanho normal** | zoom de 50 % a 200 %; os botões da barra de status fazem o mesmo |
+| **Ajustar à largura** | a folha ocupa a largura da janela |
+| **Modo de leitura** (`Ctrl+F11`) | esconde as barras e deixa só o texto; o documento fica só para leitura enquanto durar, e `Esc` sai |
+| **Tema** | **Claro**, **Escuro** ou **Do sistema**, que acompanha o que o computador usa |
+| **Idioma** | **Português** ou **English**, para menus, botões e mensagens |
+| **Mostrar barra de ferramentas**, **Mostrar barra de status** | escondem as barras para ganhar espaço |
+| **Tela cheia** | ocupa a tela inteira |
+
+O zoom muda só o tamanho na tela. As páginas quebram nos mesmos lugares em qualquer zoom.
+
+---
+
+<a id="arquivos-que-abrem-travados"></a>
+
+## 🔒 Alguns arquivos abrem travados — e como destravar
+
+Alguns documentos abrem **somente para leitura**, com uma faixa laranja no topo dizendo
+exatamente o que eles têm. Acontece quando o arquivo tem algo que o editor mostra, mas não sabe
+escrever de volta caso você edite o trecho:
+
+- um **campo** de um tipo que o editor não sabe recalcular. O texto que o Word guardou aparece,
+  mas reescrever o parágrafo o transformaria em texto comum;
+- **controles de conteúdo**, as caixinhas de formulário do Word;
+- **revisões de estrutura**, como uma célula inserida ou excluída numa tabela com o controle de
+  alterações ligado.
+
+Quem só precisa ler não corre risco nenhum. Quem precisa editar clica em **Editar mesmo assim** e
+segue, sabendo qual é o risco.
+
+Não é um cadeado: um clique libera, e vale só para aquele arquivo. Um arquivo comum abre
+editável, mesmo que tenha comentários, revisões ou notas, porque o Librevia sabe gravá-los de
+volta. Travar todo arquivo ensinaria você a clicar sem ler, e a proteção deixaria de proteger.
+
+---
+
+<a id="os-avisos"></a>
+
+## ⚠️ Os avisos: leia, eles são diferentes entre si
+
+Ao abrir um arquivo, o aplicativo pode mostrar um aviso. São três tipos, porque cada um pede uma
+atitude diferente:
+
+| Aviso | O que significa | O que você pode fazer |
+| --- | --- | --- |
+| **Invisível** | o recurso continua no arquivo, mas não aparece aqui: gráficos, a sombra ou o degradê de uma forma, formatação condicional e filtros da planilha | editar e salvar à vontade: ele volta intacto |
+| **Perda** | algo some de verdade ao salvar | acontece só se você editar justamente o trecho onde ele está; o aviso diz qual é |
+| **Trava** | é a perda que fez o arquivo abrir [somente para leitura](#arquivos-que-abrem-travados) | ler à vontade; para editar, clique em **Editar mesmo assim** |
+
+Se todo aviso dissesse a mesma coisa, você aprenderia a fechá-los sem ler.
+
+---
+
+<a id="se-o-aplicativo-fechar-sozinho"></a>
+
+## 💾 Se o aplicativo fechar sozinho
+
+A cada oito segundos, o que está na tela é guardado num rascunho, **nunca por cima do seu
+arquivo**. Se o computador desligar ou o aplicativo fechar de repente, na próxima abertura aparece
+uma faixa azul oferecendo o trabalho de volta:
+
+- **Recuperar** traz o conteúdo para a tela, marcado como *não salvo*, porque é isso que ele é.
+  Confira e salve onde quiser.
+- **Descartar** apaga o rascunho.
+
+Enquanto a faixa estiver na tela, o rascunho **não é sobrescrito**. Você pode ignorá-la por um
+tempo, abrir outro arquivo, e o trabalho continua guardado.
+
+Quando você salva, o rascunho é apagado: o arquivo no disco já é a versão boa.
+
+Se só a janela parar de funcionar, o aplicativo pergunta se quer **Reabrir**. Ao reabrir, a mesma
+faixa oferece o rascunho.
+
+### O registro de erros
+
+Quando algo falha, o Librevia anota a causa num arquivo, `librevia.log`. Ele fica **só neste
+computador**: nada é enviado. **Ajuda → Abrir pasta de registros** mostra a pasta:
+
+| Sistema | Pasta |
+| --- | --- |
+| Linux | `~/.config/Librevia/logs` |
+| Windows | `%APPDATA%\Librevia\logs` |
+
+Ao relatar um problema, anexe esse arquivo. Ele traz a versão, o sistema e as mensagens de erro, e
+pode trazer o nome de um arquivo aberto. Passando de 1 MB, ele vira `librevia.old.log` e um novo
+começa.
+
+---
+
+<a id="salvar-não-custa"></a>
+
+## 🛟 Salvar não custa o que você não editou
+
+Muitos editores, ao salvar um `.docx`, escrevem o arquivo inteiro de novo, e no caminho perdem o
+que não entenderam. O Librevia faz diferente: **reescreve só o que você mexeu** e devolve o resto
+exatamente como estava.
+
+Na prática: fonte, alinhamento, bordas, gráficos, tabelas dinâmicas, comentários e filtros
+continuam no arquivo depois que você corrige uma vírgula. Num `.odt` é igual (veja
+[Documentos do LibreOffice](#documentos-do-libreoffice-odt)).
+
+**Documento novo em `.docx`.** Em "Salvar como", escolha "Documento do Word". Como não há arquivo
+de origem, o aplicativo cria um pacote mínimo, com estilos, página e propriedades, mas sem o seu
+nome dentro, e grava o documento nele. Cada gravação parte do mesmo pacote mínimo, e não do arquivo
+gravado da última vez. Assim, salvar dez vezes dá o mesmo arquivo que salvar uma.
+
+---
+
+<a id="imprimir-e-exportar-pdf"></a>
+
+## 🖨️ Imprimir e exportar
+
+### Papel e PDF
+
+O que sai no papel é **o que está na tela**. O PDF é gerado pelo mesmo motor que desenha o editor,
+com o texto selecionável e as fontes embutidas.
+
+- **Documentos** saem com cabeçalho, rodapé, numeração, margens, orientação e colunas de cada
+  seção.
+- **Planilhas** saem com a aba ativa inteira, ajustada à largura da página. As linhas congeladas
+  viram cabeçalho e se repetem em cada folha.
+
+**Arquivo → Visualizar impressão** mostra as folhas antes de gastar papel.
+
+> 💡 Se as colunas da planilha ficarem apertadas, ponha a página em paisagem em
+> **Arquivo → Configuração de página…**.
+
+### Exportar como Word, ODT, HTML ou Markdown
+
+Em **Arquivo → Exportar como**, o documento vira uma **página da web** (`.html`), um texto em
+**Markdown** (`.md`) ou um **documento do OpenDocument** (`.odt`). É um arquivo novo: o documento
+continua aberto no mesmo lugar, do jeito que estava.
+
+**Documento do Word (.docx)** é diferente: funciona como **Salvar como**, só com o formato do Word.
+O documento passa a ser o `.docx`, e o próximo **Salvar** grava nele.
+
+- **HTML** sai numa página só, com os estilos, as listas, as tabelas e as imagens dentro dela. As
+  notas vão para o fim, com um link de volta ao texto.
+- **Markdown** leva títulos, ênfase, links, listas, tabelas e notas (`[^1]`). As imagens vão para
+  uma pasta ao lado, `nome_arquivos/`. Uma tabela com células mescladas sai em HTML, porque o
+  Markdown não tem como mesclar.
+- **ODT** abre no LibreOffice e em outros editores que leem OpenDocument, com os estilos, as listas
+  numeradas, as tabelas, as imagens, as notas, os marcadores e os links. Cada seção leva o próprio
+  papel, margens, colunas, cabeçalho e rodapé, e os comentários vão como anotações. Para trabalhar
+  no próprio `.odt`, use **Salvar como**.
+- No ODT, as **revisões** vão como alterações controladas: texto inserido, texto excluído e
+  parágrafo unido, com autor e data. O LibreOffice as mostra para você aceitar ou rejeitar. No HTML
+  e no Markdown, as revisões saem já aceitas e os **comentários** ficam de fora.
+- As **equações** vão junto em todos os formatos.
+
+---
+
+<a id="limites-conhecidos"></a>
+
+## 🚧 Limites conhecidos
+
+| Limite | O que acontece |
+| --- | --- |
+| **Arquivos acima de 20 MB** | não abrem |
+| **`.ods`** | não abre |
+| **Macros** | um `.dotm` abre, mas sem as macros |
+| **Mesclar células na planilha** | ainda não existe |
+| **Filtros de planilha** | são preservados no arquivo, mas não há tela para criar ou alterar |
+| **Fórmulas** | sem matrizes dinâmicas, referências de coluna inteira (`A:A`) ou intervalos nomeados |
+| **Comentários** | o texto do comentário é texto simples, sem negrito ou cor |
+| **Controle de alterações** | mudanças de **formatação** (pôr em negrito, trocar a fonte) não são registradas como revisão |
+| **Equações** | usam a fonte de matemática do computador; alguns comandos de espaçamento do LaTeX, como `\,` e `\quad`, se perdem ao salvar em `.docx` |
+| **Sumário** | **Atualizar sumário** refaz todas as entradas, inclusive as que você editou à mão |
