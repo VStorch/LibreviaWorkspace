@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
-import { docxWithLongTable, docxWithTallRow } from './fixtures.js'
+import { docxWithListsAtSheetFoot, docxWithLongTable, docxWithTallRow } from './fixtures.js'
 import { hasPdftotext, pdfText } from './external-tools.js'
 
 /**
@@ -320,6 +320,17 @@ test.describe('live pagination', () => {
     expect(Math.abs(shift - original)).toBeLessThan(0.25)
   })
 
+  test('a list that ends at the foot of a sheet settles on one break', async () => {
+    const source = join(directory, 'listas.docx')
+    await writeFile(source, await docxWithListsAtSheetFoot())
+    await stubDialogs(session.app, { open: source, messageBox: 1 })
+    await menu(session, 'open')
+    await expect.poll(() => session.window.locator('.paper').count()).toBeGreaterThanOrEqual(17)
+    await session.window.waitForTimeout(1000)
+    expect(await mutationsDuring(session, 1000)).toBe(0)
+    expect(await itemsOutsideSheets(session)).toEqual([])
+  })
+
   test('a table row taller than the sheet is split between lines, and typing in it stays on the paper', async () => {
     await openTallRow(session, directory, await docxWithTallRow())
     await expect.poll(() => session.window.locator('.paper').count()).toBeGreaterThanOrEqual(2)
@@ -372,6 +383,40 @@ test.describe('live pagination', () => {
     await expect.poll(() => linesOutsideSheets(session)).toEqual([])
   })
 })
+
+/** List items whose text is not inside the writing area of an A4 sheet with 2.5 cm margins. */
+async function itemsOutsideSheets(session: Session): Promise<string[]> {
+  return session.window.evaluate(() => {
+    const areas = Array.from(document.querySelectorAll<HTMLElement>('.paper')).map((sheet) => {
+      const box = sheet.getBoundingClientRect()
+      const scale = box.width / sheet.offsetWidth
+      const margin = ((2.5 * 96) / 2.54) * scale
+      return { top: box.top + margin - 0.5, bottom: box.top + ((297 * 96) / 25.4) * scale - margin + 0.5 }
+    })
+    return Array.from(document.querySelectorAll('.ProseMirror li p'))
+      .filter((item) => {
+        const box = item.getBoundingClientRect()
+        return !areas.some((area) => box.top >= area.top && box.bottom <= area.bottom)
+      })
+      .map((item) => item.textContent ?? '')
+  })
+}
+
+/** Pagination that settled writes nothing more to the editor. */
+async function mutationsDuring(session: Session, milliseconds: number): Promise<number> {
+  return session.window.evaluate(async (wait) => {
+    let changes = 0
+    const observer = new MutationObserver((records) => (changes += records.length))
+    observer.observe(document.querySelector('.ProseMirror')!, {
+      attributes: true,
+      childList: true,
+      subtree: true,
+    })
+    await new Promise((resolve) => setTimeout(resolve, wait))
+    observer.disconnect()
+    return changes
+  }, milliseconds)
+}
 
 async function openTallRow(session: Session, directory: string, docx: Buffer): Promise<void> {
   const source = join(directory, 'linha-alta.docx')

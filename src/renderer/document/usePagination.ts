@@ -359,12 +359,11 @@ const NO_PAGE_GAPS: PageGaps = {
  */
 export function createGapWriter(): (view: EditorView, next: PageGaps) => void {
   let last = NO_PAGE_GAPS
-  /** Compared by what they draw. */
-  let lastHeaders = '[]'
+  let lastHeaders = headersKeyOf([])
   let lastCount = 0
 
   return (view, next) => {
-    const headersKey = JSON.stringify(next.headers)
+    const headersKey = headersKeyOf(next.headers)
     if (
       decorationCountOf(view) === lastCount &&
       sameGaps(last.columns, next.columns) &&
@@ -383,6 +382,23 @@ export function createGapWriter(): (view: EditorView, next: PageGaps) => void {
     })
     lastCount = decorationCountOf(view)
   }
+}
+
+/**
+ * By what they draw, to a hundredth of a pixel: the offsets come from computed styles and vary in
+ * the last digits from one measurement to the next.
+ */
+function headersKeyOf(headers: readonly RepeatedHeader[]): string {
+  const rounded = (value: number): string => value.toFixed(2)
+  return JSON.stringify(
+    headers.map((header) => [
+      header.position,
+      header.html,
+      rounded(header.height),
+      rounded(header.offsetTop),
+      rounded(header.offsetLeft),
+    ]),
+  )
 }
 
 /**
@@ -585,13 +601,18 @@ class DocumentMeasurer {
         this.targets.push({
           at,
           start: { blockIndex: drawn.blockIndex, childIndex },
-          nodes: (cells.length > 0 ? cells : [child]).map((target) => ({
-            position: this.editor.view.posAtDOM(target, 0) - 1,
-            natural:
-              parseFloat(
-                cells.length > 0 ? getComputedStyle(target).paddingTop : getComputedStyle(target).marginTop,
-              ) - shiftOf(target),
-          })),
+          nodes:
+            cells.length > 0
+              ? cells.map((cell) => ({
+                  position: this.editor.view.posAtDOM(cell, 0) - 1,
+                  natural: parseFloat(getComputedStyle(cell).paddingTop) - shiftOf(cell),
+                }))
+              : [
+                  {
+                    position: this.editor.view.posAtDOM(child, 0) - 1,
+                    natural: this.gapAbove(child, children[childIndex - 1]),
+                  },
+                ],
           ...(table !== null && header.repeatHeight > 0
             ? {
                 header: () =>
@@ -617,6 +638,16 @@ class DocumentMeasurer {
       internal += shift
     })
     return internal
+  }
+
+  /**
+   * Items and entries are in block flow, where a margin collapses with the one above: the written
+   * margin replaces the whole space between them, not only the item's own margin.
+   */
+  private gapAbove(child: HTMLElement, previous: HTMLElement | undefined): number {
+    if (previous === undefined) return parseFloat(getComputedStyle(child).marginTop) - shiftOf(child)
+    const distance = this.ruler.top(child) - this.ruler.top(previous) - this.ruler.height(previous)
+    return onNaturalGrid(distance - shiftOf(child))
   }
 
   /** `offset` takes the row's elements to flow coordinates. */

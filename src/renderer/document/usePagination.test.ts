@@ -131,4 +131,18 @@ describe('gap writer', () => {
 
     expect(view.state).toBe(drawn)
   })
+
+  it('does not dispatch again when a repeated header differs only by rounding noise', () => {
+    // Each dispatch makes the editor measure again: an endless loop on every frame.
+    const view = viewOf('above', 'opening')
+    const opening = view.state.doc.firstChild!.nodeSize
+    const header = { position: opening + 1, html: '<table></table>', height: 24.7, offsetLeft: 6.83 }
+    const write = createGapWriter()
+    write(view, { ...gapsAt(opening), headers: [{ ...header, offsetTop: 27.373448028091 }] })
+    const drawn = view.state
+
+    write(view, { ...gapsAt(opening), headers: [{ ...header, offsetTop: 27.373448028084 }] })
+
+    expect(view.state).toBe(drawn)
+  })
 })

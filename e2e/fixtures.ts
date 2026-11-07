@@ -830,18 +830,21 @@ export async function docxWithVerticalAlignment(): Promise<Buffer> {
  * A bullet list declared in `word/numbering.xml`: in the file, sibling paragraphs pointing to a
  * `numId`; in the editor, an element with the items inside.
  */
-export async function docxWithBulletList(): Promise<Buffer> {
-  const item = (content: string): string =>
-    `<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="3"/></w:numPr></w:pPr>` +
-    `<w:r><w:t xml:space="preserve">${content}</w:t></w:r></w:p>`
-
-  const numbering = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+const BULLET_NUMBERING = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:numbering xmlns:w="${W}">
 <w:abstractNum w:abstractNumId="7"><w:lvl w:ilvl="0"><w:numFmt w:val="bullet"/><w:lvlText w:val="&#xF0A7;"/>
 <w:pPr><w:ind w:left="720" w:hanging="360"/></w:pPr></w:lvl></w:abstractNum>
 <w:num w:numId="3"><w:abstractNumId w:val="7"/></w:num>
 </w:numbering>`
 
+function bulletItem(content: string, spacing = ''): string {
+  return (
+    `<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="3"/></w:numPr>${spacing}</w:pPr>` +
+    `<w:r><w:t xml:space="preserve">${content}</w:t></w:r></w:p>`
+  )
+}
+
+function bulletListPackage(body: string): Buffer {
   return zip([
     [
       '[Content_Types].xml',
@@ -858,12 +861,30 @@ export async function docxWithBulletList(): Promise<Buffer> {
         'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"',
       ),
     ],
-    ['word/numbering.xml', numbering],
-    [
-      'word/document.xml',
-      documentXml(paragraph('Antes da lista.') + item('Primeiro item') + item('Segundo item')),
-    ],
+    ['word/numbering.xml', BULLET_NUMBERING],
+    ['word/document.xml', documentXml(body)],
   ])
+}
+
+export async function docxWithBulletList(): Promise<Buffer> {
+  return bulletListPackage(
+    paragraph('Antes da lista.') + bulletItem('Primeiro item') + bulletItem('Segundo item'),
+  )
+}
+
+/**
+ * One sheet per filler count, each ending in a short list whose items have 20 pt before and after,
+ * which collapse between items: one of the sheets ends with the list right at its foot.
+ */
+export async function docxWithListsAtSheetFoot(fillers = { from: 36, to: 52 }): Promise<Buffer> {
+  const spacing = '<w:spacing w:before="400" w:after="400"/>'
+  let body = ''
+  for (let filler = fillers.from; filler <= fillers.to; filler++) {
+    body += Array.from({ length: filler }, (_, line) => paragraph(`Linha ${line + 1}`)).join('')
+    body += ['Um', 'Dois', 'Três'].map((label) => bulletItem(`${label} de ${filler}`, spacing)).join('')
+    body += '<w:p><w:r><w:br w:type="page"/></w:r></w:p>'
+  }
+  return bulletListPackage(body)
 }
 
 /**
