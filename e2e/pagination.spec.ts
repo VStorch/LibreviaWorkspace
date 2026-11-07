@@ -364,6 +364,24 @@ test.describe('live pagination', () => {
     }
   })
 
+  test('a nested table taller than the sheet splits between its rows, on screen and on paper', async () => {
+    test.skip(!(await hasPdftotext()), 'pdftotext not installed')
+    const destinationFile = join(directory, 'tabela-aninhada.pdf')
+    await openTallRow(session, directory, await docxWithTallRow({ nested: true }))
+    await expect.poll(() => session.window.locator('.paper').count()).toBeGreaterThanOrEqual(2)
+    await expect.poll(() => linesOutsideSheets(session)).toEqual([])
+    await expect(session.window.locator('.paper--oversized')).toHaveCount(0)
+    const onScreen = await linesBySheet(session)
+
+    await stubDialogs(session.app, { save: destinationFile, messageBox: 1 })
+    await menu(session, 'export-pdf')
+    await expect.poll(async () => countPages(destinationFile), { timeout: 30000 }).toBe(onScreen.length)
+    for (let page = 1; page <= onScreen.length; page++) {
+      const text = await pdfText(destinationFile, { page })
+      expect(text.match(/Trecho \d+/g) ?? []).toEqual(onScreen[page - 1])
+    }
+  })
+
   test('a row marked not to split moves whole to the next sheet', async () => {
     await openTallRow(
       session,

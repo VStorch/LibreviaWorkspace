@@ -1222,10 +1222,22 @@ export async function docxWithLongTable(rows = 80, header = false): Promise<Buff
  * after `filler` paragraphs.
  */
 export async function docxWithTallRow(
-  options: { paragraphs?: number; cantSplit?: boolean; filler?: number } = {},
+  options: {
+    paragraphs?: number
+    cantSplit?: boolean
+    filler?: number
+    nested?: boolean
+  } = {},
 ): Promise<Buffer> {
-  const { paragraphs = 70, cantSplit = false, filler = 0 } = options
-  const lines = Array.from({ length: paragraphs }, (_, index) => paragraph(`Trecho ${index + 1}`)).join('')
+  const { paragraphs = 70, cantSplit = false, filler = 0, nested = false } = options
+  const texts = Array.from({ length: paragraphs }, (_, index) => `Trecho ${index + 1}`)
+  const lines = nested
+    ? '<w:tbl><w:tblPr/><w:tblGrid><w:gridCol w:w="3000"/><w:gridCol w:w="3000"/></w:tblGrid>' +
+      texts
+        .map((text) => `<w:tr><w:tc>${paragraph(text)}</w:tc><w:tc>${paragraph('Item')}</w:tc></w:tr>`)
+        .join('') +
+      `</w:tbl>${paragraph('')}`
+    : texts.map((text) => paragraph(text)).join('')
   const table =
     '<w:tbl><w:tblPr/><w:tblGrid><w:gridCol w:w="2000"/><w:gridCol w:w="7000"/></w:tblGrid>' +
     `<w:tr>${cantSplit ? '<w:trPr><w:cantSplit/></w:trPr>' : ''}` +

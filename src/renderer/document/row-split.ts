@@ -30,11 +30,14 @@ export interface ResolvedRowSplit {
  */
 const LINE_EDGE_PX = 2
 
-/** A line of text, or a nested table, which only moves whole and has nowhere to get a spacer. */
+/**
+ * A line of text, or a row of a nested table, which gets a spacer in each of its cells. Without
+ * positions (an image, a row whose cell opens with a table), it only moves whole with the row.
+ */
 interface Unit {
   readonly top: number
   readonly bottom: number
-  readonly positionOf: (() => number | null) | null
+  readonly positionsOf: (() => number[] | null) | null
 }
 
 interface RowGeometry {
@@ -52,7 +55,7 @@ export function rowSplitsOf(row: HTMLTableRowElement, geometry: RowGeometry): Ro
   const bottom = top + geometry.height(row)
   const candidates = [
     ...new Set(
-      units.flatMap((list) => list.filter((unit) => unit.positionOf !== null).map((unit) => unit.top)),
+      units.flatMap((list) => list.filter((unit) => unit.positionsOf !== null).map((unit) => unit.top)),
     ),
   ]
     .filter((at) => at > top + 0.5 && at < bottom - 0.5)
@@ -83,7 +86,7 @@ function splitAt(
       continue
     }
     const unit = list[index]!
-    if (unit.positionOf === null) return null
+    if (unit.positionsOf === null) return null
     carried = Math.max(carried, at - unit.top)
     moved.push({ cell, unit })
   }
@@ -103,10 +106,10 @@ function resolveSplit(
   const positions: number[] = []
   const offsets: (number | null)[] = cells.map(() => null)
   for (const { cell, unit } of moved) {
-    const position = unit.positionOf?.() ?? null
-    if (position === null) return null
-    positions.push(position)
-    offsets[cell] = cellOffsetOf(view, cells[cell]!, position)
+    const found = unit.positionsOf?.() ?? null
+    if (found === null || found.length === 0) return null
+    positions.push(...found)
+    offsets[cell] = cellOffsetOf(view, cells[cell]!, found[0]!)
   }
   return { positions, cells: offsets }
 }
@@ -139,9 +142,7 @@ function unitsOf(container: HTMLElement, geometry: RowGeometry): Unit[] {
     } else if (child.tagName === 'UL' || child.tagName === 'OL' || child.tagName === 'LI') {
       units.push(...unitsOf(child, geometry))
     } else {
-      const top = geometry.flowTop(child)
-      if (geometry.height(child) > 0)
-        units.push({ top, bottom: top + geometry.height(child), positionOf: null })
+      units.push(...nestedRowsOf(child, geometry))
     }
   }
   return units
@@ -153,12 +154,43 @@ function linesOf(textblock: HTMLElement, geometry: RowGeometry, firstMoves: bool
   if (height <= 0) return []
   const lines = measureLines(geometry.view, textblock)
   const tops = [top, ...lines.starts.map((start) => top + start)]
-  const first = firstMoves ? () => safePosition(geometry.view, textblock) : null
+  const first = firstMoves ? () => listOf(safePosition(geometry.view, textblock)) : null
   return tops.map((lineTop, index) => ({
     top: lineTop,
     bottom: tops[index + 1] ?? top + height,
-    positionOf: index === 0 ? first : () => lines.positionOf(index - 1),
+    positionsOf: index === 0 ? first : () => listOf(lines.positionOf(index - 1)),
   }))
+}
+
+/** A nested table breaks between its rows; anything else moves whole. */
+function nestedRowsOf(child: HTMLElement, geometry: RowGeometry): Unit[] {
+  const table = child instanceof HTMLTableElement ? child : child.querySelector(':scope > table')
+  if (!(table instanceof HTMLTableElement) || table.rows.length === 0) {
+    const top = geometry.flowTop(child)
+    const height = geometry.height(child)
+    return height > 0 ? [{ top, bottom: top + height, positionsOf: null }] : []
+  }
+  return Array.from(table.rows).map((row) => {
+    const top = geometry.flowTop(row)
+    return { top, bottom: top + geometry.height(row), positionsOf: () => rowStartsOf(row, geometry.view) }
+  })
+}
+
+/** The first character of each cell, where its spacer goes; `null` if a cell opens with no text. */
+function rowStartsOf(row: HTMLTableRowElement, view: EditorView): number[] | null {
+  const positions: number[] = []
+  for (const cell of Array.from(row.cells)) {
+    const first = cell.firstElementChild
+    if (!(first instanceof HTMLElement) || !/^(P|H[1-6])$/.test(first.tagName)) return null
+    const position = safePosition(view, first)
+    if (position === null) return null
+    positions.push(position)
+  }
+  return positions
+}
+
+function listOf(position: number | null): number[] | null {
+  return position === null ? null : [position]
 }
 
 function safePosition(view: EditorView, textblock: HTMLElement): number | null {

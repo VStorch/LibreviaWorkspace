@@ -397,7 +397,8 @@ linha**, do mesmo jeito que o Word e o LibreOffice fazem:
 - uma linha não fica sozinha no topo ou no pé da folha (são as "viúvas" e "órfãs");
 - a linha de cabeçalho de uma tabela se repete no alto de cada folha em que a tabela continua;
 - uma linha de tabela também pode começar numa folha e terminar na seguinte, a não ser que o Word
-  a tenha marcado para ficar inteira ("Permitir quebra de linha entre páginas" desligado).
+  a tenha marcado para ficar inteira ("Permitir quebra de linha entre páginas" desligado). Uma
+  tabela dentro de uma célula quebra entre as linhas dela.
 
 O número de páginas da barra de status é o mesmo do PDF e do papel.
 
