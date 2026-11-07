@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Falha de segurança
+  - name: Security flaw
     url: https://github.com/VStorch/LibreviaWorkspace/security/advisories/new
-    about: Relate em particular, para que a falha não fique à vista antes da correção.
-  - name: Manual de uso
+    about: Report it privately, so the flaw is not exposed before the fix.
+  - name: User manual
     url: https://github.com/VStorch/LibreviaWorkspace/blob/main/MANUAL.md
-    about: Como usar cada função, os atalhos e os limites conhecidos.
+    about: How to use each feature, the shortcuts and the known limits (in Portuguese).
