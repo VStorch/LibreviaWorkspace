@@ -209,97 +209,97 @@ public sealed class BodyReader(
             switch (element)
             {
                 case Paragraph paragraph:
-                {
-                    // Only a loose paragraph in the body stops being flattened (`.page__content >
-                    // p`).
-                    var numbered = _numbering.ListKindOf(paragraph.ParagraphProperties);
-                    var node = ReadParagraph(paragraph, flat: flatten || _oidPrefix is not null || numbered is not null);
-                    var list = node.Type == "pageBreak" ? null : numbered;
+                    {
+                        // Only a loose paragraph in the body stops being flattened (`.page__content >
+                        // p`).
+                        var numbered = _numbering.ListKindOf(paragraph.ParagraphProperties);
+                        var node = ReadParagraph(paragraph, flat: flatten || _oidPrefix is not null || numbered is not null);
+                        var list = node.Type == "pageBreak" ? null : numbered;
 
-                    if (list is null)
+                        if (list is null)
+                        {
+                            openLists.Clear();
+                            Add(NewBlock(element, node));
+                            content.Add(node);
+                            break;
+                        }
+
+                        var (kind, level) = (list.Kind, list.Level);
+                        while (openLists.Count > 0 && openLists[^1].Level > level)
+                        {
+                            openLists.RemoveAt(openLists.Count - 1);
+                        }
+
+                        // At the same level, another numbering is another list, as in Word.
+                        if (openLists.Count > 0 && openLists[^1].Level == level &&
+                            (openLists[^1].Kind != kind || openLists[^1].NumId != list.NumberingId))
+                        {
+                            openLists.RemoveAt(openLists.Count - 1);
+                        }
+
+                        if (openLists.Count == 0 || openLists[^1].Level < level)
+                        {
+                            var listNode = Node.Of(kind);
+                            listNode.Content = [];
+                            var parent = openLists.Count > 0 ? openLists[^1] : default;
+                            var depth = openLists.Count;
+
+                            // The marker and the indent belong to the level. The `numId` travels on the
+                            // node: without it the writer would write `w:numId w:val="0"`, "no
+                            // numbering".
+                            listNode.With("numId", list.NumberingId);
+
+                            if (list.Marker is { } marker) listNode.With("marker", marker);
+
+                            // The `start` the editor materializes on every numbered list: it enters the
+                            // outer item's fingerprint.
+                            if (kind == "orderedList") listNode.With("start", 1);
+                            if (list.IndentMm is { } indent) listNode.With("indentMm", indent);
+                            if (list.HangingMm is { } hanging) listNode.With("hangingMm", hanging);
+
+                            // The definition only where the numbering changes.
+                            if (depth == 0 || parent.NumId != list.NumberingId)
+                            {
+                                listNode.With("numbering", list.Definition);
+                            }
+
+                            // A list starting at level 2 lives at the top of the tree: without this it
+                            // would go back to the file at level 0.
+                            if (level != (depth == 0 ? 0 : parent.Level + 1)) listNode.With("level", level);
+
+                            if (depth > 0)
+                            {
+                                var parentItems = parent.List.Content!;
+                                (parentItems[^1].Content ??= []).Add(listNode);
+                            }
+                            else
+                            {
+                                content.Add(listNode);
+                            }
+
+                            openLists.Add((listNode, kind, level, list.NumberingId));
+                        }
+
+                        // On the `listItem`: the item is what corresponds to a `w:p`.
+                        var item = Node.Of("listItem");
+                        item.Content = [node];
+                        openLists[^1].List.Content!.Add(item);
+                        CarrySpacing(openLists[^1].List, node);
+                        Add(NewBlock(element, item));
+
+                        // The section ends at the item, as in Word: the next one opens another list.
+                        if (node.Attrs?.ContainsKey("sectionBreak") == true) openLists.Clear();
+                        break;
+                    }
+
+                case Table table:
                     {
                         openLists.Clear();
+                        var node = ReadTable(table);
                         Add(NewBlock(element, node));
                         content.Add(node);
                         break;
                     }
-
-                    var (kind, level) = (list.Kind, list.Level);
-                    while (openLists.Count > 0 && openLists[^1].Level > level)
-                    {
-                        openLists.RemoveAt(openLists.Count - 1);
-                    }
-
-                    // At the same level, another numbering is another list, as in Word.
-                    if (openLists.Count > 0 && openLists[^1].Level == level &&
-                        (openLists[^1].Kind != kind || openLists[^1].NumId != list.NumberingId))
-                    {
-                        openLists.RemoveAt(openLists.Count - 1);
-                    }
-
-                    if (openLists.Count == 0 || openLists[^1].Level < level)
-                    {
-                        var listNode = Node.Of(kind);
-                        listNode.Content = [];
-                        var parent = openLists.Count > 0 ? openLists[^1] : default;
-                        var depth = openLists.Count;
-
-                        // The marker and the indent belong to the level. The `numId` travels on the
-                        // node: without it the writer would write `w:numId w:val="0"`, "no
-                        // numbering".
-                        listNode.With("numId", list.NumberingId);
-
-                        if (list.Marker is { } marker) listNode.With("marker", marker);
-
-                        // The `start` the editor materializes on every numbered list: it enters the
-                        // outer item's fingerprint.
-                        if (kind == "orderedList") listNode.With("start", 1);
-                        if (list.IndentMm is { } indent) listNode.With("indentMm", indent);
-                        if (list.HangingMm is { } hanging) listNode.With("hangingMm", hanging);
-
-                        // The definition only where the numbering changes.
-                        if (depth == 0 || parent.NumId != list.NumberingId)
-                        {
-                            listNode.With("numbering", list.Definition);
-                        }
-
-                        // A list starting at level 2 lives at the top of the tree: without this it
-                        // would go back to the file at level 0.
-                        if (level != (depth == 0 ? 0 : parent.Level + 1)) listNode.With("level", level);
-
-                        if (depth > 0)
-                        {
-                            var parentItems = parent.List.Content!;
-                            (parentItems[^1].Content ??= []).Add(listNode);
-                        }
-                        else
-                        {
-                            content.Add(listNode);
-                        }
-
-                        openLists.Add((listNode, kind, level, list.NumberingId));
-                    }
-
-                    // On the `listItem`: the item is what corresponds to a `w:p`.
-                    var item = Node.Of("listItem");
-                    item.Content = [node];
-                    openLists[^1].List.Content!.Add(item);
-                    CarrySpacing(openLists[^1].List, node);
-                    Add(NewBlock(element, item));
-
-                    // The section ends at the item, as in Word: the next one opens another list.
-                    if (node.Attrs?.ContainsKey("sectionBreak") == true) openLists.Clear();
-                    break;
-                }
-
-                case Table table:
-                {
-                    openLists.Clear();
-                    var node = ReadTable(table);
-                    Add(NewBlock(element, node));
-                    content.Add(node);
-                    break;
-                }
 
                 case SectionProperties:
                     break;
@@ -1270,13 +1270,13 @@ public sealed class BodyReader(
 
                 // The number is the document order; the note body goes inside the node.
                 case FootnoteReference or EndnoteReference when notes && _textBoxDepth == 0:
-                {
-                    var noteRef = ReadNoteRef(element);
-                    if (IsCustomMark(element)) customMark = noteRef;
-                    _paragraphHasContent = true;
-                    yield return noteRef;
-                    break;
-                }
+                    {
+                        var noteRef = ReadNoteRef(element);
+                        if (IsCustomMark(element)) customMark = noteRef;
+                        _paragraphHasContent = true;
+                        yield return noteRef;
+                        break;
+                    }
 
                 // Word draws the body's number, and saving rebuilds it (NotesWriter).
                 case FootnoteReferenceMark or EndnoteReferenceMark when _oidPrefix is not null:

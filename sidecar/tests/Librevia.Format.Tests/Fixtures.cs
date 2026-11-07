@@ -84,7 +84,9 @@ public static class Fixtures
             new DocumentFormat.OpenXml.Office2013.Word.CommentEx { ParaId = "10000000", Done = false },
             new DocumentFormat.OpenXml.Office2013.Word.CommentEx
             {
-                ParaId = "10000001", ParaIdParent = "10000000", Done = false,
+                ParaId = "10000001",
+                ParaIdParent = "10000000",
+                Done = false,
             },
             new DocumentFormat.OpenXml.Office2013.Word.CommentEx { ParaId = "10000002", Done = true },
             new DocumentFormat.OpenXml.Office2013.Word.CommentEx { ParaId = "10000003", Done = false });
@@ -739,7 +741,8 @@ public static class Fixtures
         section.AppendChild(new Columns(
             new Column { Width = "2000", Space = "400" },
             new Column { Width = "3000", Space = "400" },
-            new Column { Width = "3226" }) { ColumnCount = 3, EqualWidth = false });
+            new Column { Width = "3226" })
+        { ColumnCount = 3, EqualWidth = false });
     });
 
     /// <summary>
@@ -1069,11 +1072,13 @@ public static class Fixtures
         numbering.Numbering = new Numbering(
             new AbstractNum(
                 Level(0, NumberFormatValues.Decimal, "%1.", 360),
-                Level(1, NumberFormatValues.LowerLetter, "%1.%2)", 720)) { AbstractNumberId = 3 },
+                Level(1, NumberFormatValues.LowerLetter, "%1.%2)", 720))
+            { AbstractNumberId = 3 },
             new NumberingInstance(new AbstractNumId { Val = 3 }) { NumberID = 5 },
             new NumberingInstance(
                 new AbstractNumId { Val = 3 },
-                new LevelOverride(new StartOverrideNumberingValue { Val = 10 }) { LevelIndex = 0 }) { NumberID = 6 });
+                new LevelOverride(new StartOverrideNumberingValue { Val = 10 }) { LevelIndex = 0 })
+            { NumberID = 6 });
 
         body.AppendChild(Paragraph("Introdução."));
         body.AppendChild(NumberedParagraph("Um", 5));
@@ -1526,7 +1531,8 @@ public static class Fixtures
                     new NumberingFormat { Val = NumberFormatValues.LowerLetter },
                     new LevelText { Val = "%2." },
                     new PreviousParagraphProperties(new Indentation { Left = "1440", Hanging = "360" }))
-                { LevelIndex = 1 }) { AbstractNumberId = 4 },
+                { LevelIndex = 1 })
+            { AbstractNumberId = 4 },
             new NumberingInstance(new AbstractNumId { Val = 4 }) { NumberID = 1 });
 
         body.AppendChild(NumberedParagraph("Primeiro", 1));
