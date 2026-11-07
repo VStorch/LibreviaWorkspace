@@ -63,7 +63,11 @@ export function applyPageGaps(
   const decorations: Decoration[] = []
 
   // The repeated header is a copy in a widget: outside selection and editing.
+  const inLine = new Map(
+    headers.filter((header) => header.inLine === true).map((header) => [header.position, header]),
+  )
   for (const header of headers) {
+    if (header.inLine === true) continue
     if (header.position <= 0 || header.position > view.state.doc.content.size) continue
     decorations.push(
       Decoration.widget(header.position, () => repeatedHeader(header), {
@@ -79,11 +83,12 @@ export function applyPageGaps(
   // same justification. `vertical-align: top` does not add the descender to the gap.
   for (const [position, gap] of lines) {
     if (gap <= 0 || position <= 0 || position > view.state.doc.content.size) continue
+    const header = inLine.get(position)
     decorations.push(
-      Decoration.widget(position, () => lineGap(gap), {
+      Decoration.widget(position, () => lineGap(gap, header), {
         side: -1,
         ignoreSelection: true,
-        key: `page-line-gap:${gap.toFixed(2)}`,
+        key: `page-line-gap:${gap.toFixed(2)}${header === undefined ? '' : `:${header.height.toFixed(2)}:${header.offsetLeft.toFixed(2)}:${header.html.length}`}`,
       }),
     )
   }
@@ -135,6 +140,8 @@ export interface RepeatedHeader {
   /** From the corner of the cell content. */
   readonly offsetTop: number
   readonly offsetLeft: number
+  /** In the spacer of a line that continues a split row, instead of before a row's cell. */
+  readonly inLine?: boolean
 }
 
 export const REPEATED_HEADER_CLASS = 'page-repeated-header'
@@ -152,13 +159,23 @@ function repeatedHeader(header: RepeatedHeader): HTMLElement {
 }
 
 /** `data-page-shift` is what measuring subtracts. */
-function lineGap(gap: number): HTMLElement {
+function lineGap(gap: number, header: RepeatedHeader | undefined): HTMLElement {
   const element = document.createElement('span')
   element.className = LINE_GAP_CLASS
   element.contentEditable = 'false'
   element.setAttribute('aria-hidden', 'true')
   element.dataset.pageShift = String(gap)
   element.style.cssText = `display:inline-block;width:100%;height:${gap}px;vertical-align:top;line-height:0;`
+  if (header !== undefined) {
+    const copy = repeatedHeader(header)
+    copy.style.marginTop = '0'
+    copy.style.top = `${gap - header.height}px`
+    copy.style.left = `${-header.offsetLeft}px`
+    copy.style.marginLeft = '0'
+    copy.style.lineHeight = 'normal'
+    element.style.position = 'relative'
+    element.appendChild(copy)
+  }
   return element
 }
 

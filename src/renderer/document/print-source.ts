@@ -425,8 +425,10 @@ function markSplitRows(
 ): void {
   const first = holder.firstElementChild
   if (start.cells !== undefined && first instanceof HTMLTableElement) {
-    const row = blocks[start.blockIndex]?.maybeChild(start.childIndex ?? 0)
-    forEachCutCell(first.rows[0], row, start.cells, (cell) => {
+    const table = blocks[start.blockIndex]
+    const row = table?.maybeChild(start.childIndex ?? 0)
+    const repeated = table === undefined || start.repeatHeader !== true ? 0 : headerRowCount(table)
+    forEachCutCell(first.rows[repeated], row, start.cells, (cell) => {
       const piece = cell.querySelector<HTMLElement>(TEXTBLOCK_SELECTOR)
       if (piece === null) return
       piece.style.marginTop = '0'
@@ -444,6 +446,12 @@ function markSplitRows(
 }
 
 const TEXTBLOCK_SELECTOR = 'p, h1, h2, h3, h4, h5, h6'
+
+function headerRowCount(table: ProseMirrorNode): number {
+  let count = 0
+  while (count < table.childCount && isHeaderRow(table, count)) count++
+  return count
+}
 
 function forEachCutCell(
   element: HTMLTableRowElement | undefined,

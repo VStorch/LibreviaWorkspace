@@ -396,7 +396,8 @@ by line**, the same way Word and LibreOffice do it:
 - a paragraph can start on one sheet and end on the next;
 - a line does not stay alone at the top or bottom of the sheet (these are "widows" and
   "orphans");
-- a table's header row repeats at the top of each sheet the table continues on;
+- a table's header row repeats at the top of each sheet the table continues on, even when a row
+  continues there;
 - a table row can also start on one sheet and end on the next, unless Word marked it to stay
   whole ("Allow row to break across pages" off). A table inside a cell breaks between its rows.
 

@@ -188,6 +188,8 @@ interface CutTarget {
   /** A break between rows of a table with a header: what repeats at the top of the sheet. */
   readonly header?: () => RepeatedHeader
   readonly rowSplit?: RowSplit
+  /** A break inside a row of a table with a header: the header goes above the given line. */
+  readonly lineHeader?: (position: number) => RepeatedHeader
 }
 
 export interface BlockAnchor {
@@ -633,6 +635,13 @@ class DocumentMeasurer {
           { blockIndex: drawn.blockIndex, childIndex },
           this.accumulated + internal + shift,
           cuts,
+          table !== null && header.repeatHeight > 0
+            ? (position) =>
+                headerAtLine(this.editor, table, header.rows.slice(0, header.headerRows), {
+                  position,
+                  height: header.repeatHeight,
+                })
+            : undefined,
         )
       }
       internal += shift
@@ -651,7 +660,13 @@ class DocumentMeasurer {
   }
 
   /** `offset` takes the row's elements to flow coordinates. */
-  private pushRowSplits(row: HTMLTableRowElement, start: PageStart, offset: number, cuts: ChildCuts): void {
+  private pushRowSplits(
+    row: HTMLTableRowElement,
+    start: PageStart,
+    offset: number,
+    cuts: ChildCuts,
+    lineHeader: ((position: number) => RepeatedHeader) | undefined,
+  ): void {
     if (row.hasAttribute(CANT_SPLIT_ATTR)) return
     const splits = rowSplitsOf(row, {
       view: this.editor.view,
@@ -661,7 +676,13 @@ class DocumentMeasurer {
     for (const split of splits) {
       cuts.breakpoints.push(split.at)
       cuts.carriedAt.set(split.at, split.carried)
-      this.targets.push({ at: split.at, start, nodes: [], rowSplit: split })
+      this.targets.push({
+        at: split.at,
+        start,
+        nodes: [],
+        rowSplit: split,
+        ...(lineHeader === undefined ? {} : { lineHeader }),
+      })
     }
   }
 
@@ -914,7 +935,8 @@ class SheetStack {
     shift: number,
     opening: SectionMetrics,
   ): number {
-    if (target?.rowSplit !== undefined && split !== null) return this.openInsideRow(at, target, split, shift)
+    if (target?.rowSplit !== undefined && split !== null)
+      return this.openInsideRow(at, { target, split, shift }, opening)
     if (target?.line !== undefined && position !== null)
       return this.openInsideParagraph(at, target, position, shift)
     if (target === undefined) {
@@ -946,11 +968,22 @@ class SheetStack {
   }
 
   /** Paper cuts each cell at the same character. */
-  private openInsideRow(at: number, target: CutTarget, split: ResolvedRowSplit, shift: number): number {
+  private openInsideRow(
+    at: number,
+    { target, split, shift }: { target: CutTarget; split: ResolvedRowSplit; shift: number },
+    opening: SectionMetrics,
+  ): number {
     const carried = target.rowSplit?.carried ?? 0
-    for (const position of split.positions) this.lineGaps.set(position, shift + carried)
-    this.pageStarts.push({ ...target.start, cells: split.cells })
-    return at - carried
+    const header = target.lineHeader?.(split.first)
+    const extra = header !== undefined && header.height < opening.contentPx / 2 ? header.height : 0
+    if (header !== undefined && extra > 0) this.headers.push(header)
+    for (const position of split.positions) this.lineGaps.set(position, shift + carried + extra)
+    this.pageStarts.push({
+      ...target.start,
+      cells: split.cells,
+      ...(extra > 0 ? { repeatHeader: true } : {}),
+    })
+    return at - carried - extra
   }
 
   closeLast(bottom: number): void {
@@ -1255,17 +1288,40 @@ function repeatedHeader(
   const style = getComputedStyle(cell)
   const left = (cellBox.left - tableBox.left) / scale + cell.clientLeft + parseFloat(style.paddingLeft)
   const natural = parseFloat(style.paddingTop) - shiftOf(cell)
-  const colgroup = table.querySelector(':scope > colgroup')?.outerHTML ?? ''
-  const html =
-    `<table class="${table.className}" style="width:${table.offsetWidth}px;margin:0">${colgroup}` +
-    `<tbody>${headerRows.map(cleanHeaderRow).join('')}</tbody></table>`
   return {
     position: editor.view.posAtDOM(cell, 0),
-    html,
+    html: headerHtml(table, headerRows),
     height,
     offsetTop: height + Math.max(natural, 0),
     offsetLeft: left,
   }
+}
+
+/** Drawn inside the line's spacer, whose foot is where the line starts on the new sheet. */
+function headerAtLine(
+  editor: Editor,
+  table: HTMLTableElement,
+  headerRows: readonly HTMLTableRowElement[],
+  { position, height }: { position: number; height: number },
+): RepeatedHeader {
+  const left =
+    (editor.view.coordsAtPos(position, 1).left - table.getBoundingClientRect().left) / screenScaleOf(table)
+  return {
+    position,
+    html: headerHtml(table, headerRows),
+    height,
+    offsetTop: height,
+    offsetLeft: left,
+    inLine: true,
+  }
+}
+
+function headerHtml(table: HTMLTableElement, headerRows: readonly HTMLTableRowElement[]): string {
+  const colgroup = table.querySelector(':scope > colgroup')?.outerHTML ?? ''
+  return (
+    `<table class="${table.className}" style="width:${table.offsetWidth}px;margin:0">${colgroup}` +
+    `<tbody>${headerRows.map(cleanHeaderRow).join('')}</tbody></table>`
+  )
 }
 
 /** No selection, search, handle or gaps: copied, they would show on every sheet. */

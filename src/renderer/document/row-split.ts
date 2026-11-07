@@ -21,6 +21,8 @@ export interface ResolvedRowSplit {
   readonly positions: readonly number[]
   /** Paper's cut in each cell, relative to its content; `null` when the cell ended above. */
   readonly cells: readonly (number | null)[]
+  /** The moved line that opens the sheet, highest of all: the repeated header goes above it. */
+  readonly first: number
 }
 
 /**
@@ -105,13 +107,15 @@ function resolveSplit(
 ): ResolvedRowSplit | null {
   const positions: number[] = []
   const offsets: (number | null)[] = cells.map(() => null)
+  let first: { readonly top: number; readonly position: number } | null = null
   for (const { cell, unit } of moved) {
     const found = unit.positionsOf?.() ?? null
     if (found === null || found.length === 0) return null
     positions.push(...found)
     offsets[cell] = cellOffsetOf(view, cells[cell]!, found[0]!)
+    if (first === null || unit.top < first.top) first = { top: unit.top, position: found[0]! }
   }
-  return { positions, cells: offsets }
+  return first === null ? null : { positions, cells: offsets, first: first.position }
 }
 
 /**

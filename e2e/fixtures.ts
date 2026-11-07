@@ -1227,9 +1227,10 @@ export async function docxWithTallRow(
     cantSplit?: boolean
     filler?: number
     nested?: boolean
+    header?: boolean
   } = {},
 ): Promise<Buffer> {
-  const { paragraphs = 70, cantSplit = false, filler = 0, nested = false } = options
+  const { paragraphs = 70, cantSplit = false, filler = 0, nested = false, header = false } = options
   const texts = Array.from({ length: paragraphs }, (_, index) => `Trecho ${index + 1}`)
   const lines = nested
     ? '<w:tbl><w:tblPr/><w:tblGrid><w:gridCol w:w="3000"/><w:gridCol w:w="3000"/></w:tblGrid>' +
@@ -1240,6 +1241,9 @@ export async function docxWithTallRow(
     : texts.map((text) => paragraph(text)).join('')
   const table =
     '<w:tbl><w:tblPr/><w:tblGrid><w:gridCol w:w="2000"/><w:gridCol w:w="7000"/></w:tblGrid>' +
+    (header
+      ? `<w:tr><w:trPr><w:tblHeader/></w:trPr><w:tc>${paragraph('Cabeçalho A')}</w:tc><w:tc>${paragraph('Cabeçalho B')}</w:tc></w:tr>`
+      : '') +
     `<w:tr>${cantSplit ? '<w:trPr><w:cantSplit/></w:trPr>' : ''}` +
     `<w:tc>${paragraph('Campo')}</w:tc><w:tc>${lines}</w:tc></w:tr></w:tbl>`
   const before = Array.from({ length: filler }, (_, index) => paragraph(`Preenchimento ${index + 1}`)).join(

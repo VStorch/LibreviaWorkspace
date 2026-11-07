@@ -382,6 +382,44 @@ test.describe('live pagination', () => {
     }
   })
 
+  test('the header row repeats on the sheet where a split row continues, on screen and on paper', async () => {
+    test.skip(!(await hasPdftotext()), 'pdftotext not installed')
+    const destinationFile = join(directory, 'cabecalho-linha-alta.pdf')
+    await openTallRow(session, directory, await docxWithTallRow({ header: true }))
+    await expect.poll(() => session.window.locator('.paper').count()).toBeGreaterThanOrEqual(2)
+    await expect.poll(() => linesOutsideSheets(session)).toEqual([])
+    const repeated = session.window.locator('.page-repeated-header')
+    await expect.poll(() => repeated.count()).toBe((await session.window.locator('.paper').count()) - 1)
+    await expect(repeated.first()).toContainText('Cabeçalho B')
+
+    const placement = await session.window.evaluate(() => {
+      const header = document.querySelector('.page-repeated-header')!
+      const sheet = document.querySelectorAll('.paper')[1]!.getBoundingClientRect()
+      const range = document.createRange()
+      range.selectNodeContents(header.closest('p')!.lastChild!)
+      return {
+        copy: header.getBoundingClientRect().toJSON() as DOMRect,
+        sheet: sheet.toJSON() as DOMRect,
+        line: range.getBoundingClientRect().top,
+        copyLeft: header.querySelector('th')!.getBoundingClientRect().left,
+        originalLeft: document.querySelector('.ProseMirror th')!.getBoundingClientRect().left,
+      }
+    })
+    expect(placement.copy.top).toBeGreaterThanOrEqual(placement.sheet.top)
+    expect(placement.copy.bottom).toBeLessThanOrEqual(placement.line + 1)
+    expect(Math.abs(placement.copyLeft - placement.originalLeft)).toBeLessThanOrEqual(1)
+
+    const onScreen = await linesBySheet(session)
+    await stubDialogs(session.app, { save: destinationFile, messageBox: 1 })
+    await menu(session, 'export-pdf')
+    await expect.poll(async () => countPages(destinationFile), { timeout: 30000 }).toBe(onScreen.length)
+    for (let page = 1; page <= onScreen.length; page++) {
+      const text = await pdfText(destinationFile, { page })
+      expect(text).toContain('Cabeçalho B')
+      expect(text.match(/Trecho \d+/g) ?? []).toEqual(onScreen[page - 1])
+    }
+  })
+
   test('a row marked not to split moves whole to the next sheet', async () => {
     await openTallRow(
       session,
@@ -453,8 +491,8 @@ async function linesBySheet(session: Session): Promise<string[][]> {
     const bySheet: string[][] = sheets.map(() => [])
     const range = document.createRange()
     for (const line of Array.from(document.querySelectorAll('.ProseMirror td p'))) {
-      const label = line.textContent ?? ''
       const text = Array.from(line.childNodes).find((node) => node.nodeType === Node.TEXT_NODE)
+      const label = text?.textContent ?? ''
       if (!/^Trecho \d+$/.test(label) || text === undefined) continue
       range.selectNodeContents(text)
       const top = range.getBoundingClientRect().top
