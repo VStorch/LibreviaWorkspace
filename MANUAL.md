@@ -40,8 +40,8 @@ depois que você o configura e permite.
 Baixe o arquivo, dê permissão de execução e abra:
 
 ```bash
-chmod +x Librevia-0.5.0.AppImage
-./Librevia-0.5.0.AppImage
+chmod +x Librevia-*.AppImage
+./Librevia-*.AppImage
 ```
 
 ### 🐧 Linux — pacote `.deb`
@@ -49,7 +49,7 @@ chmod +x Librevia-0.5.0.AppImage
 Instala no menu de aplicativos, como qualquer outro programa:
 
 ```bash
-sudo apt install ./librevia_0.5.0_amd64.deb
+sudo apt install ./librevia_*_amd64.deb
 ```
 
 ### 🪟 Windows
@@ -84,14 +84,28 @@ E estes, o Librevia **cria**. O `.pdf` também abre para leitura, como mostra a 
 | Extensão | Como |
 | --- | --- |
 | `.pdf` | **Arquivo → Exportar para PDF…**, para documentos e planilhas |
-| `.html`, `.md`, `.odt` | **Arquivo → Exportar como**, só para documentos |
+| `.docx`, `.odt`, `.html`, `.md` | **Arquivo → Exportar como**, só para documentos |
 
-> ℹ️ **Um `.odt` abre e salva como o `.docx`.** Só o bloco que você editou é escrito de novo; o
-> resto volta como estava. O "Salvar como" oferece `.odt` para qualquer documento: um documento
-> novo, um `.sdoc` ou um `.docx` vão inteiros para um `.odt` novo, que passa a ser o arquivo aberto.
->
-> **Planilhas `.ods` não abrem.** Peça a quem enviou que salve como `.xlsx`. O LibreOffice faz
-> isso pelo "Salvar como".
+<a id="documentos-do-libreoffice-odt"></a>
+
+### Documentos do LibreOffice (`.odt`)
+
+Um `.odt` abre e salva como o `.docx`: só o bloco que você editou é escrito de novo, e o resto volta
+como estava. O "Salvar como" oferece `.odt` para qualquer documento: um documento novo, um `.sdoc`
+ou um `.docx` vão inteiros para um `.odt` novo, que passa a ser o arquivo aberto.
+
+Abrem e voltam ao arquivo: notas de rodapé e de fim, comentários com respostas, equações,
+cabeçalho e rodapé (com versões para a primeira página e para as pares), seções com papel, margens
+e colunas próprios, e alterações controladas (texto inserido, excluído e parágrafo unido).
+Número de página, total de páginas, data, hora, título e autor viram campos, como no `.docx`.
+
+O que o Librevia não mostra (mudança de formatação controlada, indicador, seção sem colunas ou
+dentro de outra, caixa de texto, desenho, formulário, outros campos) fica no arquivo enquanto você
+não edita o bloco onde está. O aplicativo avisa ao abrir; se você editar esse bloco, ele se perde
+ali, e o aviso aparece ao salvar.
+
+**Planilhas `.ods` não abrem.** Peça a quem enviou que salve como `.xlsx`. O LibreOffice faz isso
+pelo "Salvar como".
 
 ### Modelos
 
@@ -456,9 +470,8 @@ selecionada, as setas do teclado também redimensionam.
 se chamar **Propriedades da imagem** (também em **Formatar → Imagem…**). O texto alternativo é o
 que um leitor de tela lê no lugar da imagem, e vai para o arquivo.
 
-**Mesclagem vertical**: células mescladas de cima para baixo num `.docx` continuam mescladas no
-arquivo. Mesclar **na vertical** dentro do Librevia funciona na tela, mas ainda não vai para o
-`.docx`; ao salvar, o aviso de perda diz isso. Mesclar na horizontal vai normalmente.
+**Mesclagem**: células mescladas num `.docx`, na horizontal ou na vertical, continuam mescladas, e
+as que você mescla aqui também vão para o arquivo.
 
 ---
 
@@ -686,7 +699,12 @@ Para desligar: **Ferramentas → Autocorreção tipográfica**. O que já foi tr
 
 O assistente reescreve, resume, revisa ou traduz o trecho que você selecionar, e conversa sobre o
 documento. Na planilha, ele explica e cria fórmulas e preenche colunas (veja
-[Nas planilhas](#nas-planilhas)). Ele vem **desligado**: enquanto nenhum assistente estiver configurado, nada sai do computador.
+[Nas planilhas](#nas-planilhas)).
+
+Duas garantias valem em todo este capítulo:
+
+- ele vem **desligado**: enquanto nenhum assistente estiver configurado, nada sai do computador;
+- **nada muda no documento ou na planilha sem um clique seu.**
 
 ### Configurar
 
@@ -705,13 +723,9 @@ Qwen Code (`qwen`), Kimi CLI, Cursor Agent (`cursor-agent`), Kilo Code (`kilo`),
 Mistral Vibe (`vibe-acp`) e Amp (`amp-acp`). Um agente instalado em outro lugar entra por
 **Adicionar à mão → Agente ACP → Escolher o programa…**, com os argumentos que ele pede.
 
-- O login é feito no próprio agente: abra-o uma vez no terminal e entre na sua conta. Se ele
-  pedir login, o Librevia avisa e não insiste.
-- O Librevia não baixa nem instala agentes.
-- O Librevia não oferece ao agente seus arquivos nem um terminal, e recusa todo pedido de
-  permissão que ele fizer, menos o de usar as ferramentas do próprio Librevia numa conversa com
-  propostas (veja abaixo). O agente roda numa pasta temporária vazia e o Librevia só usa o texto
-  que ele devolve.
+- O login é feito no próprio agente: abra-o uma vez no terminal e entre na sua conta.
+- O Librevia não baixa nem instala agentes, não oferece a eles seus arquivos nem um terminal, e
+  os roda numa pasta temporária vazia.
 - As ferramentas próprias do agente (as do Gemini CLI, do Codex, do Claude Agent…) seguem a
   configuração dele, não a do Librevia. Para restringir o que ele pode fazer, configure o agente.
 - No Windows, só funcionam agentes que sejam um `.exe`; os instalados pelo npm (`.cmd`) não.
@@ -721,12 +735,10 @@ A chave fica cifrada pelo cofre de senhas do sistema e nunca volta para a tela. 
 continuam funcionando, porque não precisam dela.
 
 No mesmo diálogo você escolhe o assistente padrão. **Editar** muda o nome, o endereço e a chave de
-um assistente. A chave em branco mantém a guardada. Mudar o endereço apaga a chave e a permissão,
-para que elas não sigam para outro servidor.
-
-Num servidor compatível com OpenAI, **Contexto máximo** diz quantos caracteres do documento vão
-junto com o trecho (veja abaixo). Em branco, vale 6 000 num assistente deste computador e
-200 000 fora dele.
+um assistente; a chave em branco mantém a guardada. Mudar o endereço apaga a chave e a permissão,
+para que elas não sigam para outro servidor. Num servidor compatível com OpenAI, **Contexto
+máximo** diz quantos caracteres do documento vão junto (veja
+[O que é enviado](#o-que-é-enviado-e-para-onde)).
 
 Em **Preferências**, no mesmo diálogo:
 
@@ -734,145 +746,91 @@ Em **Preferências**, no mesmo diálogo:
   trecho vai com negrito, itálico, tachado, títulos, listas e links, e a resposta volta com eles.
   Desligada, o trecho vai e volta como texto simples.
 - **Se o modelo da Anthropic recusar, tentar outro modelo recomendado pela Anthropic** (desligada
-  de fábrica): vale só para a API da Anthropic e só nos modelos que permitem a troca. Se houver
-  troca, o autor da alteração é o modelo que terminou a resposta.
+  de fábrica): vale só para a API da Anthropic. Se houver troca, o autor da alteração é o modelo
+  que terminou a resposta.
 
 ### Usar
 
 1. Selecione o trecho.
-2. Clique com o botão direito e abra **Assistente de IA ▸**, que mostra as ações (Reescrever,
-   Resumir, Revisar ortografia e gramática, Traduzir, Pedido livre). Pelo teclado: `Shift+F10`
-   abre o menu, as setas andam, **→** abre o submenu, **←** ou `Esc` o fecham. Também dá para
-   abrir o painel por **Ferramentas → Assistente de IA…** (`Ctrl+Shift+Y`); o mesmo atalho o
+2. Clique com o botão direito e abra **Assistente de IA ▸**: Reescrever, Resumir, Revisar
+   ortografia e gramática, Traduzir ou Pedido livre. Pelo teclado, `Shift+F10` abre o menu. O
+   painel também abre por **Ferramentas → Assistente de IA…** (`Ctrl+Shift+Y`), e o mesmo atalho o
    fecha.
-3. O painel tem duas abas: **Ações**, descrita aqui, e **Conversa** (veja
-   [Conversar](#conversar)). **Modelo** escolhe o modelo do assistente. **Automático** usa o padrão dele;
-   **Listar modelos** pergunta quais ele tem. A escolha fica lembrada para aquele assistente.
-4. A resposta aparece no painel à direita enquanto é escrita, já formatada. **Parar** interrompe.
+3. Na aba **Ações**, **Modelo** escolhe o modelo: **Automático** usa o padrão do assistente, e
+   **Listar modelos** pergunta quais ele tem.
+4. A resposta aparece no painel enquanto é escrita, já formatada. **Parar** interrompe.
 5. Escolha o que fazer com ela:
    - **Aplicar** troca o trecho pela resposta como **alteração controlada**, com o nome do modelo
-     como autor. Aceite ou rejeite como qualquer outra alteração. Isso vale mesmo com o controle de
-     alterações desligado.
-   - **Inserir abaixo** põe a resposta em parágrafos novos depois do trecho, também marcados.
+     como autor, mesmo com o controle de alterações desligado;
+   - **Inserir abaixo** põe a resposta em parágrafos novos depois do trecho, também marcados;
    - **Copiar** leva a resposta para a área de transferência.
-
-Resumir e Pedido livre sempre respondem com formatação: um resumo pode vir com título e lista, e
-eles entram no documento como título e lista de verdade.
 
 Se você editar o trecho enquanto a resposta chega, **Aplicar** fica apagado e o painel avisa "O
 trecho mudou". Inserir abaixo e Copiar continuam valendo.
 
 ### Conversar
 
-A aba **Conversa** troca várias mensagens com o assistente sobre o documento aberto.
+A aba **Conversa** troca várias mensagens com o assistente sobre o documento aberto. `Enter`
+envia; `Shift+Enter` quebra a linha. Cada resposta tem **Inserir abaixo**, que põe o texto depois
+da seleção ou do cursor como alteração controlada, e **Copiar**. **Nova conversa** começa do zero.
 
-1. Escreva no campo **Mensagem**. `Enter` envia; `Shift+Enter` quebra a linha.
-2. A resposta aparece na conversa enquanto é escrita, já formatada. **Parar** interrompe.
-3. Cada resposta concluída tem **Inserir abaixo**, que põe a resposta em parágrafos novos depois da
-   seleção ou do cursor, como alteração controlada com o nome do modelo como autor, e **Copiar**.
-   Não há Aplicar: a conversa não substitui a seleção.
-4. **Nova conversa** apaga as mensagens e começa do zero.
+A cada mensagem vai o documento **como ele está naquele momento**. Com um trecho selecionado, o
+modelo entende "isto" como esse trecho.
 
-A cada mensagem vai o documento **como ele está naquele momento**: se você editar o texto entre
-uma pergunta e outra, a próxima já leva a versão nova. Com um trecho selecionado, ele vai marcado,
-e o modelo entende "isto" como esse trecho; sem seleção, vai o documento inteiro.
-
-A conversa fica só na memória do Librevia. Ela não é gravada no arquivo, nem no disco, nem nas
-configurações, e some quando você fecha o documento ou clica em Nova conversa. Trocar de aba não
-apaga nada. Com o documento só para leitura, dá para conversar, mas Inserir abaixo fica apagado.
+A conversa fica só na memória: não vai para o arquivo nem para o disco, e some quando você fecha o
+documento.
 
 #### Propostas de alteração e comentários
 
 Abaixo do campo de mensagem fica a caixa **Deixar o assistente propor alterações e comentários**.
-Ela vem desligada, e o Librevia lembra a escolha. Desligada, a conversa funciona como descrito
-acima.
+Ela vem desligada. Ligada, o assistente pode ler e procurar no documento e **propor**: a troca ou
+a remoção de um trecho, texto novo depois de um parágrafo (é assim que ele escreve num documento
+vazio) e comentários. O texto proposto vem formatado, com títulos, listas, citações, negrito,
+itálico e links. Tabelas e imagens ainda não entram por proposta.
 
-Ligada, o assistente pode, durante a resposta:
+Cada proposta aparece de dois jeitos, com os botões **Aceitar** e **Rejeitar**:
 
-- ler qualquer parágrafo do documento e procurar um texto nele;
-- propor a troca de um trecho de um parágrafo por outro texto (ou a remoção do trecho);
-- propor texto novo depois de um parágrafo ou no início do documento. É assim que ele escreve num
-  documento vazio. Depois de um item de lista ou de uma célula, o texto entra depois da lista ou
-  da tabela inteira;
-- propor um comentário sobre um trecho.
+- **na folha, como diferença**: a palavra que sai riscada em vermelho, a que entra em verde, um
+  comentário marcado em amarelo. Você pode continuar escrevendo, e a diferença acompanha o texto;
+- **no painel**, abaixo da resposta, com **Aceitar todas** e **Rejeitar todas**.
 
-O texto proposto vem formatado: títulos (com os estilos Título 1 a Título 6), listas com
-marcadores e numeradas, citações, negrito, itálico, tachado e links. Se a troca pega o parágrafo
-inteiro e o texto novo começa com um título ou uma lista, o parágrafo vira esse título ou essa
-lista. Uma palavra corrigida dentro de um trecho em negrito continua em negrito. Tabelas e imagens
-ainda não entram por proposta.
+Aceitar põe a mudança no texto, e `Ctrl+Z` a tira. Com o controle de alterações ligado, ela entra
+como alteração controlada, com o nome do modelo como autor. Antes de aceitar, o Librevia confere
+se o parágrafo ainda tem o texto que o modelo leu; se você o mudou, Aceitar mostra "O texto mudou"
+e não mexe em nada.
 
-**Nada muda no documento sem um clique seu.** Cada proposta aparece de dois jeitos:
+Todos os assistentes oferecem isso. Um modelo local sem suporte a ferramentas recusa o pedido, e o
+Librevia avisa para desligar a caixa ou trocar de modelo.
 
-- **Na folha, como diferença.** Numa troca dentro de um parágrafo, só as palavras que mudam:
-  a que sai fica riscada em vermelho, a que entra aparece em verde ao lado. Um texto novo de
-  vários blocos (título, lista) e uma inserção aparecem num bloco verde entre os parágrafos. Um
-  comentário marca o trecho em amarelo, com o texto ao lado. Cada proposta tem os botões
-  **Aceitar** e **Rejeitar**. Você pode continuar escrevendo: a diferença acompanha o texto.
-- **No painel**, abaixo da resposta, com o número do parágrafo, o trecho atual e o texto novo já
-  formatado (ou o comentário), e os mesmos botões. **Aceitar todas** e **Rejeitar todas** decidem
-  as que ainda estão abertas.
+<details>
+<summary><b>Os limites das propostas</b></summary>
 
-Aceitar põe a mudança direto no texto, e Desfazer (Ctrl+Z) a tira. Com várias aceitas de uma vez,
-um único Desfazer volta todas.
+- No máximo 30 propostas por mensagem, 10 ferramentas por rodada e 8 rodadas.
+- O que o modelo lê do documento numa resposta não passa do limite de contexto do assistente.
+- O assistente não grava, não abre arquivos, não acessa a internet e não roda programas: ele só lê
+  o texto enviado com a mensagem e propõe.
+- O Claude Code recebe só as cinco ferramentas do Librevia, por uma chave que vale para uma
+  mensagem, e continua sem as dele e sem os servidores MCP que você tenha configurado nele.
+- Um agente ACP recebe as mesmas cinco ferramentas. O Librevia permite só o uso delas, mas o
+  agente pode ter ferramentas próprias que não pedem permissão.
 
-- Com o **controle de alterações ligado**, uma alteração ou inserção aceita entra como alteração
-  controlada, com o nome do modelo como autor: dá para aceitar ou rejeitar depois, como qualquer
-  outra.
-- Um comentário aceito entra sobre o trecho, com o nome do modelo como autor.
-- Rejeitar só tira a proposta da folha; o texto fica como estava.
-- Antes de aceitar, o Librevia confere se o parágrafo daquele número ainda tem exatamente o texto
-  que o modelo leu, com o trecho uma vez só. Se você editou o parágrafo, ou acrescentou ou apagou
-  parágrafos acima dele, a diferença some da folha, e Aceitar no painel mostra "O texto mudou" sem
-  mudar nada.
-- No máximo 30 propostas por mensagem, 10 ferramentas por rodada e 8 rodadas. O que o modelo lê
-  do documento numa resposta, somado, não passa do limite de contexto do assistente; acima disso,
-  a ferramenta responde que a leitura acabou. O assistente não grava nada, não abre arquivos, não
-  acessa a internet e não roda programas: ele só lê o texto enviado e propõe.
-- Com o documento só para leitura, Aceitar fica apagado.
-
-Todos os assistentes oferecem isso. O Claude Code recebe só essas cinco ferramentas, por uma chave que vale para uma
-mensagem só, e continua sem as dele (arquivos, terminal) e sem os servidores MCP que você tenha
-configurado nele. Um agente ACP recebe as mesmas cinco ferramentas, do mesmo jeito; o Librevia
-permite cada uso delas e recusa os pedidos de permissão para o resto, mas o agente pode ter
-ferramentas ou servidores MCP próprios que não pedem permissão. Um modelo local sem suporte a
-ferramentas recusa o pedido: o Librevia avisa para desligar a caixa ou trocar de modelo, e o
-motivo aparece também na resposta, no painel.
+</details>
 
 ### Nas planilhas
 
-No editor de planilhas, **Ferramentas → Assistente de IA…** (`Ctrl+Shift+Y`) abre o painel à
-direita; o mesmo atalho o fecha. O assistente, o modelo e a configuração são os mesmos do
-documento. Em **O que fazer** há três tarefas, e nenhuma muda a planilha sem um clique seu:
+No editor de planilhas, **Ferramentas → Assistente de IA…** (`Ctrl+Shift+Y`) abre o painel. O
+assistente e o modelo são os mesmos do documento. Há três tarefas:
 
-- **Explicar fórmula** explica a fórmula da célula ativa, no idioma do Librevia, com formatação. Só funciona
-  numa célula com fórmula. Nada é gravado.
-- **Criar fórmula**: escreva em **Pedido** o que você quer (por exemplo, "soma dos preços da
-  coluna B") e clique em **Gerar**. O painel mostra a fórmula e o valor que ela daria na célula
-  ativa, calculado numa cópia da planilha. **Inserir na célula** grava a fórmula na célula ativa,
-  e um `Ctrl+Z` a desfaz. O Librevia confere a fórmula como na barra de fórmulas: ela precisa
-  começar com `=` e usar só funções que o Librevia conhece, com `;` entre os argumentos. Se não
-  passar, o painel mostra o problema e não deixa inserir.
-- **Preencher coluna**: selecione as células a preencher, numa única coluna e com no máximo 500
-  linhas, e escreva o pedido (por exemplo, "categoria do produto da coluna A"). O painel mostra
-  uma prévia com a célula, o valor atual e o valor novo. **Aplicar** grava todos de uma vez, e um
-  `Ctrl+Z` desfaz todos. Entram valores, nunca fórmulas: um valor que começa com `=` entra como
-  texto. Se a resposta não trouxer um valor por linha, o painel avisa "A resposta não veio no
-  formato esperado." e não deixa aplicar.
+- **Explicar fórmula** explica a fórmula da célula ativa. Nada é gravado.
+- **Criar fórmula**: escreva o que você quer (por exemplo, "soma dos preços da coluna B") e
+  clique em **Gerar**. O painel mostra a fórmula e o valor que ela daria. **Inserir na célula**
+  grava, e `Ctrl+Z` desfaz. A fórmula precisa passar pela mesma conferência da barra de fórmulas.
+- **Preencher coluna**: selecione as células, numa única coluna e com no máximo 500 linhas, e
+  escreva o pedido (por exemplo, "categoria do produto da coluna A"). O painel mostra uma prévia
+  com o valor atual e o novo. **Aplicar** grava todos, e `Ctrl+Z` desfaz todos. Entram valores,
+  nunca fórmulas.
 
-O que vai junto com o pedido:
-
-- Para explicar e criar: o nome da planilha ativa, a célula ativa, a primeira linha preenchida
-  (os cabeçalhos) e as células preenchidas, as mais próximas da célula ativa primeiro, até o
-  limite de contexto do assistente. Para explicar, vai também a fórmula.
-- Para preencher: para cada linha selecionada, os valores das outras colunas preenchidas daquela
-  linha, e os cabeçalhos quando a primeira linha preenchida fica acima da seleção. As linhas nunca
-  são cortadas: se não couberem no limite de contexto, o Librevia avisa e pede menos linhas.
-- Cada célula vai com até 200 caracteres. As outras abas, o nome do arquivo e as propriedades
-  ficam aqui.
-
-Com a planilha só para leitura, dá para pedir, mas Inserir na célula e Aplicar ficam apagados. As
-respostas ficam no painel até o próximo pedido; o assistente não lembra os pedidos anteriores.
+Na planilha não há conversa, e cada pedido é independente.
 
 ### Programas externos (MCP)
 
@@ -881,93 +839,68 @@ trabalhar no documento ou na planilha aberta no Librevia, inclusive no que ainda
 
 1. Abra **Ferramentas → Assistentes de IA…** e ligue **Permitir que programas externos leiam o
    documento aberto e proponham alterações (MCP)**. Vem desligado.
-2. Registre o Librevia no programa. Isso se faz uma vez só; depois ele continua conectando sozinho.
+2. Registre o Librevia no programa, uma vez só:
    - **Claude Code:** copie o comando que aparece embaixo e rode no terminal. Ele começa com
-     `claude mcp add --scope user librevia --` e vale para qualquer pasta.
+     `claude mcp add --scope user librevia --`.
    - **Claude Desktop e outros:** copie a configuração JSON e cole em `claude_desktop_config.json`
      ou no `.mcp.json` do projeto.
 3. Com o Librevia aberto, peça ao programa, por exemplo: "leia o documento aberto no Librevia e
-   comente as frases longas demais" ou "some a coluna de preços da planilha aberta no Librevia".
+   comente as frases longas demais".
 
-O programa conectado pode ler os parágrafos, procurar um texto, propor a troca de um trecho,
-inserir texto novo (formatado, como na conversa) e comentar um trecho. **Cada proposta entra na hora como alteração controlada ou comentário**, mesmo
-com o controle de alterações desligado, e com o nome do programa seguido de "(MCP)" como autor:
-"Claude Code (MCP)". Você aceita ou rejeita como qualquer revisão, e Desfazer volta cada uma. Não
-há limite de propostas.
+No documento, o programa lê, procura, propõe trocas, insere texto e comenta. **Cada proposta entra
+na hora como alteração controlada ou comentário**, com o nome do programa seguido de "(MCP)" como
+autor, por exemplo "Claude Code (MCP)". Você aceita ou rejeita como qualquer revisão.
 
-Numa planilha aberta, o programa pode listar as abas, ler as células de um intervalo (a fórmula e
-o valor), procurar um texto em todas as abas e propor a escrita de células a partir de uma célula,
-como se fossem digitadas: um texto que começa com `=` vira fórmula. A planilha não tem controle de
-alterações, então **a escrita não entra na hora**: aparece numa faixa acima da grade, com o nome
-do programa, o intervalo, uma prévia das primeiras linhas e quantas células preenchidas ela
-substitui. **Aplicar** grava tudo de uma vez, indo para a aba certa, e um `Ctrl+Z` desfaz;
-**Descartar** joga fora. Com várias propostas, elas aparecem uma de cada vez, na ordem em que
-chegaram. Abrir outro arquivo descarta as que estiverem esperando. Uma fórmula que a barra de
-fórmulas recusaria é recusada já no pedido, com o motivo.
+Na planilha, que não tem controle de alterações, o programa lê as células e propõe escritas, que
+**não entram na hora**: aparecem numa faixa acima da grade, com uma prévia. **Aplicar** grava, e
+`Ctrl+Z` desfaz; **Descartar** joga fora.
 
 O programa não abre nem salva arquivos, não aceita nem rejeita revisões, não vê o nome nem o
-caminho do arquivo e não mexe em PDFs. Com o arquivo só para leitura, ele ainda lê, mas as
-propostas são recusadas.
+caminho do arquivo e não mexe em PDFs.
 
 - Enquanto um programa estiver conectado, a barra de status mostra o nome dele e o botão
-  **Desconectar**. Desligar a caixa também derruba as conexões.
-- No máximo 2 programas ao mesmo tempo.
-- O programa recebe o texto inteiro do documento, ou as células que pedir da planilha, e o envia para onde ele estiver configurado: o
-  Claude Code e o Claude Desktop mandam para os servidores da Anthropic.
+  **Desconectar**. No máximo 2 programas ao mesmo tempo.
 - A ligação não usa a rede: o programa roda `librevia --mcp-bridge`, que conversa com o Librevia
-  aberto por um arquivo de comunicação (socket) na pasta de dados, que só o seu usuário abre. Cada
-  conexão apresenta uma chave que muda a cada vez que o Librevia abre e a cada vez que a caixa é
-  ligada; a configuração copiada continua valendo, porque a chave é lida de novo a cada conexão.
-- No Linux, o programa precisa rodar dentro da sessão gráfica (com `DISPLAY` ou Wayland), porque a
-  ponte é o próprio Librevia.
+  aberto por um arquivo de comunicação (socket) que só o seu usuário abre, com uma chave que muda a
+  cada abertura.
+- No Linux, o programa precisa rodar dentro da sessão gráfica (com `DISPLAY` ou Wayland).
+
+<a id="o-que-é-enviado-e-para-onde"></a>
 
 ### O que é enviado, e para onde
 
-- **O trecho selecionado**, até 20 000 caracteres, e, no pedido livre, a instrução que você
-  escrever.
-- **Na conversa**, a cada mensagem: o documento atual, a sua mensagem (até 2 000 caracteres) e as
-  mensagens anteriores, até 40. O modelo é avisado de que o documento é material de consulta e de
-  que instruções escritas nele não vêm de você. As mensagens anteriores ocupam no máximo metade do
-  limite de contexto do assistente; acima disso, as mais antigas ficam de fora, e a sua última
-  mensagem vai sempre. O documento usa o espaço que sobra.
-- **Com as propostas ligadas**, o documento vai dividido em parágrafos numerados ("[12] texto…"),
-  um por parágrafo, item de lista ou célula de tabela, sem o que foi excluído. Se não couber
-  inteiro, vai o começo, e o modelo é avisado de que pode ler o resto pedindo os parágrafos. Cada
-  parágrafo que ele lê ou procura sai desse mesmo texto, enviado junto com a mensagem; nada é lido
-  do arquivo. O texto das notas de rodapé não vai.
-- O Claude Code e os agentes ACP abrem um processo novo a cada pedido e não guardam a conversa:
-  por isso recebem a conversa inteira, com o documento, a cada mensagem.
-- **O documento aberto, como contexto**: o texto antes e depois do trecho, sem formatação e sem o
-  que foi excluído com o controle de alterações. Com ele, o modelo mantém os termos e o tom do
-  resto. O modelo pode analisar esse texto, mas a resposta continua sendo só o texto que substitui
-  o trecho ou entra abaixo dele.
-- O contexto tem um limite por assistente: 200 000 caracteres, ou 6 000 num assistente deste
-  computador. Modelos locais leem pouco de uma vez (o Ollama, sem ajuste, lê cerca de 4 000
-  tokens) e ignoram o excesso sem avisar. Num documento maior que o limite, vai o texto mais
-  próximo do trecho, e o modelo é avisado de que vê só uma parte.
-- O nome do arquivo e as propriedades ficam aqui.
-- Um assistente em `localhost` ou `127.0.0.1` roda neste computador: o texto não sai dele.
-- Um assistente fora do computador (um servidor em outro endereço, a API da Anthropic, o Claude
-  Code, que fala com a Anthropic, ou um agente ACP, que pode usar a nuvem) pergunta antes do
-  primeiro envio, mostrando o destino e dizendo que o documento vai junto e que a resposta é
-  gerada fora do computador. Para um agente ACP, o destino mostrado é o programa que vai rodar,
-  com os argumentos; trocar o programa ou os argumentos faz a pergunta voltar. A permissão fica
-  guardada para aquele assistente; **Pedir permissão de novo** faz a pergunta voltar. Quem deu
-  permissão numa versão anterior, que mandava só o trecho, é perguntado de novo.
-- O Claude Code informa o custo do pedido; o painel mostra esse valor quando ele vem.
+| Quando | O que vai |
+| --- | --- |
+| **Ações** | o trecho, até 20 000 caracteres; a instrução do pedido livre; e o texto do documento antes e depois do trecho, como contexto, sem formatação e sem o que foi excluído |
+| **Conversa** | a cada mensagem, o documento atual, a sua mensagem (até 2 000 caracteres) e as mensagens anteriores, até 40. As anteriores ocupam no máximo metade do limite de contexto; acima disso, as mais antigas ficam de fora |
+| **Conversa com propostas** | o documento em parágrafos numerados, sem o que foi excluído nem as notas de rodapé. Se não couber, vai o começo, e o modelo pede o resto |
+| **Planilha** | a planilha ativa: a célula ativa, os cabeçalhos e as células preenchidas mais próximas, até 200 caracteres cada. Para preencher, as outras colunas de cada linha selecionada |
+| **Programa MCP** | o texto inteiro do documento, ou as células que ele pedir. Ele envia para onde estiver configurado: o Claude Code e o Claude Desktop mandam para a Anthropic |
+
+- **Nunca vão** o nome do arquivo, as propriedades nem as outras abas da planilha.
+- **O limite de contexto** é de 200 000 caracteres, ou 6 000 num assistente deste computador, que
+  lê pouco de uma vez. Num documento maior, vai o texto mais próximo do trecho, e o modelo é
+  avisado de que vê só uma parte.
+- **O modelo é avisado** de que o documento é material de consulta e de que instruções escritas
+  nele não vêm de você.
+- **Um assistente em `localhost` ou `127.0.0.1`** roda neste computador: o texto não sai dele.
+- **Um assistente fora do computador** (outro endereço, a API da Anthropic, o Claude Code ou um
+  agente ACP) pergunta antes do primeiro envio, mostrando o destino. Para um agente ACP, o destino é
+  o programa com os argumentos, e trocá-los faz a pergunta voltar. **Pedir permissão de novo**
+  também.
+- O Claude Code e os agentes ACP não guardam a conversa, por isso recebem a conversa inteira a cada
+  mensagem. O Claude Code informa o custo do pedido, e o painel o mostra.
 
 ### Limites
 
-- Na planilha não há conversa: só as três tarefas descritas em [Nas planilhas](#nas-planilhas).
 - Com **Manter a formatação** ligada, sublinhado, cor e fonte não passam pelo modelo: a resposta
-  recebe os do começo do trecho. Desligada, a resposta entra como texto simples com toda a
-  formatação do começo do trecho.
+  recebe os do começo do trecho.
 - Uma lista na resposta usa a numeração padrão do Librevia, não a de uma lista do Word que estava
   no trecho.
 - A seleção não pode ter imagens, equações, notas nem campos, nem passar de uma célula de tabela
   para outra.
-- Na aba Ações, cada pedido é independente: o assistente não lembra os anteriores. Só a aba
-  Conversa tem histórico, e só enquanto o documento está aberto.
+- Com o arquivo só para leitura, dá para pedir e conversar, mas Aplicar, Inserir e Aceitar ficam
+  apagados, e as propostas de programas MCP são recusadas.
 
 ---
 
@@ -1119,32 +1052,9 @@ Muitos editores, ao salvar um `.docx`, escrevem o arquivo inteiro de novo, e no 
 que não entenderam. O Librevia faz diferente: **reescreve só o que você mexeu** e devolve o resto
 exatamente como estava.
 
-| Medido em | Resultado |
-| --- | --- |
-| Documento de 105 blocos, salvo sem editar | **nenhum** bloco reescrito |
-| O mesmo, com um parágrafo editado | **um** bloco reescrito |
-| Documento do LibreOffice (`.odt`), com um parágrafo editado | **um** bloco reescrito; só o `content.xml` muda |
-| Planilha do LibreOffice, aberta e salva sem editar | **nenhuma** célula escrita |
-
 Na prática: fonte, alinhamento, bordas, gráficos, tabelas dinâmicas, comentários e filtros
-continuam no arquivo depois que você corrige uma vírgula.
-
-**No `.odt`.** Notas de rodapé e de fim, comentários com respostas, equações, cabeçalho e rodapé
-(com colunas, número de página e versões para a primeira página e para as páginas pares) abrem
-como no `.docx` e voltam ao arquivo quando você salva. As alterações controladas também: texto
-inserido, texto excluído e parágrafo unido aparecem com autor e data, e o controle de alterações
-continua ligado ou desligado como no arquivo. As seções também: cada estilo de página que o texto
-abre vira uma seção, com papel, margens e numeração próprios, e uma seção do LibreOffice com colunas
-vira uma seção contínua com colunas. O que o Librevia não mostra (mudança de formatação
-controlada, indicador, seção sem colunas ou dentro de outra, caixa de texto, desenho, formulário)
-fica no arquivo enquanto você não edita o bloco onde está. Ao abrir, o aplicativo avisa que
-existe. Se você editar esse bloco, ele se perde ali, e o aviso aparece ao salvar.
-
-Número de página, total de páginas, data, hora, título e autor aparecem como campos, iguais aos do
-`.docx`, e voltam ao arquivo como os campos do LibreOffice, com o mesmo formato de data. Outro
-campo mostra o texto que tinha; se você editar o bloco onde está, ele vira texto comum. Estilos,
-página, cabeçalho e rodapé só mudam no `styles.xml` se você os alterou; as propriedades, no
-`meta.xml`, idem.
+continuam no arquivo depois que você corrige uma vírgula. Num `.odt` é igual (veja
+[Documentos do LibreOffice](#documentos-do-libreoffice-odt)).
 
 **Documento novo em `.docx`.** Em "Salvar como", escolha "Documento do Word". Como não há arquivo
 de origem, o aplicativo cria um pacote mínimo, com estilos, página e propriedades, mas sem o seu
@@ -1209,7 +1119,6 @@ O documento passa a ser o `.docx`, e o próximo **Salvar** grava nele.
 | **Mesclar células na planilha** | ainda não existe |
 | **Filtros de planilha** | são preservados no arquivo, mas não há tela para criar ou alterar |
 | **Fórmulas** | sem matrizes dinâmicas, referências de coluna inteira (`A:A`) ou intervalos nomeados |
-| **Mesclagem vertical feita no editor** | aparece na tela, mas não vai para o `.docx` (o aviso de perda diz isso) |
 | **Comentários** | o texto do comentário é texto simples, sem negrito ou cor |
 | **Controle de alterações** | mudanças de **formatação** (pôr em negrito, trocar a fonte) não são registradas como revisão |
 | **Equações** | usam a fonte de matemática do computador; alguns comandos de espaçamento do LaTeX, como `\,` e `\quad`, se perdem ao salvar em `.docx` |

@@ -148,7 +148,7 @@ Ele também:
 
 O `.odt` segue a mesma gravação cirúrgica do `.docx`: cada bloco do `content.xml` recebe uma
 identificação ao abrir, e o bloco que você não editou volta com o texto exato que tinha. O que o
-Librevia mostra e o que só preserva estão no [manual](MANUAL.md#os-arquivos-que-ele-abre). Planilhas
+Librevia mostra e o que só preserva estão no [manual](MANUAL.md#documentos-do-libreoffice-odt). Planilhas
 `.ods` não abrem: a biblioteca de planilha do sidecar não lê o formato.
 
 ---
