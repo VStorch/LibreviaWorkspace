@@ -99,10 +99,11 @@ const UNDO_ACCELERATOR = 'CommandOrControl+Z'
 const REDO_ACCELERATOR = process.platform === 'win32' ? 'Control+Y' : 'Shift+CommandOrControl+Z'
 
 /**
- * Not a role: the role undoes only Chromium's history, and the sheet keeps its own. The key is only
- * shown, not registered, so the page hears it first, as it did with the role.
+ * The key is only shown, not registered: the page handles it, and on macOS a registered accelerator
+ * would take it from the page. Undo and redo are not roles because the role undoes only Chromium's
+ * history, and the sheet keeps its own.
  */
-function historyItem(key: MessageKey, command: MenuCommand, accelerator: string): MenuItemConstructorOptions {
+function pageKeyItem(key: MessageKey, command: MenuCommand, accelerator: string): MenuItemConstructorOptions {
   return { ...commandItem(key, command, accelerator), registerAccelerator: false }
 }
 
@@ -310,13 +311,13 @@ function editMenu(): MenuItemConstructorOptions {
   return {
     label: t('menu.edit'),
     submenu: [
-      historyItem('menu.edit.undo', MenuCommand.Undo, UNDO_ACCELERATOR),
-      historyItem('menu.edit.redo', MenuCommand.Redo, REDO_ACCELERATOR),
+      pageKeyItem('menu.edit.undo', MenuCommand.Undo, UNDO_ACCELERATOR),
+      pageKeyItem('menu.edit.redo', MenuCommand.Redo, REDO_ACCELERATOR),
       { type: 'separator' },
       { role: 'cut', label: t('menu.edit.cut') },
       { role: 'copy', label: t('menu.edit.copy') },
       { role: 'paste', label: t('menu.edit.paste') },
-      commandItem(
+      pageKeyItem(
         'menu.edit.pasteWithoutFormat',
         MenuCommand.PasteWithoutFormat,
         acceleratorOf(SHORTCUTS.pasteWithoutFormat),

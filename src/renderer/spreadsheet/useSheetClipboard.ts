@@ -2,15 +2,18 @@ import { useEffect } from 'react'
 import { parseClipboardText, pasteText, rangeAsText } from '@services/spreadsheet/clipboard.js'
 import { clearContents, type Range } from '@services/spreadsheet/edit.js'
 import type { Sheet } from '@services/spreadsheet/model.js'
+import { SHORTCUTS, isShortcutPressed } from '@shared/shortcuts.js'
+import { EditorCommand, onEditorCommand } from '../document/editor-commands.js'
+import { useWorkspace } from '../state/workspace.js'
 import { TEXT_FIELD, dialogOverSheet } from './useSheetUndo.js'
 
 const PLAIN_TEXT = 'text/plain'
 const CLEAR_KEYS: ReadonlySet<string> = new Set(['Delete', 'Backspace'])
 
 /** Outside a field and a dialog, and with no text of the page selected, as an answer of the assistant. */
-function sheetOwns(event: Event, needsNoTextSelected: boolean): boolean {
+function sheetOwns(target: EventTarget | null, needsNoTextSelected: boolean): boolean {
   if (dialogOverSheet()) return false
-  if (event.target instanceof Element && event.target.closest(TEXT_FIELD) !== null) return false
+  if (target instanceof Element && target.closest(TEXT_FIELD) !== null) return false
   return !needsNoTextSelected || document.getSelection()?.isCollapsed !== false
 }
 
@@ -30,7 +33,7 @@ export function useSheetClipboard(
 ): void {
   useEffect(() => {
     const copy = (event: ClipboardEvent): void => {
-      if (event.clipboardData === null || !sheetOwns(event, true)) return
+      if (event.clipboardData === null || !sheetOwns(event.target, true)) return
       event.preventDefault()
       event.stopImmediatePropagation()
       event.clipboardData.setData(PLAIN_TEXT, rangeAsText(current.current, selected.current))
@@ -39,7 +42,7 @@ export function useSheetClipboard(
 
     const paste = (event: ClipboardEvent): void => {
       const text = event.clipboardData?.getData(PLAIN_TEXT)
-      if (text === undefined || text === '' || !sheetOwns(event, false)) return
+      if (text === undefined || text === '' || !sheetOwns(event.target, false)) return
       event.preventDefault()
       event.stopImmediatePropagation()
       const { fromRow, fromColumn } = selected.current
@@ -47,7 +50,7 @@ export function useSheetClipboard(
     }
 
     const clear = (event: KeyboardEvent): void => {
-      if (!isClearKey(event) || !sheetOwns(event, false)) return
+      if (!isClearKey(event) || !sheetOwns(event.target, false)) return
       event.preventDefault()
       event.stopImmediatePropagation()
       applyChange(clearContents(current.current, selected.current))
@@ -65,4 +68,46 @@ export function useSheetClipboard(
       window.removeEventListener('keydown', clear, { capture: true })
     }
   }, [current, selected, applyChange])
+}
+
+/**
+ * Pasting already drops the formatting, so this is the same paste, from the menu and from
+ * `Ctrl+Shift+V`, which Chromium would otherwise turn into its own paste.
+ */
+export function useSheetPasteWithoutFormat(
+  current: { readonly current: Sheet },
+  selected: { readonly current: Range },
+  applyChange: (sheet: Sheet) => void,
+): void {
+  const showError = useWorkspace((state) => state.showError)
+
+  useEffect(() => {
+    const paste = async (): Promise<void> => {
+      const result = await window.api.edit.readClipboardText({})
+      if (!result.ok) {
+        showError(result.error)
+        return
+      }
+      if (result.data.text === '') return
+      const { fromRow, fromColumn } = selected.current
+      applyChange(pasteText(current.current, fromRow, fromColumn, parseClipboardText(result.data.text)))
+    }
+
+    const key = (event: KeyboardEvent): void => {
+      if (!isShortcutPressed(SHORTCUTS.pasteWithoutFormat, event) || !sheetOwns(event.target, false)) return
+      event.preventDefault()
+      event.stopImmediatePropagation()
+      void paste()
+    }
+
+    window.addEventListener('keydown', key, { capture: true })
+    const unsubscribe = onEditorCommand((command) => {
+      if (command === EditorCommand.PasteWithoutFormat && sheetOwns(document.activeElement, false))
+        void paste()
+    })
+    return () => {
+      window.removeEventListener('keydown', key, { capture: true })
+      unsubscribe()
+    }
+  }, [current, selected, applyChange, showError])
 }

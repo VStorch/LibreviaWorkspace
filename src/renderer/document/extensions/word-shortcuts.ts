@@ -1,7 +1,8 @@
 import { Extension } from '@tiptap/core'
 import { SHORTCUTS, type EditorShortcutId, editorKeyOf } from '@shared/shortcuts.js'
+import { EditorCommand, emitEditorCommand } from '../editor-commands.js'
 
-/** The keys are in `@shared/shortcuts`, along with the native menu ones, which take them first. */
+/** The keys are in `@shared/shortcuts`, along with the native menu ones. */
 export const WordShortcuts = Extension.create({
   name: 'wordShortcuts',
 
@@ -23,6 +24,10 @@ export const WordShortcuts = Extension.create({
       lineHeightDouble: lineHeight('2'),
       superscript: () => this.editor.commands.toggleSuperscript(),
       subscript: () => this.editor.commands.toggleSubscript(),
+      pasteWithoutFormat: () => {
+        emitEditorCommand(EditorCommand.PasteWithoutFormat)
+        return true
+      },
     }
 
     const keymap: Record<string, () => boolean> = {}

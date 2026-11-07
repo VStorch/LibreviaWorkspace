@@ -29,7 +29,7 @@ import { cellStyleOf } from './cell-style.js'
 import { SHEET_ROWS_PANE, gridPositionOf, sheetColumnOf } from './grid-position.js'
 import { useCrossPaneFill } from './useCrossPaneFill.js'
 import { useCrossPaneRange } from './useCrossPaneRange.js'
-import { useSheetClipboard } from './useSheetClipboard.js'
+import { useSheetClipboard, useSheetPasteWithoutFormat } from './useSheetClipboard.js'
 import { useFormatShortcuts } from './useFormatShortcuts.js'
 import { useTypeAhead } from './useTypeAhead.js'
 
@@ -82,6 +82,7 @@ export function SpreadsheetEditor({
   useCrossPaneFill(container, current, selection, applyChange, setRange)
   useGridTakesFocus(container)
   useSheetClipboard(current, selection, applyChange)
+  useSheetPasteWithoutFormat(current, selection, applyChange)
   const { handleResize, handleFocus, handleAutofill } = useSelectionHandlers(
     current,
     applyChange,

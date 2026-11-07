@@ -1,9 +1,9 @@
 /**
  * The single table of keyboard shortcuts.
  *
- * Menu accelerators are registered in main and **intercept the key before the renderer sees it**.
- * With two lists (the editor keymap and the menu accelerators), every overlap would silently kill
- * the editor shortcut.
+ * On Windows and Linux the page hears the key first, and a menu accelerator fires only when the page
+ * leaves the key alone; on macOS the menu can take it first. With two lists (the editor keymap and
+ * the menu accelerators), every overlap would silently kill one of them, depending on the system.
  *
  * So each key is declared once, saying **who handles it** and **what it does**; the menu and the
  * editor read from here, and the test next door fails if two entries claim the same key for
@@ -72,9 +72,8 @@ export const SHORTCUTS = {
   // ## Menu → File
   newDocument: { owner: ShortcutOwner.Menu, key: { mod: true, key: 'N' }, does: 'Novo documento' },
   /**
-   * In Word `Ctrl+Shift+N` resets the paragraph to body text. Here the menu owns it, and the menu
-   * would win anyway: the accelerator arrives first. Body text stays on `Ctrl+Alt+0` from the
-   * `Paragraph` extension, next to the headings on `Ctrl+Alt+1`…`6`.
+   * In Word `Ctrl+Shift+N` resets the paragraph to body text. Here the menu owns it. Body text stays
+   * on `Ctrl+Alt+0` from the `Paragraph` extension, next to the headings on `Ctrl+Alt+1`…`6`.
    */
   newSpreadsheet: {
     owner: ShortcutOwner.Menu,
@@ -89,11 +88,12 @@ export const SHORTCUTS = {
 
   // ## Menu → Edit
   /**
-   * Chromium already handles `Ctrl+Shift+V` in an editable field, and not the way Word does. This
-   * accelerator arrives first, so ours wins.
+   * The page's, not the menu's: on Windows and Linux Chromium takes `Ctrl+Shift+V` in an editable
+   * field as its own "paste and match style", which drops empty lines, and the accelerator never
+   * fires. The menu only shows the key. The spreadsheet listens for it as well.
    */
   pasteWithoutFormat: {
-    owner: ShortcutOwner.Menu,
+    owner: ShortcutOwner.Editor,
     key: { mod: true, shift: true, key: 'V' },
     does: 'Colar sem formatação',
   },
@@ -412,6 +412,20 @@ export interface PressedKey {
   readonly ctrlKey: boolean
   readonly metaKey: boolean
   readonly altKey: boolean
+}
+
+/** For a key heard outside the editor keymap, as in the spreadsheet; letters only. */
+export function isShortcutPressed(
+  shortcut: Shortcut,
+  pressed: PressedKey & { readonly shiftKey: boolean },
+): boolean {
+  const { key } = shortcut
+  return (
+    (pressed.ctrlKey || pressed.metaKey) === (key.mod === true) &&
+    pressed.shiftKey === (key.shift === true) &&
+    pressed.altKey === (key.alt === true) &&
+    pressed.key.toLowerCase() === key.key.toLowerCase()
+  )
 }
 
 /**

@@ -7,12 +7,13 @@ import {
   canonicalKeyOf,
   editorKeyOf,
   isPdfZoomInKey,
+  isShortcutPressed,
   shortcutHintOf,
 } from './shortcuts.js'
 
 /**
- * Menu accelerators are registered in main and intercept the key before the renderer sees it, so
- * the editor shortcut dies silently. Returning the list, rather than yes or no, makes the failure
+ * A menu accelerator and an editor shortcut on the same key: one of them dies silently, which one
+ * depending on the system. Returning the list, rather than yes or no, makes the failure
  * say which key and which shortcuts.
  */
 function crossOwnerCollisions(table: Readonly<Record<string, Shortcut>>): string[] {
@@ -117,5 +118,18 @@ describe('isPdfZoomInKey', () => {
   it('ignores the key without Ctrl or with Alt', () => {
     expect(isPdfZoomInKey({ ...pressed, ctrlKey: false })).toBe(false)
     expect(isPdfZoomInKey({ ...pressed, altKey: true })).toBe(false)
+  })
+
+  it('recognizes a shortcut pressed outside the editor, with Ctrl or Cmd and the exact modifiers', () => {
+    const pressed = { key: 'V', code: 'KeyV', ctrlKey: true, metaKey: false, altKey: false, shiftKey: true }
+    expect(isShortcutPressed(SHORTCUTS.pasteWithoutFormat, pressed)).toBe(true)
+    expect(
+      isShortcutPressed(SHORTCUTS.pasteWithoutFormat, { ...pressed, ctrlKey: false, metaKey: true }),
+    ).toBe(true)
+    // Plain `Ctrl+V` is the ordinary paste, and `Ctrl+Alt+Shift+V` is not ours.
+    expect(isShortcutPressed(SHORTCUTS.pasteWithoutFormat, { ...pressed, key: 'v', shiftKey: false })).toBe(
+      false,
+    )
+    expect(isShortcutPressed(SHORTCUTS.pasteWithoutFormat, { ...pressed, altKey: true })).toBe(false)
   })
 })
