@@ -1159,11 +1159,20 @@ class SheetStack {
   }
 }
 
-/** The capture's empty line and the gap to the block opening the next sheet. */
+/**
+ * What may go into the bottom margin: the capture's empty line and the space after the last block,
+ * which Word does not count against the sheet. A cut inside a block leaves nothing below its line.
+ */
 function hangingAt(blocks: readonly MeasuredBlock[], at: number): number {
-  const ending = blocks.filter((block) => block.height > 0 && block.top + block.height <= at + 0.5).at(-1)
-  if (ending === undefined || (ending.hangingBottom ?? 0) <= 0) return 0
-  return ending.hangingBottom! + Math.max(at - (ending.top + ending.height), 0)
+  let ending: MeasuredBlock | undefined
+  for (const block of blocks) {
+    if (block.height <= 0) continue
+    const bottom = block.top + block.height
+    if (block.top < at - 0.5 && bottom > at + 0.5) return 0
+    if (bottom <= at + 0.5) ending = block
+  }
+  if (ending === undefined) return 0
+  return (ending.hangingBottom ?? 0) + Math.max(at - (ending.top + ending.height), 0)
 }
 
 function sameGaps(left: ReadonlyMap<number, number>, right: ReadonlyMap<number, number>): boolean {

@@ -4,7 +4,13 @@ import { EditorState, type Transaction } from '@tiptap/pm/state'
 import type { EditorView } from '@tiptap/pm/view'
 import { buildEditorExtensions } from './editor-extensions.js'
 import { paginationKey, paginationPlugin } from './extensions/pagination.js'
-import { createGapWriter, layoutPages, topMarginFor, type PageGaps } from './usePagination.js'
+import {
+  createGapWriter,
+  layoutPages,
+  SHEET_GUTTER_PX,
+  topMarginFor,
+  type PageGaps,
+} from './usePagination.js'
 
 type Measured = Parameters<typeof layoutPages>[0]
 type MetricsOf = Parameters<typeof layoutPages>[2]
@@ -70,6 +76,22 @@ describe('screen pagination', () => {
     // The paragraph has no top margin of its own: counting the one above again would push it
     // 10.67 px further on every measurement, without end.
     expect(gaps.written.get(SECOND_POSITION)).toBeCloseTo(gap)
+  })
+
+  it('lets the space after the last paragraph spill into the bottom margin, not stretch the sheet', () => {
+    const sheetPx = CONTENT_PX + 96 + 96
+    const secondTop = 895 + SPACE_AFTER_PX
+    const base = twoParagraphs()
+    const measured: Measured = {
+      ...base,
+      blocks: [block(0, 895), block(secondTop, 19)],
+      targets: [base.targets[0]!, { ...base.targets[1]!, at: secondTop }],
+    }
+
+    const { gaps, layout } = layoutPages(measured, flows, () => ({ ...metricsOf(0), heightPx: sheetPx }))
+
+    expect(layout.sheetHeights[0]).toBeCloseTo(sheetPx)
+    expect(gaps.gaps.get(SECOND_POSITION)).toBeCloseTo(CONTENT_PX - secondTop + 96 + SHEET_GUTTER_PX + 96)
   })
 
   it('writes the distance minus what the block above already adds', () => {
