@@ -15,6 +15,19 @@ export interface Band {
   readonly floats: FloatingObject[]
   /** The grid, when the header is a table: logo in a merged cell, title beside it. */
   readonly rows: BandRow[]
+  readonly gridWidthMm?: number | undefined
+  readonly gridIndentMm?: number | undefined
+}
+
+export interface GridBox {
+  readonly width: string
+  readonly marginLeft: string
+}
+
+export function gridBox(band: Band, page: PageSetup): GridBox | null {
+  if (band.gridWidthMm === undefined) return null
+  const indent = page.margins.left - bandInsetMm(page) + (band.gridIndentMm ?? 0)
+  return { width: `${band.gridWidthMm.toFixed(2)}mm`, marginLeft: `${indent.toFixed(2)}mm` }
 }
 
 export interface BandRow {

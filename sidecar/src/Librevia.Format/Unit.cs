@@ -18,6 +18,7 @@ public static class Unit
     public const int HalfPointsPerPoint = 2;
     public const long EmusPerPoint = EmusPerInch / PointsPerInch;
     public const long EmusPerPixel = EmusPerInch / PixelsPerInch;
+    public const long EmusPerTwip = EmusPerInch / TwipsPerInch;
 
     /// <summary>Half an inch: Word's indent step.</summary>
     public const int IndentStepTwips = TwipsPerInch / 2;

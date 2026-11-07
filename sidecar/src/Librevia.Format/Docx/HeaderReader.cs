@@ -144,7 +144,8 @@ public static class HeaderReader
             ReadDrawing(drawing, owner, columns, ref rule, inventory, contentWidthEmus, fonts, naming);
         }
 
-        return new BandDto(columns[0], columns[1], columns[2], rule, floats, rows);
+        var (gridWidthMm, gridIndentMm) = PlacementOf(root.Elements<Table>().FirstOrDefault(), contentWidthEmus);
+        return new BandDto(columns[0], columns[1], columns[2], rule, floats, rows, gridWidthMm, gridIndentMm);
     }
 
 
@@ -164,8 +165,7 @@ public static class HeaderReader
         foreach (var table in root.Elements<Table>())
         {
             var borders = table.GetFirstChild<TableProperties>()?.TableBorders;
-            var total = ColumnWidths(table).Sum();
-            if (total <= 0) total = 1;
+            var grid = ColumnWidths(table).ToList();
 
             // The open cell in each column, so a continuation knows whom to add to.
             var open = new Dictionary<int, BandCellDto>();
@@ -196,10 +196,9 @@ public static class HeaderReader
                         continue;
                     }
 
-                    var width = TwipsOf(properties?.TableCellWidth) / total;
                     var built_ = new BandCellDto(
                         ReadCellPieces(cell, owner, inventory, fonts, naming),
-                        Math.Round(width, 4),
+                        Math.Round(FractionOf(grid, column, span, properties?.TableCellWidth), 4),
                         span,
                         1,
                         AlignOf(cell),
@@ -240,8 +239,72 @@ public static class HeaderReader
             .Select(column => double.TryParse(column.Width?.Value, out var width) ? width : 0)
         ?? [];
 
-    private static double TwipsOf(TableCellWidth? width) =>
-        double.TryParse(width?.Width?.Value, out var value) ? value : 0;
+    private static double FractionOf(List<double> grid, int column, int span, TableCellWidth? preferred)
+    {
+        var total = grid.Sum();
+        if (total > 0 && column + span <= grid.Count)
+        {
+            return grid.Skip(column).Take(span).Sum() / total;
+        }
+
+        return preferred?.Type?.Value == TableWidthUnitValues.Pct
+            ? Math.Clamp(PercentOf(preferred.Width?.Value), 0, 1)
+            : 0;
+    }
+
+    /// <summary>Word ignores the indent of a centered or right-aligned table.</summary>
+    private static (double? Width, double? Indent) PlacementOf(Table? table, double contentWidthEmus)
+    {
+        var contentTwips = contentWidthEmus / Unit.EmusPerTwip;
+        if (table is null || contentTwips <= 0) return (null, null);
+
+        var properties = table.GetFirstChild<TableProperties>();
+        var width = WidthOf(properties?.TableWidth, ColumnWidths(table).Sum(), contentTwips);
+        if (width is not (> 0 and < 1)) return (null, null);
+
+        var alignment = properties?.TableJustification?.Val?.Value;
+        var indent = alignment == TableRowAlignmentValues.Center ? (1 - width.Value) / 2
+            : alignment == TableRowAlignmentValues.Right ? 1 - width.Value
+            : Math.Clamp(IndentOf(properties?.TableIndentation, contentTwips), -1, 1);
+
+        double Millimeters(double fraction) => Math.Round(Unit.TwipsToMillimeters(fraction * contentTwips), 2);
+        return (Millimeters(width.Value), Millimeters(indent));
+    }
+
+    private static double? WidthOf(TableWidth? preferred, double gridTwips, double contentTwips)
+    {
+        var type = preferred?.Type?.Value;
+        if (type == TableWidthUnitValues.Pct) return PercentOf(preferred!.Width?.Value);
+        if (type == TableWidthUnitValues.Dxa && double.TryParse(preferred!.Width?.Value, out var twips) && twips > 0)
+        {
+            return twips / contentTwips;
+        }
+
+        return gridTwips > 0 ? gridTwips / contentTwips : null;
+    }
+
+    private static double IndentOf(TableIndentation? indent, double contentTwips) =>
+        indent?.Type?.Value is null || indent.Type.Value == TableWidthUnitValues.Dxa
+            ? (indent?.Width?.Value ?? 0) / contentTwips
+            : 0;
+
+    /// <summary>Fiftieths of a percent, or <c>50%</c> in strict OOXML.</summary>
+    private static double PercentOf(string? value)
+    {
+        if (value is null) return 0;
+        if (value.EndsWith('%'))
+        {
+            return double.TryParse(value[..^1], NumberStyles.Float, CultureInfo.InvariantCulture, out var whole)
+                ? whole / 100
+                : 0;
+        }
+
+        return double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var fiftieths)
+            ? fiftieths / FiftiethsPerWhole
+            : 0;
+    }
+
+    private const double FiftiethsPerWhole = 5000;
 
     private static string? AlignOf(TableCell cell)
     {

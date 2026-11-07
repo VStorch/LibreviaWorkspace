@@ -1,5 +1,12 @@
 import { useEffect, useRef } from 'react'
-import { linesOf, pieceText, type Band, type BandCell, type BandPiece } from '@services/document/band.js'
+import {
+  linesOf,
+  pieceText,
+  type Band,
+  type BandCell,
+  type BandPiece,
+  type GridBox,
+} from '@services/document/band.js'
 import { usePreferences } from '../state/preferences.js'
 import { useT } from '../i18n.js'
 
@@ -16,6 +23,7 @@ export function PageBand({
   totalPages,
   insetPx,
   offsetPx,
+  grid,
   onEdit,
 }: {
   band: Band
@@ -30,6 +38,7 @@ export function PageBand({
    * body down wrongly.
    */
   offsetPx: number
+  grid: GridBox | null
   /** Absent when the document is locked: no piece takes the cursor. */
   onEdit?: ((pid: string, text: string) => void) | undefined
 }): React.JSX.Element {
@@ -48,7 +57,7 @@ export function PageBand({
       role="group"
       aria-label={kind === 'header' ? t('document.band.header') : t('document.band.footer')}
     >
-      {band.rows.length === 0 ? null : <BandGrid band={band} {...parts} />}
+      {band.rows.length === 0 ? null : <BandGrid band={band} grid={grid} {...parts} />}
       <BandCellPieces pieces={band.left} place="left" {...parts} />
       <BandCellPieces pieces={band.center} place="center" {...parts} />
       <BandCellPieces pieces={band.right} place="right" {...parts} />
@@ -63,9 +72,13 @@ interface BandParts {
 }
 
 /** A real table: the logo lives in a merged cell. Borders come resolved from the reader. */
-function BandGrid({ band, ...parts }: { band: Band } & BandParts): React.JSX.Element {
+function BandGrid({
+  band,
+  grid,
+  ...parts
+}: { band: Band; grid: GridBox | null } & BandParts): React.JSX.Element {
   return (
-    <table className="band__grid">
+    <table className="band__grid" style={grid ?? undefined}>
       <tbody>
         {band.rows.map((row, index) => (
           <tr key={index}>

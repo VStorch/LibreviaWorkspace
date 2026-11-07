@@ -1,7 +1,7 @@
 import type { Schema } from '@tiptap/pm/model'
 import { pageDimensionsMm, type DocumentNode, type PageSetup } from '@services/document/model.js'
 import { mmToPx } from '@services/units.js'
-import { bandForPage, bandInsetMm, hasBandContent, pageLabel } from '@services/document/band.js'
+import { bandForPage, bandInsetMm, gridBox, hasBandContent, pageLabel } from '@services/document/band.js'
 import { bandFloatsOf } from '@services/document/floating.js'
 import { FloatingLayer, type FloatSource, type PlacedFloat } from './FloatingLayer.js'
 import { PageBand } from './PageBand.js'
@@ -83,6 +83,7 @@ export function PaperSheet({
             totalPages={totalPages}
             insetPx={mmToPx(bandInsetMm(page))}
             offsetPx={mmToPx(kind === 'header' ? page.headerDistanceMm : page.footerDistanceMm)}
+            grid={gridBox(band, page)}
             {...(onEditBandPiece === undefined ? {} : { onEdit: onEditBandPiece })}
           />
         )

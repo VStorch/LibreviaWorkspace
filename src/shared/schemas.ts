@@ -144,6 +144,8 @@ const bandCellSchema = z.object({
   borders: z.string().max(4).default(''),
 })
 
+const MAX_BAND_MM = 2000
+
 /**
  * A header or footer from a Word document. Three columns and a rule, the layout Word always used,
  * which covers almost every corporate header. Pieces with an address are editable; the rest of the
@@ -159,6 +161,8 @@ export const bandSchema = z.object({
     .array(z.object({ cells: z.array(bandCellSchema).max(32).default([]) }))
     .max(32)
     .default([]),
+  gridWidthMm: z.number().min(0).max(MAX_BAND_MM).optional(),
+  gridIndentMm: z.number().min(-MAX_BAND_MM).max(MAX_BAND_MM).optional(),
 })
 
 export const pageSetupSchema = z.object({

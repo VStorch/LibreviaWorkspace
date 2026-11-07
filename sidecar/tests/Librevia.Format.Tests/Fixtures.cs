@@ -362,6 +362,38 @@ public static class Fixtures
             });
         });
 
+    /// <summary>Half the text width, starting at the middle.</summary>
+    public static byte[] WithPercentHeaderTable(bool withGrid, TableRowAlignmentValues? alignment = null) => Build(
+        (body, _) => body.AppendChild(Paragraph("Corpo do documento.")),
+        (section, part) =>
+        {
+            var header = part.AddNewPart<HeaderPart>();
+            var properties = new TableProperties(
+                new TableWidth { Width = "2500", Type = TableWidthUnitValues.Pct },
+                new TableIndentation { Width = 4513, Type = TableWidthUnitValues.Dxa });
+            if (alignment is not null) properties.AppendChild(new TableJustification { Val = alignment });
+
+            var table = new Table(properties);
+            if (withGrid)
+            {
+                table.AppendChild(new TableGrid(
+                    new GridColumn { Width = "3610" },
+                    new GridColumn { Width = "903" }));
+            }
+
+            table.AppendChild(new TableRow(
+                TextCell("Título", "4000", type: TableWidthUnitValues.Pct),
+                TextCell("1", "1000", type: TableWidthUnitValues.Pct)));
+
+            header.Header = new Header(table, new Paragraph());
+            header.Header.Save();
+            section.AppendChild(new HeaderReference
+            {
+                Type = HeaderFooterValues.Default,
+                Id = part.GetIdOfPart(header),
+            });
+        });
+
     private static TableCell LogoCell(string? relationshipId, MergedCellValues merge)
     {
         var properties = new TableCellProperties(
@@ -379,10 +411,14 @@ public static class Fixtures
         return new TableCell(properties, paragraph);
     }
 
-    private static TableCell TextCell(string text, string width, int span = 1)
+    private static TableCell TextCell(
+        string text,
+        string width,
+        int span = 1,
+        TableWidthUnitValues? type = null)
     {
         var properties = new TableCellProperties(
-            new TableCellWidth { Width = width, Type = TableWidthUnitValues.Dxa });
+            new TableCellWidth { Width = width, Type = type ?? TableWidthUnitValues.Dxa });
         if (span > 1) properties.AppendChild(new GridSpan { Val = span });
 
         return new TableCell(

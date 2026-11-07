@@ -742,6 +742,48 @@ public class DocxRoundTripTests
         Assert.DoesNotContain("b", rows[2].Cells[1].Borders, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void PercentCellWidthIsAFractionOfTheTable(bool withGrid)
+    {
+        var cells = DocxReader.Read(Fixtures.WithPercentHeaderTable(withGrid)).Model.Page.Header!.Rows![0].Cells;
+
+        Assert.Equal(0.8, cells[0].Width, 2);
+        Assert.Equal(0.2, cells[1].Width, 2);
+    }
+
+    [Fact]
+    public void HeaderTableKeepsItsWidthAndIndent()
+    {
+        var header = DocxReader.Read(Fixtures.WithPercentHeaderTable(withGrid: true)).Model.Page.Header!;
+
+        Assert.Equal(79.6, header.GridWidthMm!.Value, 1);
+        Assert.Equal(79.6, header.GridIndentMm!.Value, 1);
+    }
+
+    [Theory]
+    [InlineData("center", 39.8)]
+    [InlineData("right", 79.6)]
+    public void AlignedHeaderTableIgnoresTheIndent(string alignment, double indent)
+    {
+        var value = alignment == "center"
+            ? DocumentFormat.OpenXml.Wordprocessing.TableRowAlignmentValues.Center
+            : DocumentFormat.OpenXml.Wordprocessing.TableRowAlignmentValues.Right;
+        var header = DocxReader.Read(Fixtures.WithPercentHeaderTable(withGrid: true, value)).Model.Page.Header!;
+
+        Assert.Equal(indent, header.GridIndentMm!.Value, 1);
+    }
+
+    [Fact]
+    public void TableWiderThanTheTextTakesTheWholeBand()
+    {
+        var header = DocxReader.Read(Fixtures.WithHeaderGrid()).Model.Page.Header!;
+
+        Assert.Null(header.GridWidthMm);
+        Assert.Null(header.GridIndentMm);
+    }
+
     [Fact]
     public void HeaderGroupComesOutPieceByPiece()
     {

@@ -3,6 +3,7 @@ import { contentInsetsMm, pageDimensionsMm, type PageSetup } from './model.js'
 import {
   NO_BANDS,
   bandForPage,
+  gridBox,
   pageLabel,
   pieceText,
   bandInsetMm,
@@ -10,6 +11,7 @@ import {
   linesOf,
   type Band,
   type BandCell,
+  type GridBox,
   type BandHeights,
   type BandPiece,
 } from './band.js'
@@ -207,6 +209,7 @@ function renderPage(
       ? renderBand(header, 'header', pageLabel(page, sheet.inSection), total, {
           inset,
           offset: page.headerDistanceMm,
+          grid: gridBox(header, page),
         })
       : '') +
     body +
@@ -214,6 +217,7 @@ function renderPage(
       ? renderBand(footer, 'footer', pageLabel(page, sheet.inSection), total, {
           inset,
           offset: page.footerDistanceMm,
+          grid: gridBox(footer, page),
         })
       : '') +
     renderFloats(floats, page, false) +
@@ -286,7 +290,7 @@ function renderBand(
   kind: 'header' | 'footer',
   label: string,
   total: number,
-  { inset, offset }: { readonly inset: number; readonly offset: number },
+  { inset, offset, grid }: { readonly inset: number; readonly offset: number; readonly grid: GridBox | null },
 ): string {
   const cell = (pieces: readonly BandPiece[], place: string): string =>
     `<div class="paper-page__cell paper-page__cell--${place}">` + renderLines(pieces, label, total) + '</div>'
@@ -294,7 +298,7 @@ function renderBand(
   return (
     `<div class="paper-page__band paper-page__band--${kind}${band.rule ? ' paper-page__band--ruled' : ''}" ` +
     `style="left:${inset}mm;right:${inset}mm;${kind === 'header' ? 'top' : 'bottom'}:${offset}mm">` +
-    renderGrid(band, label, total) +
+    renderGrid(band, label, total, grid) +
     cell(band.left, 'left') +
     cell(band.center, 'center') +
     cell(band.right, 'right') +
@@ -303,7 +307,7 @@ function renderBand(
 }
 
 /** With cells already resolved by the reader, like the screen. */
-function renderGrid(band: Band, label: string, total: number): string {
+function renderGrid(band: Band, label: string, total: number, grid: GridBox | null): string {
   if (band.rows.length === 0) return ''
 
   const rows = band.rows
@@ -320,7 +324,8 @@ function renderGrid(band: Band, label: string, total: number): string {
     })
     .join('')
 
-  return `<table class="paper-page__grid"><tbody>${rows}</tbody></table>`
+  const style = grid === null ? '' : ` style="width:${grid.width};margin-left:${grid.marginLeft}"`
+  return `<table class="paper-page__grid"${style}><tbody>${rows}</tbody></table>`
 }
 
 /** For the band's three thirds and for the grid cells. */

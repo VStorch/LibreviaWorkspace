@@ -13,7 +13,9 @@ public sealed record BandDto(
     [property: JsonPropertyName("right")] List<PieceDto> Right,
     [property: JsonPropertyName("rule")] bool Rule,
     [property: JsonPropertyName("floats")] List<FloatDto>? Floats = null,
-    [property: JsonPropertyName("rows")] List<BandRowDto>? Rows = null)
+    [property: JsonPropertyName("rows")] List<BandRowDto>? Rows = null,
+    [property: JsonPropertyName("gridWidthMm")] double? GridWidthMm = null,
+    [property: JsonPropertyName("gridIndentMm")] double? GridIndentMm = null)
 {
     public static BandDto Empty() => new([], [], [], false, [], []);
 
