@@ -58,7 +58,7 @@ import {
 } from '../state/shell.js'
 import { TabBar } from '../components/TabBar.js'
 import { useWindowStateSync } from './window-state.js'
-import { useTabKeys } from './tab-keys.js'
+import { useSheetKeys } from './sheet-keys.js'
 
 /** The most work a crash can cost; less would weigh on large documents. */
 const AUTOSAVE_INTERVAL_MS = 8_000
@@ -163,7 +163,7 @@ export function App(): React.JSX.Element {
 
   useWorkspaceLifecycle()
   useWindowStateSync()
-  useTabKeys()
+  useSheetKeys()
 
   // Blue for documents, green for spreadsheets: see `--accent` in the CSS.
   return (

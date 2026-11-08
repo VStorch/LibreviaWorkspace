@@ -155,11 +155,9 @@ export const SHORTCUTS = {
     key: { mod: true, shift: true, key: 'Tab' },
     does: 'Aba anterior',
   },
-  /**
-   * Heard by the page, not by the menu: on a spreadsheet the same keys switch sheets, as in Excel.
-   */
-  nextTabByPage: { owner: ShortcutOwner.Menu, key: { mod: true, key: 'PageDown' }, does: 'Próxima aba' },
-  previousTabByPage: { owner: ShortcutOwner.Menu, key: { mod: true, key: 'PageUp' }, does: 'Aba anterior' },
+  /** Heard by the page, on a spreadsheet only, as in Excel: the files are `Ctrl+Tab`'s. */
+  nextSheet: { owner: ShortcutOwner.Menu, key: { mod: true, key: 'PageDown' }, does: 'Próxima folha' },
+  previousSheet: { owner: ShortcutOwner.Menu, key: { mod: true, key: 'PageUp' }, does: 'Folha anterior' },
   /**
    * `Ctrl+F11`, next to `Ctrl+F10` for formatting marks: both toggle a way of viewing the document,
    * and sitting side by side makes the second easy to remember. `F11` alone is the system's full

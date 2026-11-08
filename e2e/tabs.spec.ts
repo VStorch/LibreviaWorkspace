@@ -124,7 +124,7 @@ test.describe('tabs', () => {
   })
   const activeTab = () => session.window.locator('.tabbar__tab--active .tabbar__label')
 
-  test('the tab commands and Ctrl+PgUp/PgDn move between tabs; on a spreadsheet those keys move between sheets', async () => {
+  test('the tab commands move between tabs; Ctrl+PgUp/PgDn are left to the sheets of a spreadsheet', async () => {
     const { a, b } = await twoFiles(paragraph('Texto de A.'))
     await open(a)
     await open(b)
@@ -137,9 +137,6 @@ test.describe('tabs', () => {
 
     await editor().click()
     await session.window.keyboard.press('Control+PageUp')
-    await expect(activeTab()).toHaveAccessibleName('a.docx')
-    await expect(editor()).toContainText('Texto de A.')
-    await session.window.keyboard.press('Control+PageDown')
     await expect(activeTab()).toHaveAccessibleName('b.docx')
 
     await menu(session, 'new-spreadsheet')
@@ -150,6 +147,23 @@ test.describe('tabs', () => {
     await expect(sheet()).not.toHaveText(second ?? '')
     await expect(tabs()).toHaveCount(3)
     await expect(session.window.locator('.workbook')).toBeVisible()
+  })
+
+  test('on a spreadsheet Ctrl+PgDn walks forward through the sheets, as Ctrl+PgUp walks back', async () => {
+    await menu(session, 'new-spreadsheet')
+    await session.window.locator('.tabs__add').click()
+    await session.window.locator('.tabs__add').click()
+    const sheets = session.window.locator('.workbook [role="tab"]')
+    await expect(sheets).toHaveCount(3)
+    await sheets.first().click()
+    await session.window.locator('revo-grid').click()
+
+    await session.window.keyboard.press('Control+PageDown')
+    await expect(sheets.nth(1)).toHaveAttribute('aria-selected', 'true')
+    await session.window.keyboard.press('Control+PageDown')
+    await expect(sheets.nth(2)).toHaveAttribute('aria-selected', 'true')
+    await session.window.keyboard.press('Control+PageUp')
+    await expect(sheets.nth(1)).toHaveAttribute('aria-selected', 'true')
   })
 
   test('closing all tabs asks about a modified one, and keeping it stops there', async () => {

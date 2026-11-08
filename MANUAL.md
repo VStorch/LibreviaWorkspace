@@ -99,9 +99,9 @@ Each open file has a tab at the top of the window, with an icon for its kind: do
 spreadsheet or PDF. Menus and toolbar act on the file on screen.
 
 - Click a tab to show its file. A dot after the name means unsaved changes.
-- `Ctrl+Tab` and `Ctrl+PgDn` show the next tab; `Ctrl+Shift+Tab` and `Ctrl+PgUp`, the previous one.
-  On a spreadsheet, `Ctrl+PgDn` and `Ctrl+PgUp` move between the spreadsheet's own tabs at the
-  bottom, as in Excel; `Ctrl+Tab` still switches files.
+- `Ctrl+Tab` shows the next tab; `Ctrl+Shift+Tab`, the previous one. On a spreadsheet, `Ctrl+PgDn`
+  and `Ctrl+PgUp` move between the spreadsheet's own sheets at the bottom, as in Excel, and stop at
+  the last and the first.
 - **×**, a middle click on the tab, or **File → Close file** closes it. With unsaved changes, the
   application asks first.
 - **File → Close all tabs** (`Ctrl+Shift+W`) closes them one by one. If you keep a file at the
@@ -252,8 +252,9 @@ They are Word's shortcuts, with few exceptions, explained at the end of the tabl
 | `Ctrl+W` | close the file |
 | `Ctrl+Shift+W` | close all tabs |
 | `Ctrl+T` | Home tab |
-| `Ctrl+Tab`, `Ctrl+PgDn` | next tab (on a spreadsheet, `Ctrl+PgDn` goes to its next tab at the bottom) |
-| `Ctrl+Shift+Tab`, `Ctrl+PgUp` | previous tab (on a spreadsheet, `Ctrl+PgUp` goes to its previous tab at the bottom) |
+| `Ctrl+Tab` | next tab |
+| `Ctrl+Shift+Tab` | previous tab |
+| `Ctrl+PgDn`, `Ctrl+PgUp` | next and previous sheet, on a spreadsheet |
 | `Ctrl+P` | print |
 | `Ctrl+F` | find and replace |
 | `Ctrl+Shift+V` | paste without formatting |

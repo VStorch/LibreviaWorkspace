@@ -136,11 +136,11 @@ describe('isPdfZoomInKey', () => {
     expect(isShortcutPressed(SHORTCUTS.pasteWithoutFormat, { ...pressed, altKey: true })).toBe(false)
   })
 
-  it('recognizes a named key, as the tab keys the page hears', () => {
+  it('recognizes a named key, as the sheet keys the page hears', () => {
     const pressed = { key: 'PageDown', code: 'PageDown', ctrlKey: true, metaKey: false, altKey: false }
 
-    expect(isShortcutPressed(SHORTCUTS.nextTabByPage, { ...pressed, shiftKey: false })).toBe(true)
+    expect(isShortcutPressed(SHORTCUTS.nextSheet, { ...pressed, shiftKey: false })).toBe(true)
     // `Ctrl+Shift+PgDn` selects sheets in Excel: not ours.
-    expect(isShortcutPressed(SHORTCUTS.nextTabByPage, { ...pressed, shiftKey: true })).toBe(false)
+    expect(isShortcutPressed(SHORTCUTS.nextSheet, { ...pressed, shiftKey: true })).toBe(false)
   })
 })

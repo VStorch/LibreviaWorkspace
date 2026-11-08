@@ -99,9 +99,9 @@ Cada arquivo aberto tem uma aba no alto da janela, com um ícone do tipo: docume
 PDF. Menus e barra de ferramentas agem no arquivo que está na tela.
 
 - Clique numa aba para mostrar o arquivo dela. Um ponto depois do nome indica alterações não salvas.
-- `Ctrl+Tab` e `Ctrl+PgDn` mostram a próxima aba; `Ctrl+Shift+Tab` e `Ctrl+PgUp`, a anterior. Numa
-  planilha, `Ctrl+PgDn` e `Ctrl+PgUp` andam pelas abas da própria planilha, embaixo, como no Excel;
-  `Ctrl+Tab` continua trocando de arquivo.
+- `Ctrl+Tab` mostra a próxima aba; `Ctrl+Shift+Tab`, a anterior. Numa planilha, `Ctrl+PgDn` e
+  `Ctrl+PgUp` andam pelas folhas da própria planilha, embaixo, como no Excel, e param na última e na
+  primeira.
 - **×**, um clique com o botão do meio na aba ou **Arquivo → Fechar arquivo** fecha a aba. Com
   alterações não salvas, o aplicativo pergunta antes.
 - **Arquivo → Fechar todas as abas** (`Ctrl+Shift+W`) fecha uma por uma. Se você mantiver um
@@ -255,8 +255,9 @@ São os atalhos do Word, com poucas exceções, explicadas no fim da tabela.
 | `Ctrl+W` | fechar o arquivo |
 | `Ctrl+Shift+W` | fechar todas as abas |
 | `Ctrl+T` | aba Início |
-| `Ctrl+Tab`, `Ctrl+PgDn` | próxima aba (numa planilha, `Ctrl+PgDn` vai para a próxima aba de baixo) |
-| `Ctrl+Shift+Tab`, `Ctrl+PgUp` | aba anterior (numa planilha, `Ctrl+PgUp` vai para a aba de baixo anterior) |
+| `Ctrl+Tab` | próxima aba |
+| `Ctrl+Shift+Tab` | aba anterior |
+| `Ctrl+PgDn`, `Ctrl+PgUp` | próxima folha e folha anterior, numa planilha |
 | `Ctrl+P` | imprimir |
 | `Ctrl+F` | localizar e substituir |
 | `Ctrl+Shift+V` | colar sem formatação |
