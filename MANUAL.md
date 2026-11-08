@@ -96,7 +96,8 @@ And these Librevia **creates**. `.pdf` also opens for reading, as the table abov
 ### Tabs
 
 Each open file has a tab at the top of the window, with an icon for its kind: document,
-spreadsheet or PDF. Menus and toolbar act on the file on screen.
+spreadsheet or PDF. Menus and toolbar act on the file on screen; a menu command that does not
+apply to it, such as **Insert → Comment** on a spreadsheet, is greyed out.
 
 - Click a tab to show its file. A dot after the name means unsaved changes.
 - `Ctrl+Tab` shows the next tab; `Ctrl+Shift+Tab`, the previous one. On a spreadsheet, `Ctrl+PgDn`

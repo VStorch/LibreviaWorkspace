@@ -96,7 +96,8 @@ E estes, o Librevia **cria**. O `.pdf` também abre para leitura, como mostra a 
 ### Abas
 
 Cada arquivo aberto tem uma aba no alto da janela, com um ícone do tipo: documento, planilha ou
-PDF. Menus e barra de ferramentas agem no arquivo que está na tela.
+PDF. Menus e barra de ferramentas agem no arquivo que está na tela; um comando de menu que não
+serve para ele, como **Inserir → Comentário** numa planilha, fica cinza.
 
 - Clique numa aba para mostrar o arquivo dela. Um ponto depois do nome indica alterações não salvas.
 - `Ctrl+Tab` mostra a próxima aba; `Ctrl+Shift+Tab`, a anterior. Numa planilha, `Ctrl+PgDn` e

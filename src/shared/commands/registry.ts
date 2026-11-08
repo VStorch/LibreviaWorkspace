@@ -1,6 +1,6 @@
 import type { MessageKey } from '../i18n/index.js'
 import type { ShortcutId } from '../shortcuts.js'
-import { MenuCommand } from '../types.js'
+import { DocumentKind, MenuCommand } from '../types.js'
 
 export type CommandId = MenuCommand
 
@@ -12,7 +12,13 @@ export interface CommandMeta {
   readonly readsOnly?: true
   /** The page handles the key; the menu only shows it, or on macOS it would take it from the page. */
   readonly registerAccelerator?: false
+  /** Greyed out on Home and on the other kinds; without it, the view decides by answering or not. */
+  readonly kinds?: readonly DocumentKind[]
 }
+
+const ANY_FILE = [DocumentKind.Document, DocumentKind.Spreadsheet, DocumentKind.Pdf] as const
+const EDITABLE = [DocumentKind.Document, DocumentKind.Spreadsheet] as const
+const TEXT = [DocumentKind.Document] as const
 
 export const COMMANDS = {
   [MenuCommand.NewDocument]: {
@@ -29,8 +35,13 @@ export const COMMANDS = {
   [MenuCommand.Open]: { id: MenuCommand.Open, labelKey: 'menu.file.open', shortcut: 'open' },
   [MenuCommand.OpenRecent]: { id: MenuCommand.OpenRecent, labelKey: 'menu.file.openRecent' },
   [MenuCommand.ClearRecent]: { id: MenuCommand.ClearRecent, labelKey: 'menu.file.clearRecent' },
-  [MenuCommand.Save]: { id: MenuCommand.Save, labelKey: 'menu.file.save', shortcut: 'save' },
-  [MenuCommand.SaveAs]: { id: MenuCommand.SaveAs, labelKey: 'menu.file.saveAs', shortcut: 'saveAs' },
+  [MenuCommand.Save]: { id: MenuCommand.Save, labelKey: 'menu.file.save', shortcut: 'save', kinds: ANY_FILE },
+  [MenuCommand.SaveAs]: {
+    id: MenuCommand.SaveAs,
+    labelKey: 'menu.file.saveAs',
+    shortcut: 'saveAs',
+    kinds: EDITABLE,
+  },
   [MenuCommand.CloseFile]: { id: MenuCommand.CloseFile, labelKey: 'menu.file.close', shortcut: 'closeFile' },
   [MenuCommand.CloseAllTabs]: {
     id: MenuCommand.CloseAllTabs,
@@ -52,13 +63,26 @@ export const COMMANDS = {
     shortcut: 'findReplace',
     readsOnly: true,
   },
-  [MenuCommand.ExportPdf]: { id: MenuCommand.ExportPdf, labelKey: 'menu.file.exportPdf' },
-  [MenuCommand.ExportHtml]: { id: MenuCommand.ExportHtml, labelKey: 'menu.file.exportHtml' },
-  [MenuCommand.ExportMarkdown]: { id: MenuCommand.ExportMarkdown, labelKey: 'menu.file.exportMarkdown' },
-  [MenuCommand.ExportOdt]: { id: MenuCommand.ExportOdt, labelKey: 'menu.file.exportOdt' },
-  [MenuCommand.ExportWord]: { id: MenuCommand.ExportWord, labelKey: 'menu.file.exportWord' },
-  [MenuCommand.Print]: { id: MenuCommand.Print, labelKey: 'menu.file.print', shortcut: 'print' },
-  [MenuCommand.PrintPreview]: { id: MenuCommand.PrintPreview, labelKey: 'menu.file.printPreview' },
+  [MenuCommand.ExportPdf]: { id: MenuCommand.ExportPdf, labelKey: 'menu.file.exportPdf', kinds: EDITABLE },
+  [MenuCommand.ExportHtml]: { id: MenuCommand.ExportHtml, labelKey: 'menu.file.exportHtml', kinds: TEXT },
+  [MenuCommand.ExportMarkdown]: {
+    id: MenuCommand.ExportMarkdown,
+    labelKey: 'menu.file.exportMarkdown',
+    kinds: TEXT,
+  },
+  [MenuCommand.ExportOdt]: { id: MenuCommand.ExportOdt, labelKey: 'menu.file.exportOdt', kinds: TEXT },
+  [MenuCommand.ExportWord]: { id: MenuCommand.ExportWord, labelKey: 'menu.file.exportWord', kinds: TEXT },
+  [MenuCommand.Print]: {
+    id: MenuCommand.Print,
+    labelKey: 'menu.file.print',
+    shortcut: 'print',
+    kinds: ANY_FILE,
+  },
+  [MenuCommand.PrintPreview]: {
+    id: MenuCommand.PrintPreview,
+    labelKey: 'menu.file.printPreview',
+    kinds: ANY_FILE,
+  },
   [MenuCommand.PageSetup]: { id: MenuCommand.PageSetup, labelKey: 'menu.file.pageSetup' },
   [MenuCommand.ParagraphSetup]: { id: MenuCommand.ParagraphSetup, labelKey: 'menu.format.paragraph' },
   [MenuCommand.InsertPageBreak]: {
@@ -109,7 +133,11 @@ export const COMMANDS = {
     readsOnly: true,
   },
   [MenuCommand.DocumentProperties]: { id: MenuCommand.DocumentProperties, labelKey: 'menu.file.properties' },
-  [MenuCommand.InspectDocument]: { id: MenuCommand.InspectDocument, labelKey: 'menu.file.inspect' },
+  [MenuCommand.InspectDocument]: {
+    id: MenuCommand.InspectDocument,
+    labelKey: 'menu.file.inspect',
+    kinds: ANY_FILE,
+  },
   [MenuCommand.SpecialCharacter]: {
     id: MenuCommand.SpecialCharacter,
     labelKey: 'menu.insert.specialCharacter',
@@ -181,10 +209,18 @@ export const COMMANDS = {
     labelKey: 'revisions.track',
     shortcut: 'trackChanges',
   },
-  [MenuCommand.ShowAllMarkup]: { id: MenuCommand.ShowAllMarkup, labelKey: 'revisions.show.all' },
-  [MenuCommand.ShowSimpleMarkup]: { id: MenuCommand.ShowSimpleMarkup, labelKey: 'revisions.show.simple' },
-  [MenuCommand.ShowNoMarkup]: { id: MenuCommand.ShowNoMarkup, labelKey: 'revisions.show.none' },
-  [MenuCommand.ShowOriginal]: { id: MenuCommand.ShowOriginal, labelKey: 'revisions.show.original' },
+  [MenuCommand.ShowAllMarkup]: { id: MenuCommand.ShowAllMarkup, labelKey: 'revisions.show.all', kinds: TEXT },
+  [MenuCommand.ShowSimpleMarkup]: {
+    id: MenuCommand.ShowSimpleMarkup,
+    labelKey: 'revisions.show.simple',
+    kinds: TEXT,
+  },
+  [MenuCommand.ShowNoMarkup]: { id: MenuCommand.ShowNoMarkup, labelKey: 'revisions.show.none', kinds: TEXT },
+  [MenuCommand.ShowOriginal]: {
+    id: MenuCommand.ShowOriginal,
+    labelKey: 'revisions.show.original',
+    kinds: TEXT,
+  },
   // A preference, not the document.
   [MenuCommand.AuthorName]: {
     id: MenuCommand.AuthorName,
@@ -249,4 +285,10 @@ export const COMMANDS = {
 export function runsWhileLocked(id: CommandId): boolean {
   const meta: CommandMeta = COMMANDS[id]
   return meta.readsOnly === true
+}
+
+/** `null` is Home. */
+export function appliesTo(id: CommandId, kind: DocumentKind | null): boolean {
+  const meta: CommandMeta = COMMANDS[id]
+  return meta.kinds === undefined || (kind !== null && meta.kinds.includes(kind))
 }

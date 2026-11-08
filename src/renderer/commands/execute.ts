@@ -1,4 +1,4 @@
-import { runsWhileLocked, type CommandId } from '@shared/commands/registry.js'
+import { appliesTo, COMMANDS, runsWhileLocked, type CommandId } from '@shared/commands/registry.js'
 import { DocumentKind } from '@shared/types.js'
 import { activeWorkspaceStore, useTabs } from '../state/tabs.js'
 
@@ -26,18 +26,38 @@ const isEditorSource = (source: string): boolean => source.startsWith(EDITOR_SOU
 /** Newest last: the latest registration answers, and releasing it uncovers the one before. */
 const handlers = new Map<CommandId, Registered[]>()
 
+const listeners = new Set<() => void>()
+let notifying = false
+
+/** Once per burst: switching tabs unregisters one view and registers another in the same pass. */
+function handlersChanged(): void {
+  if (notifying) return
+  notifying = true
+  queueMicrotask(() => {
+    notifying = false
+    for (const listener of listeners) listener()
+  })
+}
+
+export function onHandlersChanged(listener: () => void): () => void {
+  listeners.add(listener)
+  return () => listeners.delete(listener)
+}
+
 export function registerHandlers(source: string, map: CommandHandlers): () => void {
   const added = (Object.entries(map) as [CommandId, CommandHandler][]).map(([id, handler]) => {
     const registered: Registered = { source, handler }
     handlers.set(id, [...(handlers.get(id) ?? []), registered])
     return [id, registered] as const
   })
+  handlersChanged()
   return () => {
     for (const [id, registered] of added) {
       const left = (handlers.get(id) ?? []).filter((candidate) => candidate !== registered)
       if (left.length === 0) handlers.delete(id)
       else handlers.set(id, left)
     }
+    handlersChanged()
   }
 }
 
@@ -52,6 +72,15 @@ function lockedOut(id: CommandId, { source }: Registered): boolean {
   const kind = file?.kind
   const locksText = readOnly && kind !== DocumentKind.Spreadsheet && kind !== DocumentKind.Pdf
   return isEditorSource(source) && locksText && !runsWhileLocked(id)
+}
+
+/** What the menu greys out: no view on screen answers it, or the lock holds it back. */
+export function unavailableCommands(): CommandId[] {
+  const kind = activeWorkspaceStore().getState().file?.kind ?? null
+  return (Object.keys(COMMANDS) as CommandId[]).filter((id) => {
+    const registered = handlerFor(id)
+    return registered === undefined || lockedOut(id, registered) || !appliesTo(id, kind)
+  })
 }
 
 export async function executeCommand(id: CommandId, arg?: string): Promise<void> {

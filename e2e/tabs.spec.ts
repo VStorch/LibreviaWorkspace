@@ -234,6 +234,28 @@ test.describe('tabs', () => {
     await menu(session, 'previous-tab')
     await expect.poll(checked).toBe(true)
   })
+  test('the menu greys out what the tab on screen cannot do', async () => {
+    const enabled = (top: string, label: string) =>
+      session.app.evaluate(
+        ({ Menu }, [menuLabel, itemLabel]) => {
+          const submenu = Menu.getApplicationMenu()?.items.find((entry) => entry.label === menuLabel)?.submenu
+          return submenu?.items.find((entry) => entry.label === itemLabel)?.enabled
+        },
+        [top, label] as const,
+      )
+
+    await expect.poll(() => enabled('Arquivo', 'Salvar')).toBe(false)
+    await expect.poll(() => enabled('Inserir', 'Comentário')).toBe(false)
+
+    await menu(session, 'new-document')
+    await expect.poll(() => enabled('Arquivo', 'Salvar')).toBe(true)
+    await expect.poll(() => enabled('Inserir', 'Comentário')).toBe(true)
+
+    await menu(session, 'new-spreadsheet')
+    await expect.poll(() => enabled('Inserir', 'Comentário')).toBe(false)
+    await expect.poll(() => enabled('Arquivo', 'Salvar')).toBe(true)
+  })
+
   async function twoModifiedTabs(): Promise<void> {
     const { a, b } = await twoFiles(paragraph('Texto de A.'))
     for (const path of [a, b]) {

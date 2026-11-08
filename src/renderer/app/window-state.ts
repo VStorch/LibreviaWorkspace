@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import type { MenuSnapshot } from '@shared/ipc.js'
 import { DocumentKind, MenuCommand } from '@shared/types.js'
 import { buildWindowTitle } from '@services/file/formats.js'
+import { onHandlersChanged, unavailableCommands } from '../commands/execute.js'
 import { REVISION_VIEW_COMMANDS } from '../state/revision-view.js'
 import { dirtyTabs } from '../state/shell.js'
 import { useTabs } from '../state/tabs.js'
@@ -11,7 +12,7 @@ import { t } from '../i18n.js'
 
 type MenuSource = Pick<WorkspaceState, 'file' | 'readOnly' | 'workbook' | 'trackChanges' | 'revisionView'>
 
-export function menuSnapshot(state: MenuSource): MenuSnapshot {
+export function menuSnapshot(state: MenuSource, disabled: readonly MenuCommand[] = []): MenuSnapshot {
   const kind = state.file?.kind ?? null
   // It belongs to the document: off with a spreadsheet open.
   const trackChanges = state.workbook === null && state.trackChanges === true
@@ -22,7 +23,7 @@ export function menuSnapshot(state: MenuSource): MenuSnapshot {
       ...(trackChanges ? [MenuCommand.ToggleTrackChanges] : []),
       REVISION_VIEW_COMMANDS[state.revisionView],
     ],
-    disabled: [],
+    disabled: [...disabled],
   }
 }
 
@@ -37,7 +38,12 @@ export function useWindowStateSync(): void {
       const untitled = t('shell.file.untitled')
       const title = state.file?.name ?? untitled
       const { isDirty } = state
-      const payload = { title, isDirty, dirty: dirtyTabs(), commands: menuSnapshot(state) }
+      const payload = {
+        title,
+        isDirty,
+        dirty: dirtyTabs(),
+        commands: menuSnapshot(state, unavailableCommands()),
+      }
       const key = JSON.stringify(payload)
       if (key === last) return
 
@@ -47,7 +53,12 @@ export function useWindowStateSync(): void {
     }
 
     sync()
-    return watchEveryTab(sync)
+    const stopTabs = watchEveryTab(sync)
+    const stopHandlers = onHandlersChanged(sync)
+    return () => {
+      stopTabs()
+      stopHandlers()
+    }
   }, [])
 }
 

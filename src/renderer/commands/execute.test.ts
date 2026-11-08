@@ -3,7 +3,14 @@ import { DocumentKind, MenuCommand } from '@shared/types.js'
 import { EDITOR_COMMANDS, type EditorCommand } from '../document/editor-commands.js'
 import { useTabs } from '../state/tabs.js'
 import { createWorkspaceStore, useWorkspace } from '../state/workspace.js'
-import { editorSource, executeCommand, registerHandlers, type CommandHandlers } from './execute.js'
+import {
+  editorSource,
+  executeCommand,
+  onHandlersChanged,
+  registerHandlers,
+  unavailableCommands,
+  type CommandHandlers,
+} from './execute.js'
 
 const initialTabs = useTabs.getState()
 
@@ -108,5 +115,65 @@ describe('executeCommand', () => {
     await executeCommand(MenuCommand.DocumentProperties)
 
     expect(run).toHaveBeenCalledOnce()
+  })
+})
+
+describe('unavailableCommands', () => {
+  const cleanups: (() => void)[] = []
+  const shell = (): CommandHandlers => ({
+    [MenuCommand.Open]: { run: vi.fn() },
+    [MenuCommand.Save]: { run: vi.fn() },
+    [MenuCommand.ExportWord]: { run: vi.fn() },
+  })
+
+  afterEach(() => {
+    for (const cleanup of cleanups.splice(0)) cleanup()
+    useTabs.setState(initialTabs, true)
+    useWorkspace.setState({ readOnly: false, file: null })
+  })
+
+  it('greys out on Home what needs a file and what no view on screen answers', () => {
+    cleanups.push(registerHandlers('shell', shell()))
+    useWorkspace.setState({ file: null })
+
+    const greyed = unavailableCommands()
+
+    expect(greyed).toEqual(expect.arrayContaining([MenuCommand.Save, MenuCommand.TableInsert]))
+    expect(greyed).not.toContain(MenuCommand.Open)
+  })
+
+  it('greys out on a spreadsheet the commands only a document has', () => {
+    cleanups.push(registerHandlers('shell', shell()))
+    useWorkspace.setState({ file: { path: null, name: 'Planilha.ssheet', kind: DocumentKind.Spreadsheet } })
+
+    const greyed = unavailableCommands()
+
+    expect(greyed).toEqual(expect.arrayContaining([MenuCommand.ExportWord, MenuCommand.InsertComment]))
+    expect(greyed).not.toContain(MenuCommand.Save)
+  })
+
+  it('greys out on a locked document what would edit it, and leaves what only reads', () => {
+    cleanups.push(editorOf(initialTabs.activeId, []))
+    useWorkspace.setState({
+      readOnly: true,
+      file: { path: '/docs/a.docx', name: 'a.docx', kind: DocumentKind.Document },
+    })
+
+    const greyed = unavailableCommands()
+
+    expect(greyed).toContain(MenuCommand.TableInsert)
+    expect(greyed).not.toContain(MenuCommand.FindReplace)
+  })
+
+  it('tells once when a burst of registrations changes what answers', async () => {
+    const changed = vi.fn()
+    cleanups.push(onHandlersChanged(changed))
+
+    const unregister = registerHandlers('a', shell())
+    cleanups.push(registerHandlers('b', shell()))
+    unregister()
+    await Promise.resolve()
+
+    expect(changed).toHaveBeenCalledTimes(1)
   })
 })

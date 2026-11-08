@@ -59,13 +59,13 @@
         "label": "Salvar",
         "type": "normal",
         "accelerator": "CmdOrCtrl+S",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "Salvar como…",
         "type": "normal",
         "accelerator": "CmdOrCtrl+Shift+S",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "",
@@ -75,17 +75,17 @@
       {
         "label": "Configuração de página…",
         "type": "normal",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "Visualizar impressão",
         "type": "normal",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "Exportar para PDF…",
         "type": "normal",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "Exportar como",
@@ -95,40 +95,40 @@
           {
             "label": "Documento do Word (.docx)",
             "type": "normal",
-            "enabled": true
+            "enabled": false
           },
           {
             "label": "Documento do OpenDocument (.odt)",
             "type": "normal",
-            "enabled": true
+            "enabled": false
           },
           {
             "label": "Página da web (.html)",
             "type": "normal",
-            "enabled": true
+            "enabled": false
           },
           {
             "label": "Texto em Markdown (.md)",
             "type": "normal",
-            "enabled": true
+            "enabled": false
           }
         ]
       },
       {
         "label": "Propriedades…",
         "type": "normal",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "Inspecionar documento…",
         "type": "normal",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "Imprimir…",
         "type": "normal",
         "accelerator": "CmdOrCtrl+P",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "",
@@ -209,7 +209,7 @@
         "type": "normal",
         "accelerator": "CmdOrCtrl+Shift+V",
         "registerAccelerator": false,
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "Selecionar tudo",
@@ -227,7 +227,7 @@
         "label": "Localizar e substituir…",
         "type": "normal",
         "accelerator": "CmdOrCtrl+F",
-        "enabled": true
+        "enabled": false
       }
     ]
   },
@@ -239,17 +239,17 @@
       {
         "label": "Parágrafo…",
         "type": "normal",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "Imagem…",
         "type": "normal",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "Colunas…",
         "type": "normal",
-        "enabled": true
+        "enabled": false
       }
     ]
   },
@@ -262,7 +262,7 @@
         "label": "Inserir tabela…",
         "type": "normal",
         "accelerator": "CmdOrCtrl+F12",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "",
@@ -272,22 +272,22 @@
       {
         "label": "Inserir linha acima",
         "type": "normal",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "Inserir linha abaixo",
         "type": "normal",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "Inserir coluna à esquerda",
         "type": "normal",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "Inserir coluna à direita",
         "type": "normal",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "",
@@ -297,17 +297,17 @@
       {
         "label": "Excluir linha",
         "type": "normal",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "Excluir coluna",
         "type": "normal",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "Excluir tabela",
         "type": "normal",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "",
@@ -317,12 +317,12 @@
       {
         "label": "Mesclar células",
         "type": "normal",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "Dividir célula",
         "type": "normal",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "",
@@ -332,12 +332,12 @@
       {
         "label": "Linha de cabeçalho",
         "type": "normal",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "Propriedades da tabela…",
         "type": "normal",
-        "enabled": true
+        "enabled": false
       }
     ]
   },
@@ -350,7 +350,7 @@
         "label": "Quebra de página",
         "type": "normal",
         "accelerator": "CmdOrCtrl+Enter",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "Quebra de seção",
@@ -360,22 +360,22 @@
           {
             "label": "Próxima página",
             "type": "normal",
-            "enabled": true
+            "enabled": false
           },
           {
             "label": "Contínua",
             "type": "normal",
-            "enabled": true
+            "enabled": false
           },
           {
             "label": "Página par",
             "type": "normal",
-            "enabled": true
+            "enabled": false
           },
           {
             "label": "Página ímpar",
             "type": "normal",
-            "enabled": true
+            "enabled": false
           },
           {
             "label": "",
@@ -385,35 +385,35 @@
           {
             "label": "Quebra de coluna",
             "type": "normal",
-            "enabled": true
+            "enabled": false
           },
           {
             "label": "Excluir quebra de seção",
             "type": "normal",
-            "enabled": true
+            "enabled": false
           }
         ]
       },
       {
         "label": "Caractere especial…",
         "type": "normal",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "Equação",
         "type": "normal",
         "accelerator": "Alt+=",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "Equação em destaque",
         "type": "normal",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "Propriedade do documento…",
         "type": "normal",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "",
@@ -424,35 +424,35 @@
         "label": "Marcador…",
         "type": "normal",
         "accelerator": "CmdOrCtrl+Shift+F5",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "Nota de rodapé",
         "type": "normal",
         "accelerator": "CmdOrCtrl+Alt+F",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "Nota de fim",
         "type": "normal",
         "accelerator": "CmdOrCtrl+Alt+D",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "Comentário",
         "type": "normal",
         "accelerator": "CmdOrCtrl+Alt+M",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "Próximo comentário",
         "type": "normal",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "Comentário anterior",
         "type": "normal",
-        "enabled": true
+        "enabled": false
       }
     ]
   },
@@ -464,12 +464,12 @@
       {
         "label": "Inserir sumário",
         "type": "normal",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "Atualizar sumário",
         "type": "normal",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "",
@@ -479,12 +479,12 @@
       {
         "label": "Inserir legenda…",
         "type": "normal",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "Referência cruzada…",
         "type": "normal",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "",
@@ -495,7 +495,7 @@
         "label": "Atualizar campos",
         "type": "normal",
         "accelerator": "F9",
-        "enabled": true
+        "enabled": false
       }
     ]
   },
@@ -509,7 +509,7 @@
         "type": "checkbox",
         "accelerator": "CmdOrCtrl+Shift+E",
         "checked": false,
-        "enabled": true,
+        "enabled": false,
         "toolTip": "Marca o texto inserido e excluído com o seu nome. Mudanças de formatação não são controladas."
       },
       {
@@ -521,25 +521,25 @@
             "label": "Marcação completa",
             "type": "radio",
             "checked": true,
-            "enabled": true
+            "enabled": false
           },
           {
             "label": "Marcação simples",
             "type": "radio",
             "checked": false,
-            "enabled": true
+            "enabled": false
           },
           {
             "label": "Sem marcação",
             "type": "radio",
             "checked": false,
-            "enabled": true
+            "enabled": false
           },
           {
             "label": "Original",
             "type": "radio",
             "checked": false,
-            "enabled": true
+            "enabled": false
           }
         ]
       },
@@ -551,12 +551,12 @@
       {
         "label": "Aceitar alteração",
         "type": "normal",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "Rejeitar alteração",
         "type": "normal",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "",
@@ -566,12 +566,12 @@
       {
         "label": "Aceitar todas as alterações",
         "type": "normal",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "Rejeitar todas as alterações",
         "type": "normal",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "",
@@ -581,12 +581,12 @@
       {
         "label": "Próxima alteração",
         "type": "normal",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "Alteração anterior",
         "type": "normal",
-        "enabled": true
+        "enabled": false
       }
     ]
   },
@@ -779,12 +779,12 @@
         "label": "Contar palavras…",
         "type": "normal",
         "accelerator": "CmdOrCtrl+Shift+G",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "Nome do autor…",
         "type": "normal",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "",
@@ -795,12 +795,12 @@
         "label": "Assistente de IA…",
         "type": "normal",
         "accelerator": "CmdOrCtrl+Shift+Y",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "Assistentes de IA…",
         "type": "normal",
-        "enabled": true
+        "enabled": false
       },
       {
         "label": "",
