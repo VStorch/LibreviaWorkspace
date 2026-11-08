@@ -40,4 +40,17 @@ describe('draft actions', () => {
       expect.objectContaining({ draftId: store.getState().draftId }),
     )
   })
+  it('does not write again the draft of a hidden tab that has not changed since', async () => {
+    const api = stubApi()
+    const store = createWorkspaceStore()
+    store.setState({ file: { path: null, name: 'a.sdoc', kind: DocumentKind.Document }, isDirty: true })
+
+    await store.getState().autosave()
+    await store.getState().autosave()
+    expect(api.file.autosave).toHaveBeenCalledOnce()
+
+    store.setState({ isDirty: true, textEdited: true })
+    await store.getState().autosave()
+    expect(api.file.autosave).toHaveBeenCalledTimes(2)
+  })
 })

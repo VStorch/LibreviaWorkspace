@@ -15,10 +15,17 @@ export function createDraftActions(
   get: GetWorkspace,
   ctx: WorkspaceContext,
 ): DraftActions {
+  /**
+   * Without an editor, the content lives in the state: the same state means the same draft. A
+   * hidden tab would otherwise write it again every few seconds.
+   */
+  let written: WorkspaceState | null = null
+
   return {
     autosave: async () => {
       const state = get()
       if (state.file === null || !state.isDirty) return
+      if (ctx.source() === null && state === written) return
       // A PDF's only change is its properties, which have no draft: closing asks to save them.
       if (state.file.kind === DocumentKind.Pdf) return
       if (state.autosaveBroken) return
@@ -32,7 +39,8 @@ export function createDraftActions(
         content: ctx.currentContent(),
       })
 
-      if (!result.ok) set(autosaveBrokenState(result.error))
+      if (result.ok) written = state
+      else set(autosaveBrokenState(result.error))
     },
 
     restoreDraft: (draft) => {
