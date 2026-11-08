@@ -452,6 +452,12 @@ async function openLogFolder(): Promise<void> {
   if (folder !== null) await openFolder(folder)
 }
 
+let latestRefresh = 0
+
+/** Two refreshes may finish out of order: only the latest one, which read the newest state, installs. */
 export async function refreshMenu(): Promise<void> {
-  Menu.setApplicationMenu(Menu.buildFromTemplate(await buildTemplate(menuSnapshotOf(focusedWindow()))))
+  latestRefresh += 1
+  const refresh = latestRefresh
+  const template = await buildTemplate(menuSnapshotOf(focusedWindow()))
+  if (refresh === latestRefresh) Menu.setApplicationMenu(Menu.buildFromTemplate(template))
 }
