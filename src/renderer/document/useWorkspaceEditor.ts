@@ -38,6 +38,7 @@ export function useWorkspaceEditor(): WorkspaceEditor {
       revisionAuthor: () => signingName() || anonymousName(),
     }),
     content: initialDoc,
+    autofocus: 'start',
     onUpdate: ({ editor: current, transaction }) => {
       // Pagination arrives as a transaction: treating it as an edit would mark the document dirty.
       if (isPaginationOnly(transaction)) return

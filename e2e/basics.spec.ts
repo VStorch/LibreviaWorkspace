@@ -49,6 +49,14 @@ test.describe('file cycle', () => {
     await expect(session.window.locator('.ProseMirror')).toContainText('Presentes: Ana, Bruno e Carla.')
   })
 
+  test('a new document takes the typing without a click, as in Word', async () => {
+    await menu(session, 'new-document')
+    await expect(session.window.locator('.ProseMirror')).toBeVisible()
+    await session.window.keyboard.type('Primeira linha')
+
+    await expect(session.window.locator('.ProseMirror')).toHaveText('Primeira linha')
+  })
+
   test('a click low on the sheet of a new document lands in the text', async () => {
     await menu(session, 'new-document')
     const paper = session.window.locator('.paper').first()
