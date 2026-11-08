@@ -1,6 +1,6 @@
 /**
- * The menu reaches the renderer through `App`, which has no editor. The identifiers match
- * `MenuCommand`, so `App` forwards them by name without translation.
+ * The commands an open file's view answers, registered through `useEditorHandlers`. The identifiers
+ * match `MenuCommand`, so the menu reaches them by name without translation.
  */
 
 import { TableAction } from '@shared/table-actions.js'
@@ -54,22 +54,11 @@ export const EditorCommand = {
 
 export type EditorCommand = (typeof EditorCommand)[keyof typeof EditorCommand]
 
-const KNOWN = new Set<string>(Object.values(EditorCommand))
+export const EDITOR_COMMANDS: readonly EditorCommand[] = Object.values(EditorCommand)
+
+const KNOWN = new Set<string>(EDITOR_COMMANDS)
 
 /** `App` only knows about files: selection, cursor and document dialogs belong to the editor. */
 export function asEditorCommand(command: string): EditorCommand | null {
   return KNOWN.has(command) ? (command as EditorCommand) : null
-}
-
-const listeners = new Set<(command: EditorCommand) => void>()
-
-export function onEditorCommand(listener: (command: EditorCommand) => void): () => void {
-  listeners.add(listener)
-  return () => {
-    listeners.delete(listener)
-  }
-}
-
-export function emitEditorCommand(command: EditorCommand): void {
-  for (const listener of listeners) listener(command)
 }

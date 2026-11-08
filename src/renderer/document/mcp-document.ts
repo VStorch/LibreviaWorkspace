@@ -7,22 +7,18 @@ import type { McpDocumentRequest } from '@shared/api.js'
 import { McpDocumentAsk, McpDocumentRefusal } from '@shared/types.js'
 import { refused, type McpReply } from '../ai/mcp-reply.js'
 import { answerSheetTool } from '../spreadsheet/mcp-sheet.js'
+import { createTabSlot, useOwnTabId } from '../state/tabs.js'
 import { useWorkspace } from '../state/workspace.js'
 import { chatParagraphs } from './ai-proposals.js'
 import { applyProposals } from './proposal-commands.js'
 
-/** The text document on screen; none while a spreadsheet, a PDF or nothing is open. */
-let shown: Editor | null = null
+/** The active tab's text document; none while it shows a spreadsheet, a PDF or nothing. */
+const shown = createTabSlot<Editor>()
 
 /** Until the editor leaves the screen. */
 export function useOfferToMcp(editor: Editor | null): void {
-  useEffect(() => {
-    if (editor === null) return undefined
-    shown = editor
-    return () => {
-      if (shown === editor) shown = null
-    }
-  }, [editor])
+  const tabId = useOwnTabId()
+  useEffect(() => (editor === null ? undefined : shown.hold(tabId, editor)), [tabId, editor])
 }
 
 /** Always a tracked revision or a comment, each its own undo step, whatever the editing mode. */
@@ -38,8 +34,8 @@ function answer(request: McpDocumentRequest): McpReply {
   const { requestId } = request
   if (Date.now() > request.deadline) return refused(requestId, McpDocumentRefusal.Expired)
   if (request.ask === McpDocumentAsk.SheetTool) return answerSheetTool(request)
-  const editor = shown
-  if (editor === null || editor.isDestroyed) return refused(requestId, McpDocumentRefusal.NoTextDocument)
+  const editor = shown.active()
+  if (editor === undefined || editor.isDestroyed) return refused(requestId, McpDocumentRefusal.NoTextDocument)
   if (request.ask === McpDocumentAsk.Snapshot) {
     return { requestId, ask: McpDocumentAsk.Snapshot, paragraphs: chatParagraphs(editor.state.doc) }
   }

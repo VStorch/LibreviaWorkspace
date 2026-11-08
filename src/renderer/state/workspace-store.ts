@@ -1,4 +1,5 @@
 import { createStore, type StoreApi } from 'zustand/vanilla'
+import { RevisionView } from '@shared/types.js'
 import { DEFAULT_PAGE_SETUP, createEmptyDocument } from '@services/document/model.js'
 import { createWorkspaceContext } from './context.js'
 import { createDraftActions } from './draft-actions.js'
@@ -59,6 +60,7 @@ export function createWorkspaceStore(): WorkspaceStore {
       inspector: false,
       autosaveBroken: false,
       busy: false,
+      revisionView: RevisionView.All,
 
       registerDocumentSource: (source) => ctx.setSource(source),
       markTextEdited: () => {
@@ -86,6 +88,9 @@ export function createWorkspaceStore(): WorkspaceStore {
       allowEditing: () => set({ readOnly: false }),
       setTemplateGallery: (templateGallery) => set({ templateGallery }),
       setInspector: (inspector) => set({ inspector }),
+      setRevisionView: (revisionView) => {
+        if (get().revisionView !== revisionView) set({ revisionView })
+      },
 
       ...createFileActions(set, get, ctx),
       ...createSheetActions(set, get, store.subscribe),

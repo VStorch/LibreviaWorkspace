@@ -1,13 +1,15 @@
-import { useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 import { parseClipboardText, pasteText, rangeAsText } from '@services/spreadsheet/clipboard.js'
 import { clearContents, type Range } from '@services/spreadsheet/edit.js'
 import type { Sheet } from '@services/spreadsheet/model.js'
 import { SHORTCUTS, isShortcutPressed } from '@shared/shortcuts.js'
-import { EditorCommand, onEditorCommand } from '../document/editor-commands.js'
+import { useEditorHandlers } from '../commands/useEditorHandlers.js'
+import { EditorCommand } from '../document/editor-commands.js'
 import { useWorkspace } from '../state/workspace.js'
 import { TEXT_FIELD, dialogOverSheet } from './useSheetUndo.js'
 
 const PLAIN_TEXT = 'text/plain'
+const PASTE_COMMANDS = [EditorCommand.PasteWithoutFormat]
 const CLEAR_KEYS: ReadonlySet<string> = new Set(['Delete', 'Backspace'])
 
 /** Outside a field and a dialog, and with no text of the page selected, as an answer of the assistant. */
@@ -81,33 +83,29 @@ export function useSheetPasteWithoutFormat(
 ): void {
   const showError = useWorkspace((state) => state.showError)
 
-  useEffect(() => {
-    const paste = async (): Promise<void> => {
-      const result = await window.api.edit.readClipboardText({})
-      if (!result.ok) {
-        showError(result.error)
-        return
-      }
-      if (result.data.text === '') return
-      const { fromRow, fromColumn } = selected.current
-      applyChange(pasteText(current.current, fromRow, fromColumn, parseClipboardText(result.data.text)))
+  const paste = useCallback(async (): Promise<void> => {
+    const result = await window.api.edit.readClipboardText({})
+    if (!result.ok) {
+      showError(result.error)
+      return
     }
+    if (result.data.text === '') return
+    const { fromRow, fromColumn } = selected.current
+    applyChange(pasteText(current.current, fromRow, fromColumn, parseClipboardText(result.data.text)))
+  }, [current, selected, applyChange, showError])
 
+  useEffect(() => {
     const key = (event: KeyboardEvent): void => {
       if (!isShortcutPressed(SHORTCUTS.pasteWithoutFormat, event) || !sheetOwns(event.target, false)) return
       event.preventDefault()
       event.stopImmediatePropagation()
       void paste()
     }
-
     window.addEventListener('keydown', key, { capture: true })
-    const unsubscribe = onEditorCommand((command) => {
-      if (command === EditorCommand.PasteWithoutFormat && sheetOwns(document.activeElement, false))
-        void paste()
-    })
-    return () => {
-      window.removeEventListener('keydown', key, { capture: true })
-      unsubscribe()
-    }
-  }, [current, selected, applyChange, showError])
+    return () => window.removeEventListener('keydown', key, { capture: true })
+  }, [paste])
+
+  useEditorHandlers(PASTE_COMMANDS, () => {
+    if (sheetOwns(document.activeElement, false)) void paste()
+  })
 }

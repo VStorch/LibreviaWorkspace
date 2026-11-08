@@ -1,7 +1,8 @@
 import { Extension, Node } from '@tiptap/core'
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { NodeSelection, Plugin, PluginKey } from '@tiptap/pm/state'
-import { EditorCommand, emitEditorCommand } from '../editor-commands.js'
+import { executeCommand } from '../../commands/execute.js'
+import { EditorCommand } from '../editor-commands.js'
 import { equationAtSelection } from '../math-commands.js'
 import {
   MATHML_NAMESPACE,
@@ -154,7 +155,7 @@ export const MathEditing = Extension.create({
     return {
       Enter: () => {
         if (equationAtSelection(this.editor.state) === null) return false
-        emitEditorCommand(EditorCommand.EditEquation)
+        void executeCommand(EditorCommand.EditEquation)
         return true
       },
     }
@@ -171,7 +172,7 @@ export const MathEditing = Extension.create({
             if (!direct || node.type.name !== 'math') return false
             // The node position: on the right half, the click lands after the equation.
             view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, nodePos)))
-            emitEditorCommand(EditorCommand.EditEquation)
+            void executeCommand(EditorCommand.EditEquation)
             return true
           },
         },

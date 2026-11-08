@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { ViewerCommand } from '@shared/pdf-viewer-protocol.js'
+import { createTabSlot } from '../state/tabs.js'
 
 export interface FindCount {
   readonly current: number
@@ -15,21 +16,24 @@ interface PdfViewerState {
 
 const NOTHING_SHOWN: PdfViewerState = { page: 0, pages: 0, found: null }
 
-/** What the open PDF's viewer reported, for the status bar and the find bar. */
+/**
+ * What the active tab's viewer reported, for the status bar and the find bar. Window-wide: only the
+ * active tab's viewer is mounted, and connecting or leaving clears it.
+ */
 export const usePdfViewer = create<PdfViewerState>(() => NOTHING_SHOWN)
 
-let post: ((command: ViewerCommand) => void) | null = null
+const post = createTabSlot<(command: ViewerCommand) => void>()
 
-/** One viewer at a time: the open PDF's. Returns the disconnect function. */
-export function connectViewer(send: (command: ViewerCommand) => void): () => void {
-  post = send
+/** Commands go to the active tab's viewer. Returns the disconnect function. */
+export function connectViewer(tabId: string, send: (command: ViewerCommand) => void): () => void {
+  const release = post.hold(tabId, send)
   usePdfViewer.setState(NOTHING_SHOWN)
   return () => {
-    if (post === send) post = null
+    release()
     usePdfViewer.setState(NOTHING_SHOWN)
   }
 }
 
 export function sendToViewer(command: ViewerCommand): void {
-  post?.(command)
+  post.active()?.(command)
 }

@@ -4,7 +4,8 @@ import { createSheet, setCell } from '@services/spreadsheet/model.js'
 import type { McpDocumentRequest } from '@shared/api.js'
 import { MCP_DOCUMENT_REFUSED, McpDocumentAsk, McpDocumentRefusal } from '@shared/types.js'
 import { useWorkspace } from '../state/workspace.js'
-import { answerSheetTool, useSheetMcpProposals } from './mcp-sheet.js'
+import { useTabs } from '../state/tabs.js'
+import { answerSheetTool, isProposalFor, useSheetMcpProposals } from './mcp-sheet.js'
 
 const AUTHOR = 'Cliente (MCP)'
 const SELECTION = singleCell(0, 0)
@@ -51,6 +52,17 @@ describe('sheet tools requested by an MCP client', () => {
   })
 
   it('with no sheet on screen, refuses saying there is no sheet', () => {
-    expect(answerSheetTool(write(), null)).toMatchObject({ refusal: McpDocumentRefusal.NoSpreadsheet })
+    expect(answerSheetTool(write(), undefined)).toMatchObject({ refusal: McpDocumentRefusal.NoSpreadsheet })
+  })
+
+  it('keeps a proposal to the tab it was made in, even when another tab has the same generation', () => {
+    const { activeId } = useTabs.getState()
+    const { generation } = useWorkspace.getState()
+    answerSheetTool(write(), SELECTION)
+
+    const [proposal] = useSheetMcpProposals.getState().pending
+
+    expect(isProposalFor(proposal!, activeId, generation)).toBe(true)
+    expect(isProposalFor(proposal!, 'another-tab', generation)).toBe(false)
   })
 })

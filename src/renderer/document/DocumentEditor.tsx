@@ -12,7 +12,6 @@ import { effectiveSections, resolveSections, type ResolvedSections } from '@serv
 import { fitWidthZoom } from '@services/document/zoom.js'
 import { currentPreferences, usePreferences } from '../state/preferences.js'
 import { useLeaveReadingOnEscape, useReadingMode } from '../state/reading.js'
-import { useRevisionView } from '../state/revision-view.js'
 import { t as translateNow, useT } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
 import { setFittedZoom, useCtrlWheelZoom, useEffectiveZoom } from '../state/zoom.js'
@@ -47,7 +46,7 @@ export function DocumentEditor(): React.JSX.Element {
   const styles = useWorkspace((state) => state.styles)
   const preferences = usePreferences((state) => state.preferences)
   const reading = useReadingMode()
-  const revisionView = useRevisionView((state) => state.view)
+  const revisionView = useWorkspace((state) => state.revisionView)
   useLeaveReadingOnEscape(reading)
 
   const notePoolRef = useRef<HTMLDivElement>(null)

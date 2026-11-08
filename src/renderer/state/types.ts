@@ -1,5 +1,5 @@
 import type { SerializedError } from '@shared/errors.js'
-import type { DocumentKind, DraftSummary, LossInventory, RecentFile } from '@shared/types.js'
+import type { DocumentKind, DraftSummary, LossInventory, RecentFile, RevisionView } from '@shared/types.js'
 import type {
   DocumentComment,
   DocumentModel,
@@ -105,6 +105,9 @@ export interface WorkspaceState {
   /** Retrying every eight seconds would fill the screen with warnings. */
   autosaveBroken: boolean
   busy: boolean
+  /** Neither a preference nor the document: as in Word, each document looks its own way, and printing follows. */
+  revisionView: RevisionView
+  setRevisionView: (view: RevisionView) => void
 
   registerDocumentSource: (source: DocumentSource | null) => void
   /** The editor's own edits: also marks the file modified. */

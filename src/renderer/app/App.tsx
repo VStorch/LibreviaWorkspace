@@ -13,7 +13,8 @@ import { answerMcpRequests } from '../document/mcp-document.js'
 import { watchMcpClients } from '../state/mcp-clients.js'
 import { TemplateGallery } from '../components/TemplateGallery.js'
 import { DocumentEditor } from '../document/DocumentEditor.js'
-import { EditorCommand, onEditorCommand } from '../document/editor-commands.js'
+import { EditorCommand } from '../document/editor-commands.js'
+import { useEditorHandlers } from '../commands/useEditorHandlers.js'
 import { executeCommand, registerHandlers, type CommandHandlers } from '../commands/execute.js'
 import { HomePage } from '../pages/HomePage.js'
 import { PdfView } from '../pdf/PdfView.js'
@@ -32,13 +33,14 @@ import { useReadingMode } from '../state/reading.js'
 import { setOptionsDialog, useOptionsDialog } from '../state/options-dialog.js'
 import { useTheme } from '../state/theme.js'
 import { runZoomCommand } from '../state/zoom.js'
-import { REVISION_VIEW_HANDLERS, useRevisionView } from '../state/revision-view.js'
-import { activeWorkspaceStore, autosaveAllTabs } from '../state/tabs.js'
+import { REVISION_VIEW_HANDLERS } from '../state/revision-view.js'
+import { activeWorkspaceStore, autosaveAllTabs, useTabs } from '../state/tabs.js'
 import { useWorkspace } from '../state/workspace.js'
 import { t } from '../i18n.js'
 
 /** The most work a crash can cost; less would weigh on large documents. */
 const AUTOSAVE_INTERVAL_MS = 8_000
+const WORKBOOK_COMMANDS = [EditorCommand.DocumentProperties]
 
 type Workspace = ReturnType<typeof useWorkspace.getState>
 
@@ -126,7 +128,8 @@ export function App(): React.JSX.Element {
   const viewedPdf = useWorkspace((state) => (state.file?.kind === DocumentKind.Pdf ? state.file.path : null))
   const templateGallery = useWorkspace((state) => state.templateGallery)
   const inspector = useWorkspace((state) => state.inspector && state.file !== null)
-  // The editor is remounted for each document, with no leftover state.
+  // The editor is remounted for each document and each tab, with no leftover state.
+  const tabId = useTabs((tabs) => tabs.activeId)
   const generation = useWorkspace((state) => state.generation)
   const workbook = useWorkspace((state) => state.workbook)
   const reading = useReadingMode()
@@ -149,11 +152,11 @@ export function App(): React.JSX.Element {
       <InventoryBanner />
       <div className="app__body">
         {viewedPdf !== null ? (
-          <PdfView key={generation} path={viewedPdf} />
+          <PdfView key={`${tabId}:${generation}`} path={viewedPdf} />
         ) : workbook !== null ? (
-          <WorkbookView workbook={workbook} generation={generation} />
+          <WorkbookView key={tabId} workbook={workbook} generation={generation} />
         ) : hasFile ? (
-          <DocumentEditor key={generation} />
+          <DocumentEditor key={`${tabId}:${generation}`} />
         ) : (
           <HomePage />
         )}
@@ -224,7 +227,7 @@ function useWindowStateSync(): void {
       const title = state.file?.name ?? untitled
       // It belongs to the document: off with a spreadsheet open.
       const trackChanges = state.workbook === null && state.trackChanges === true
-      const revisionView = useRevisionView.getState().view
+      const { revisionView } = state
       if (
         title === lastTitle &&
         state.isDirty === lastDirty &&
@@ -242,10 +245,8 @@ function useWindowStateSync(): void {
     }
 
     sync()
-    const unsubscribeView = useRevisionView.subscribe(sync)
     const unsubscribe = useWorkspace.subscribe(sync)
     return () => {
-      unsubscribeView()
       unsubscribe()
     }
   }, [])
@@ -273,13 +274,7 @@ function WorkbookView({
   const aiPane = useSheetAiPane()
   useSheetUndo(undoSheet, redoSheet)
   useOfferSheetToMcp(range)
-  useEffect(
-    () =>
-      onEditorCommand((command) => {
-        if (command === EditorCommand.DocumentProperties) setShowProperties(true)
-      }),
-    [],
-  )
+  useEditorHandlers(WORKBOOK_COMMANDS, () => setShowProperties(true))
 
   return (
     <div className="workbook-shell">

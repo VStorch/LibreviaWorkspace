@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import type { Editor } from '@tiptap/react'
 import { TableAction } from '@shared/table-actions.js'
 import { runsWhileLocked } from '@shared/commands/registry.js'
-import { EditorCommand, onEditorCommand } from './editor-commands.js'
+import { EDITOR_COMMANDS, EditorCommand } from './editor-commands.js'
+import { useEditorHandlers } from '../commands/useEditorHandlers.js'
 import { runTableAction } from './table-actions.js'
 import { goToComment, insertComment } from './comment-commands.js'
 import { insertNote } from './note-commands.js'
@@ -121,7 +122,7 @@ export function useEditorCommands(
     [editor, readOnly, pasteWithoutFormat, referenceContext, setDialog, toggleDialog],
   )
 
-  useEffect(() => onEditorCommand(run), [run])
+  useEditorHandlers(EDITOR_COMMANDS, run)
 
   return { dialogs, setDialog, run, equationTarget }
 }

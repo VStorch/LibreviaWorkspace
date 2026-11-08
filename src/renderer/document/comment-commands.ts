@@ -5,7 +5,8 @@ import { initialsOf, nextCommentId, paragraphsOfText, resolveComments } from '@s
 import { t } from '../i18n.js'
 import { currentPreferences, setPreference } from '../state/preferences.js'
 import { signingName } from '../state/signature.js'
-import { useWorkspace } from '../state/workspace.js'
+import { activeWorkspaceStore } from '../state/tabs.js'
+import { useWorkspace, type WorkspaceStore } from '../state/workspace.js'
 import {
   adjacentComment,
   commentAnchorsOf,
@@ -76,7 +77,7 @@ export function insertComment(editor: Editor): void {
     .run()
   if (!inserted) return
   showCommentsPane()
-  cleanBeforeDraft = wasClean
+  cleanBeforeDraft.set(activeWorkspaceStore(), wasClean)
   store.setCommentDraft(comment.id)
 }
 
@@ -118,17 +119,17 @@ export function insertCommentsAt(
   return inserted
 }
 
-/** Giving up the new card brings the document back to saved. */
-let cleanBeforeDraft = false
+/** Giving up the new card brings the document back to saved; per tab, as the draft card is. */
+const cleanBeforeDraft = new WeakMap<WorkspaceStore, boolean>()
 
 /** Outside undo: redoing a comment without text would be an empty card. */
 export function cancelNewComment(editor: Editor, cid: string): void {
-  const store = useWorkspace.getState()
-  store.setCommentDraft(null)
+  const owner = activeWorkspaceStore()
+  owner.getState().setCommentDraft(null)
   const tr = editor.state.tr
   if (removeCommentAnchors(tr, cid)) editor.view.dispatch(tr.setMeta('addToHistory', false))
-  if (cleanBeforeDraft) useWorkspace.setState({ isDirty: false })
-  cleanBeforeDraft = false
+  if (cleanBeforeDraft.get(owner) === true) owner.setState({ isDirty: false })
+  cleanBeforeDraft.delete(owner)
 }
 
 /** The ends go, and with them the card and the replies. */

@@ -5,13 +5,15 @@ import type { MessageKey } from '@shared/i18n/index.js'
 import { PAGE_WIDTH, viewerEventSchema, type ViewerEvent } from '@shared/pdf-viewer-protocol.js'
 import { isPdfZoomInKey } from '@shared/shortcuts.js'
 import { MenuCommand } from '@shared/types.js'
-import { EditorCommand, onEditorCommand } from '../document/editor-commands.js'
+import { EditorCommand } from '../document/editor-commands.js'
+import { useEditorHandlers } from '../commands/useEditorHandlers.js'
 import { useT } from '../i18n.js'
 import { currentPreferences, usePreferences } from '../state/preferences.js'
 import { runZoomCommand, setFittedZoom } from '../state/zoom.js'
 import { PdfFindBar } from './PdfFindBar.js'
 import { PdfPasswordDialog } from './PdfPasswordDialog.js'
 import { PdfPropertiesDialog } from './PdfPropertiesDialog.js'
+import { useOwnTabId } from '../state/tabs.js'
 import { connectViewer, sendToViewer, usePdfViewer } from './viewer-state.js'
 
 type Failure = Extract<ViewerEvent, { type: 'error' }>['reason']
@@ -30,6 +32,8 @@ const FAILURE_MESSAGES: Readonly<Record<Failure, MessageKey>> = {
  * Its own origin and process: the frame cannot reach `window.api` or the app's page, opens no
  * window, and does not navigate the app away.
  */
+const PDF_COMMANDS = [EditorCommand.FindReplace, EditorCommand.DocumentProperties]
+
 const FRAME_SANDBOX = 'allow-scripts allow-same-origin'
 
 /** pdf.js draws the PDF in an isolated frame; the app sends it commands and hears its state. */
@@ -46,14 +50,10 @@ export function PdfView({ path }: { readonly path: string }): React.JSX.Element 
   useViewerTheme(ready)
   useZoomInKeys()
 
-  useEffect(
-    () =>
-      onEditorCommand((command) => {
-        if (command === EditorCommand.FindReplace) setFinding(true)
-        if (command === EditorCommand.DocumentProperties) setShowProperties(true)
-      }),
-    [],
-  )
+  useEditorHandlers(PDF_COMMANDS, (command) => {
+    if (command === EditorCommand.FindReplace) setFinding(true)
+    if (command === EditorCommand.DocumentProperties) setShowProperties(true)
+  })
 
   if (failure !== null) {
     return (
@@ -96,13 +96,14 @@ function useViewerChannel(
   onPassword: (request: PasswordRequest) => void,
 ): boolean {
   const [ready, setReady] = useState(false)
+  const tabId = useOwnTabId()
 
   useEffect(() => {
     const target = frame.current?.contentWindow ?? null
     if (target === null) return undefined
 
     let disposed = false
-    const disconnect = connectViewer((command) => target.postMessage(command, PDF_VIEWER_ORIGIN))
+    const disconnect = connectViewer(tabId, (command) => target.postMessage(command, PDF_VIEWER_ORIGIN))
 
     const open = async (): Promise<void> => {
       const shared = await window.api.pdf.share({ path })
@@ -126,7 +127,7 @@ function useViewerChannel(
       window.removeEventListener('message', onMessage)
       disconnect()
     }
-  }, [frame, path, onFailure, onPassword])
+  }, [frame, path, tabId, onFailure, onPassword])
 
   return ready
 }

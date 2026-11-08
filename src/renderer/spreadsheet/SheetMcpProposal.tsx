@@ -6,7 +6,13 @@ import { quoteSheet } from '@services/spreadsheet/formula/references.js'
 import { columnName, getCell, type Sheet } from '@services/spreadsheet/model.js'
 import { useT } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
-import { discardSheetProposal, useSheetMcpProposals, type PendingSheetProposal } from './mcp-sheet.js'
+import { useOwnTabId } from '../state/tabs.js'
+import {
+  discardSheetProposal,
+  isProposalFor,
+  useSheetMcpProposals,
+  type PendingSheetProposal,
+} from './mcp-sheet.js'
 
 /** Enough to see what goes where; the whole proposal goes in on apply. */
 const PREVIEW_ROWS = 5
@@ -64,7 +70,11 @@ export function SheetMcpProposal(): React.JSX.Element | null {
   const selectSheet = useWorkspace((state) => state.selectSheet)
   const updateSheet = useWorkspace((state) => state.updateSheet)
   const all = useSheetMcpProposals((state) => state.pending)
-  const pending = useMemo(() => all.filter((item) => item.generation === generation), [all, generation])
+  const tabId = useOwnTabId()
+  const pending = useMemo(
+    () => all.filter((item) => isProposalFor(item, tabId, generation)),
+    [all, tabId, generation],
+  )
   const proposal = pending[0]
   if (proposal === undefined || workbook === null) return null
 
