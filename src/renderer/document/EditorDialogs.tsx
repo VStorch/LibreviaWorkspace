@@ -21,14 +21,12 @@ import { WordCountDialog } from './WordCountDialog.js'
 import { PropertiesDialog } from './PropertiesDialog.js'
 import { AuthorNameDialog } from './AuthorNameDialog.js'
 import { AiProvidersDialog } from './AiProvidersDialog.js'
-import { insertComment } from './comment-commands.js'
-import { hasChangeAtCursor, settleChange } from './revision-commands.js'
+import { hasChangeAtCursor } from './revision-commands.js'
 import { convertNote, noteAtCursor } from './note-commands.js'
 import { sectionAtCursor } from './section-commands.js'
 import type { EquationTarget } from './math-commands.js'
 import type { ReferenceContext } from './references.js'
 import type { SearchStatus } from './extensions/search-replace.js'
-import type { EditorCommand } from './editor-commands.js'
 import type { EditorDialogs as OpenDialogs } from './useEditorCommands.js'
 
 type DialogKey = keyof OpenDialogs
@@ -143,9 +141,7 @@ export function EditorDialogs({
 export interface EditorContextMenuProps {
   readonly editor: Editor
   readonly target: ContextMenuTarget
-  readonly run: (command: EditorCommand) => void
   readonly setDialog: (dialog: DialogKey, open: boolean) => void
-  readonly pasteWithoutFormat: () => Promise<void>
   readonly onAiAction: (action: AiAction) => void
   readonly onClose: () => void
 }
@@ -153,9 +149,7 @@ export interface EditorContextMenuProps {
 export function EditorContextMenu({
   editor,
   target,
-  run,
   setDialog,
-  pasteWithoutFormat,
   onAiAction,
   onClose,
 }: EditorContextMenuProps): React.JSX.Element {
@@ -165,7 +159,6 @@ export function EditorContextMenu({
       target={target}
       // Outside a table, "merge cells" has nothing to merge.
       inTable={editor.isActive('table')}
-      onTableAction={run}
       // As in Word, by right-clicking the item to restart.
       inList={
         editor.isActive('orderedList') ? 'orderedList' : editor.isActive('bulletList') ? 'bulletList' : null
@@ -176,10 +169,8 @@ export function EditorContextMenu({
         else setDialog(action === 'setStart' ? 'listStart' : 'listFormat', true)
       }}
       onClose={onClose}
-      onPasteWithoutFormat={() => void pasteWithoutFormat()}
       onAiAction={onAiAction}
-      onNewComment={() => insertComment(editor)}
-      onRevision={hasChangeAtCursor(editor) ? (accept) => void settleChange(editor, accept) : null}
+      revisionAtCursor={hasChangeAtCursor(editor)}
       noteKind={contextNote?.kind ?? null}
       onConvertNote={() => {
         if (contextNote !== null) convertNote(editor, contextNote.pos)

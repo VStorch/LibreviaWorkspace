@@ -6,6 +6,7 @@ import { createWorkspaceStore, useWorkspace } from '../state/workspace.js'
 import {
   editorSource,
   executeCommand,
+  onAvailabilityChanged,
   onHandlersChanged,
   registerHandlers,
   unavailableCommands,
@@ -175,5 +176,26 @@ describe('unavailableCommands', () => {
     await Promise.resolve()
 
     expect(changed).toHaveBeenCalledTimes(1)
+  })
+
+  it('tells the controls when the tab on screen locks, so they grey out with the menu', () => {
+    const changed = vi.fn()
+    cleanups.push(onAvailabilityChanged(changed))
+
+    useWorkspace.setState({ readOnly: true })
+
+    expect(changed).toHaveBeenCalled()
+  })
+
+  it('tells the controls when another tab comes to the screen', () => {
+    const changed = vi.fn()
+    const other = createWorkspaceStore()
+    cleanups.push(onAvailabilityChanged(changed))
+
+    useTabs.setState({ tabs: [...initialTabs.tabs, { id: 'other', store: other }], activeId: 'other' })
+    changed.mockClear()
+    other.setState({ readOnly: true })
+
+    expect(changed).toHaveBeenCalled()
   })
 })

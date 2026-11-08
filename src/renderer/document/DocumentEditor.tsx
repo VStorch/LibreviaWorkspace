@@ -100,7 +100,6 @@ export function DocumentEditor(): React.JSX.Element {
         resolved={resolved}
         readOnly={readOnly}
         referenceContext={referenceContext}
-        pasteWithoutFormat={pasteWithoutFormat}
         onAiAction={ai.launchAi}
       />
       {reading && <ReadingHint />}
@@ -188,13 +187,12 @@ interface EditorChromeProps {
   readonly resolved: ResolvedSections
   readonly readOnly: boolean
   readonly referenceContext: () => ReferenceContext
-  readonly pasteWithoutFormat: () => Promise<void>
   readonly onAiAction: (action: AiAction) => void
 }
 
 /** Print CSS, the toolbar, the open dialogs and the context menu. */
 function EditorChrome(props: EditorChromeProps): React.JSX.Element {
-  const { editor, commands, pasteWithoutFormat } = props
+  const { editor, commands } = props
   const { dialogs, setDialog } = commands
   const styles = useWorkspace((state) => state.styles)
   const styleCss = useMemo(() => styleSheetCss(styles), [styles])
@@ -208,12 +206,9 @@ function EditorChrome(props: EditorChromeProps): React.JSX.Element {
       {!reading && showToolbar && (
         <DocumentToolbar
           editor={editor}
-          onOpenFind={() => setDialog('find', true)}
-          onOpenPageSetup={() => setDialog('pageSetup', true)}
           onOpenStyles={() => setDialog('styles', true)}
           paragraphOpen={dialogs.paragraph}
           onParagraphOpenChange={(paragraph) => setDialog('paragraph', paragraph)}
-          onOpenTable={() => setDialog('table', true)}
           onOpenImageProperties={() => setDialog('imageProperties', true)}
           onOpenListFormat={() => setDialog('listFormat', true)}
         />
@@ -234,9 +229,7 @@ function EditorChrome(props: EditorChromeProps): React.JSX.Element {
         <EditorContextMenu
           editor={editor}
           target={contextTarget}
-          run={commands.run}
           setDialog={setDialog}
-          pasteWithoutFormat={pasteWithoutFormat}
           onAiAction={props.onAiAction}
           onClose={() => setContextTarget(null)}
         />

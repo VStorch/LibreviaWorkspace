@@ -13,14 +13,11 @@ import { StyleAndFontGroup } from './StyleAndFontGroup.js'
 
 interface DocumentToolbarProps {
   readonly editor: Editor
-  readonly onOpenFind: () => void
-  readonly onOpenPageSetup: () => void
   readonly onOpenStyles: () => void
   /** The native menu also opens the paragraph dialog. */
   readonly paragraphOpen: boolean
   readonly onParagraphOpenChange: (open: boolean) => void
   /** The native and context menus also open them: the state lives above. */
-  readonly onOpenTable: () => void
   readonly onOpenImageProperties: () => void
   readonly onOpenListFormat: () => void
 }
@@ -28,12 +25,9 @@ interface DocumentToolbarProps {
 /** Only the group order and the dialogs; each group watches only what it draws. */
 export function DocumentToolbar({
   editor,
-  onOpenFind,
-  onOpenPageSetup,
   onOpenStyles,
   paragraphOpen,
   onParagraphOpenChange,
-  onOpenTable,
   onOpenImageProperties,
   onOpenListFormat,
 }: DocumentToolbarProps): React.JSX.Element {
@@ -65,13 +59,12 @@ export function DocumentToolbar({
       <InsertGroup
         editor={editor}
         onOpenLink={() => setLinkDialogOpen(true)}
-        onOpenTable={onOpenTable}
         onOpenImageProperties={onOpenImageProperties}
       />
 
       <ToolbarSeparator />
 
-      <PageGroup onOpenFind={onOpenFind} onOpenPageSetup={onOpenPageSetup} />
+      <PageGroup />
 
       {linkDialogOpen && <LinkDialog editor={editor} onClose={() => setLinkDialogOpen(false)} />}
       {paragraphOpen && <ParagraphDialog editor={editor} onClose={() => onParagraphOpenChange(false)} />}

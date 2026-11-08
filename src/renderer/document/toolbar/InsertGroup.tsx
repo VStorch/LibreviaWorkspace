@@ -1,5 +1,6 @@
 import { useEditorState, type Editor } from '@tiptap/react'
-import { SHORTCUTS, shortcutHintOf } from '@shared/shortcuts.js'
+import { MenuCommand } from '@shared/types.js'
+import { CommandButton } from '../../commands/CommandControls.js'
 import { ToolbarButton, ToolbarGroup } from '../../components/ToolbarControls.js'
 import { useT } from '../../i18n.js'
 import { useWorkspace } from '../../state/workspace.js'
@@ -9,15 +10,13 @@ import { focusChain } from './focus-chain.js'
 interface InsertGroupProps {
   readonly editor: Editor
   readonly onOpenLink: () => void
-  /** The "Table" and context menus reach the same dialogs, opened from outside. */
-  readonly onOpenTable: () => void
+  /** The context menu reaches the same dialog, opened from outside. */
   readonly onOpenImageProperties: () => void
 }
 
 export function InsertGroup({
   editor,
   onOpenLink,
-  onOpenTable,
   onOpenImageProperties,
 }: InsertGroupProps): React.JSX.Element {
   const t = useT()
@@ -64,7 +63,7 @@ export function InsertGroup({
   return (
     <ToolbarGroup label={t('document.insert.group')}>
       {/* Deleting a table lives in the "Table" menu and the right click. */}
-      <ToolbarButton icon="table" label={t('document.insert.table')} onClick={onOpenTable} />
+      <CommandButton command={MenuCommand.TableInsert} icon="table" label={t('document.insert.table')} />
       {/* With an image selected, opens its properties. */}
       <ToolbarButton
         icon="image"
@@ -78,11 +77,10 @@ export function InsertGroup({
         active={active.link}
         onClick={onOpenLink}
       />
-      <ToolbarButton
+      <CommandButton
+        command={MenuCommand.InsertPageBreak}
         icon="page-break"
         label={t('menu.insert.pageBreak')}
-        shortcut={shortcutHintOf(SHORTCUTS.insertPageBreak)}
-        onClick={() => chain().setPageBreak().run()}
       />
       <ToolbarButton
         icon="page-number"

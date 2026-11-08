@@ -74,13 +74,32 @@ function lockedOut(id: CommandId, { source }: Registered): boolean {
   return isEditorSource(source) && locksText && !runsWhileLocked(id)
 }
 
-/** What the menu greys out: no view on screen answers it, or the lock holds it back. */
+/** No view on screen answers it, the lock holds it back, or the tab is of another kind. */
+export function isCommandAvailable(id: CommandId): boolean {
+  const registered = handlerFor(id)
+  if (registered === undefined || lockedOut(id, registered)) return false
+  return appliesTo(id, activeWorkspaceStore().getState().file?.kind ?? null)
+}
+
+/** What the menu greys out. */
 export function unavailableCommands(): CommandId[] {
-  const kind = activeWorkspaceStore().getState().file?.kind ?? null
-  return (Object.keys(COMMANDS) as CommandId[]).filter((id) => {
-    const registered = handlerFor(id)
-    return registered === undefined || lockedOut(id, registered) || !appliesTo(id, kind)
+  return (Object.keys(COMMANDS) as CommandId[]).filter((id) => !isCommandAvailable(id))
+}
+
+/** Whatever can change `isCommandAvailable`: the handlers, the tab on screen and its state. */
+export function onAvailabilityChanged(changed: () => void): () => void {
+  let stopStore = activeWorkspaceStore().subscribe(changed)
+  const stopTabs = useTabs.subscribe(() => {
+    stopStore()
+    stopStore = activeWorkspaceStore().subscribe(changed)
+    changed()
   })
+  const stopHandlers = onHandlersChanged(changed)
+  return () => {
+    stopTabs()
+    stopStore()
+    stopHandlers()
+  }
 }
 
 export async function executeCommand(id: CommandId, arg?: string): Promise<void> {

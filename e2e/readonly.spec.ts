@@ -46,6 +46,22 @@ test.describe('read-only', () => {
     await expect(session.window.locator('.banner--notice')).toBeHidden()
   })
 
+  test('the toolbar greys out with the menu what the lock holds back', async () => {
+    const target = join(folder, 'ata.docx')
+    await writeFile(target, await docxWithCellRevision())
+    await stubDialogs(session.app, { open: target, messageBox: 1 })
+
+    await menu(session, 'open')
+
+    const toolbar = session.window.getByRole('toolbar', { name: 'Formatação' })
+    const pageBreak = toolbar.getByRole('button', { name: 'Quebra de página' })
+    await expect(pageBreak).toBeDisabled()
+    await expect(toolbar.getByRole('button', { name: 'Localizar e substituir' })).toBeEnabled()
+
+    await session.window.getByRole('button', { name: 'Editar mesmo assim' }).click()
+    await expect(pageBreak).toBeEnabled()
+  })
+
   test('a document with a structure revision opens locked and says why', async () => {
     const target = join(folder, 'ata.docx')
     await writeFile(target, await docxWithCellRevision())
