@@ -1,8 +1,9 @@
 import { app, BrowserWindow, Menu, type MenuItemConstructorOptions } from 'electron'
+import { COMMANDS, type CommandMeta } from '@shared/commands/registry.js'
 import { APP_NAME } from '@shared/constants.js'
 import { LANGUAGES, LANGUAGE_NAMES, type MessageKey } from '@shared/i18n/index.js'
 import { SHORTCUTS, acceleratorOf } from '@shared/shortcuts.js'
-import { TABLE_ACTIONS, TableAction } from '@shared/table-actions.js'
+import { TABLE_ACTIONS } from '@shared/table-actions.js'
 import { MenuCommand, RevisionView, Theme, type EditorPreferences } from '@shared/types.js'
 import { showAboutDialog } from './dialogs.js'
 import { listRecentFiles } from './fs/recent.js'
@@ -30,13 +31,9 @@ export function setRevisionViewChecked(view: RevisionView): void {
   void refreshMenu()
 }
 
-function revisionViewItem(
-  view: RevisionView,
-  key: MessageKey,
-  command: MenuCommand,
-): MenuItemConstructorOptions {
+function revisionViewItem(view: RevisionView, command: MenuCommand): MenuItemConstructorOptions {
   return {
-    label: t(key),
+    label: t(COMMANDS[command].labelKey),
     type: 'radio',
     checked: revisionView === view,
     click: () => dispatch(command),
@@ -67,7 +64,7 @@ async function buildRecentSubmenu(): Promise<MenuItemConstructorOptions[]> {
       click: () => dispatch(MenuCommand.OpenRecent, file.path),
     })),
     { type: 'separator' },
-    commandItem('menu.file.clearRecent', MenuCommand.ClearRecent),
+    commandItem(MenuCommand.ClearRecent),
   ]
 }
 
@@ -82,29 +79,32 @@ function themeItem(theme: Theme, key: MessageKey, chosen: Theme): MenuItemConstr
   }
 }
 
-function commandItem(
-  key: MessageKey,
-  command: MenuCommand,
-  accelerator?: string,
-): MenuItemConstructorOptions {
-  return {
-    label: t(key),
-    ...(accelerator === undefined ? {} : { accelerator }),
-    click: () => dispatch(command),
-  }
-}
-
 /** The accelerators of Electron's `undo` and `redo` roles. */
 const UNDO_ACCELERATOR = 'CommandOrControl+Z'
 const REDO_ACCELERATOR = process.platform === 'win32' ? 'Control+Y' : 'Shift+CommandOrControl+Z'
 
 /**
- * The key is only shown, not registered: the page handles it, and on macOS a registered accelerator
- * would take it from the page. Undo and redo are not roles because the role undoes only Chromium's
- * history, and the sheet keeps its own.
+ * Undo and redo are not roles because the role undoes only Chromium's history, and the sheet keeps
+ * its own; their keys are the roles', which differ by platform.
  */
-function pageKeyItem(key: MessageKey, command: MenuCommand, accelerator: string): MenuItemConstructorOptions {
-  return { ...commandItem(key, command, accelerator), registerAccelerator: false }
+const ROLE_ACCELERATORS: Partial<Record<MenuCommand, string>> = {
+  [MenuCommand.Undo]: UNDO_ACCELERATOR,
+  [MenuCommand.Redo]: REDO_ACCELERATOR,
+}
+
+function acceleratorFor(meta: CommandMeta): string | undefined {
+  return meta.shortcut === undefined ? ROLE_ACCELERATORS[meta.id] : acceleratorOf(SHORTCUTS[meta.shortcut])
+}
+
+function commandItem(command: MenuCommand): MenuItemConstructorOptions {
+  const meta: CommandMeta = COMMANDS[command]
+  const accelerator = acceleratorFor(meta)
+  return {
+    label: t(meta.labelKey),
+    ...(accelerator === undefined ? {} : { accelerator }),
+    ...(meta.registerAccelerator === false ? { registerAccelerator: false } : {}),
+    click: () => dispatch(command),
+  }
 }
 
 type BooleanPreference = {
@@ -134,11 +134,11 @@ function preferenceToggle(
  */
 function zoomItems(preferences: EditorPreferences): MenuItemConstructorOptions[] {
   return [
-    commandItem('menu.view.resetZoom', MenuCommand.ZoomReset, acceleratorOf(SHORTCUTS.zoomReset)),
-    commandItem('menu.view.zoomIn', MenuCommand.ZoomIn, acceleratorOf(SHORTCUTS.zoomIn)),
-    commandItem('menu.view.zoomOut', MenuCommand.ZoomOut, acceleratorOf(SHORTCUTS.zoomOut)),
+    commandItem(MenuCommand.ZoomReset),
+    commandItem(MenuCommand.ZoomIn),
+    commandItem(MenuCommand.ZoomOut),
     {
-      label: t('menu.view.zoomFitWidth'),
+      label: t(COMMANDS[MenuCommand.ZoomFitWidth].labelKey),
       type: 'checkbox',
       checked: preferences.zoomFit,
       click: () => dispatch(MenuCommand.ZoomFitWidth),
@@ -155,13 +155,7 @@ function buildTableSubmenu(): MenuItemConstructorOptions[] {
     if (action.group !== group) items.push({ type: 'separator' })
     group = action.group
 
-    // `TableAction` is a subset of `MenuCommand`, with the same values.
-    const command: MenuCommand = action.id
-    items.push({
-      label: t(action.labelKey),
-      ...(action.id === TableAction.Insert ? { accelerator: acceleratorOf(SHORTCUTS.insertTable) } : {}),
-      click: () => dispatch(command),
-    })
+    items.push(commandItem(action.id))
   }
 
   return items
@@ -271,37 +265,33 @@ function fileMenu(recent: MenuItemConstructorOptions[]): MenuItemConstructorOpti
   return {
     label: t('menu.file'),
     submenu: [
-      commandItem('menu.file.newDocument', MenuCommand.NewDocument, acceleratorOf(SHORTCUTS.newDocument)),
-      commandItem(
-        'menu.file.newSpreadsheet',
-        MenuCommand.NewSpreadsheet,
-        acceleratorOf(SHORTCUTS.newSpreadsheet),
-      ),
-      commandItem('menu.file.newFromTemplate', MenuCommand.NewFromTemplate),
+      commandItem(MenuCommand.NewDocument),
+      commandItem(MenuCommand.NewSpreadsheet),
+      commandItem(MenuCommand.NewFromTemplate),
       { type: 'separator' },
-      commandItem('menu.file.open', MenuCommand.Open, acceleratorOf(SHORTCUTS.open)),
+      commandItem(MenuCommand.Open),
       { label: t('menu.file.openRecent'), submenu: recent },
       { type: 'separator' },
-      commandItem('menu.file.save', MenuCommand.Save, acceleratorOf(SHORTCUTS.save)),
-      commandItem('menu.file.saveAs', MenuCommand.SaveAs, acceleratorOf(SHORTCUTS.saveAs)),
+      commandItem(MenuCommand.Save),
+      commandItem(MenuCommand.SaveAs),
       { type: 'separator' },
-      commandItem('menu.file.pageSetup', MenuCommand.PageSetup),
-      commandItem('menu.file.printPreview', MenuCommand.PrintPreview),
-      commandItem('menu.file.exportPdf', MenuCommand.ExportPdf),
+      commandItem(MenuCommand.PageSetup),
+      commandItem(MenuCommand.PrintPreview),
+      commandItem(MenuCommand.ExportPdf),
       {
         label: t('menu.file.exportAs'),
         submenu: [
-          commandItem('menu.file.exportWord', MenuCommand.ExportWord),
-          commandItem('menu.file.exportOdt', MenuCommand.ExportOdt),
-          commandItem('menu.file.exportHtml', MenuCommand.ExportHtml),
-          commandItem('menu.file.exportMarkdown', MenuCommand.ExportMarkdown),
+          commandItem(MenuCommand.ExportWord),
+          commandItem(MenuCommand.ExportOdt),
+          commandItem(MenuCommand.ExportHtml),
+          commandItem(MenuCommand.ExportMarkdown),
         ],
       },
-      commandItem('menu.file.properties', MenuCommand.DocumentProperties),
-      commandItem('menu.file.inspect', MenuCommand.InspectDocument),
-      commandItem('menu.file.print', MenuCommand.Print, acceleratorOf(SHORTCUTS.print)),
+      commandItem(MenuCommand.DocumentProperties),
+      commandItem(MenuCommand.InspectDocument),
+      commandItem(MenuCommand.Print),
       { type: 'separator' },
-      commandItem('menu.file.close', MenuCommand.CloseFile, acceleratorOf(SHORTCUTS.closeFile)),
+      commandItem(MenuCommand.CloseFile),
       { role: 'quit', label: t('menu.file.quit') },
     ],
   }
@@ -311,20 +301,16 @@ function editMenu(): MenuItemConstructorOptions {
   return {
     label: t('menu.edit'),
     submenu: [
-      pageKeyItem('menu.edit.undo', MenuCommand.Undo, UNDO_ACCELERATOR),
-      pageKeyItem('menu.edit.redo', MenuCommand.Redo, REDO_ACCELERATOR),
+      commandItem(MenuCommand.Undo),
+      commandItem(MenuCommand.Redo),
       { type: 'separator' },
       { role: 'cut', label: t('menu.edit.cut') },
       { role: 'copy', label: t('menu.edit.copy') },
       { role: 'paste', label: t('menu.edit.paste') },
-      pageKeyItem(
-        'menu.edit.pasteWithoutFormat',
-        MenuCommand.PasteWithoutFormat,
-        acceleratorOf(SHORTCUTS.pasteWithoutFormat),
-      ),
+      commandItem(MenuCommand.PasteWithoutFormat),
       { role: 'selectAll', label: t('menu.edit.selectAll') },
       { type: 'separator' },
-      commandItem('menu.edit.findReplace', MenuCommand.FindReplace, acceleratorOf(SHORTCUTS.findReplace)),
+      commandItem(MenuCommand.FindReplace),
     ],
   }
 }
@@ -333,9 +319,9 @@ function formatMenu(): MenuItemConstructorOptions {
   return {
     label: t('menu.format'),
     submenu: [
-      commandItem('menu.format.paragraph', MenuCommand.ParagraphSetup),
-      commandItem('menu.format.image', MenuCommand.ImageProperties),
-      commandItem('menu.format.columns', MenuCommand.FormatColumns),
+      commandItem(MenuCommand.ParagraphSetup),
+      commandItem(MenuCommand.ImageProperties),
+      commandItem(MenuCommand.FormatColumns),
     ],
   }
 }
@@ -344,47 +330,31 @@ function insertMenu(): MenuItemConstructorOptions {
   return {
     label: t('menu.insert'),
     submenu: [
-      commandItem(
-        'menu.insert.pageBreak',
-        MenuCommand.InsertPageBreak,
-        acceleratorOf(SHORTCUTS.insertPageBreak),
-      ),
+      commandItem(MenuCommand.InsertPageBreak),
       {
         // A section break is invisible in the text, so it can also be deleted from the menu.
         label: t('menu.insert.sectionBreak'),
         submenu: [
-          commandItem('menu.insert.sectionNextPage', MenuCommand.InsertSectionNextPage),
-          commandItem('menu.insert.sectionContinuous', MenuCommand.InsertSectionContinuous),
-          commandItem('menu.insert.sectionEvenPage', MenuCommand.InsertSectionEvenPage),
-          commandItem('menu.insert.sectionOddPage', MenuCommand.InsertSectionOddPage),
+          commandItem(MenuCommand.InsertSectionNextPage),
+          commandItem(MenuCommand.InsertSectionContinuous),
+          commandItem(MenuCommand.InsertSectionEvenPage),
+          commandItem(MenuCommand.InsertSectionOddPage),
           { type: 'separator' },
-          commandItem('menu.insert.columnBreak', MenuCommand.InsertColumnBreak),
-          commandItem('menu.insert.deleteSectionBreak', MenuCommand.DeleteSectionBreak),
+          commandItem(MenuCommand.InsertColumnBreak),
+          commandItem(MenuCommand.DeleteSectionBreak),
         ],
       },
-      commandItem('menu.insert.specialCharacter', MenuCommand.SpecialCharacter),
-      commandItem(
-        'menu.insert.equation',
-        MenuCommand.InsertEquation,
-        acceleratorOf(SHORTCUTS.insertEquation),
-      ),
-      commandItem('menu.insert.displayEquation', MenuCommand.InsertDisplayEquation),
-      commandItem('menu.insert.propertyField', MenuCommand.InsertPropertyField),
+      commandItem(MenuCommand.SpecialCharacter),
+      commandItem(MenuCommand.InsertEquation),
+      commandItem(MenuCommand.InsertDisplayEquation),
+      commandItem(MenuCommand.InsertPropertyField),
       { type: 'separator' },
-      commandItem(
-        'menu.insert.bookmark',
-        MenuCommand.InsertBookmark,
-        acceleratorOf(SHORTCUTS.insertBookmark),
-      ),
-      commandItem(
-        'menu.insert.footnote',
-        MenuCommand.InsertFootnote,
-        acceleratorOf(SHORTCUTS.insertFootnote),
-      ),
-      commandItem('menu.insert.endnote', MenuCommand.InsertEndnote, acceleratorOf(SHORTCUTS.insertEndnote)),
-      commandItem('menu.insert.comment', MenuCommand.InsertComment, acceleratorOf(SHORTCUTS.insertComment)),
-      commandItem('menu.insert.nextComment', MenuCommand.NextComment),
-      commandItem('menu.insert.previousComment', MenuCommand.PreviousComment),
+      commandItem(MenuCommand.InsertBookmark),
+      commandItem(MenuCommand.InsertFootnote),
+      commandItem(MenuCommand.InsertEndnote),
+      commandItem(MenuCommand.InsertComment),
+      commandItem(MenuCommand.NextComment),
+      commandItem(MenuCommand.PreviousComment),
     ],
   }
 }
@@ -394,17 +364,13 @@ function referencesMenu(): MenuItemConstructorOptions {
     // The bookmark lives under "Insert", as in Word.
     label: t('menu.references'),
     submenu: [
-      commandItem('menu.references.tableOfContents', MenuCommand.InsertTableOfContents),
-      commandItem('menu.references.updateTableOfContents', MenuCommand.UpdateTableOfContents),
+      commandItem(MenuCommand.InsertTableOfContents),
+      commandItem(MenuCommand.UpdateTableOfContents),
       { type: 'separator' },
-      commandItem('menu.references.caption', MenuCommand.InsertCaption),
-      commandItem('menu.references.crossReference', MenuCommand.InsertCrossReference),
+      commandItem(MenuCommand.InsertCaption),
+      commandItem(MenuCommand.InsertCrossReference),
       { type: 'separator' },
-      commandItem(
-        'menu.references.updateFields',
-        MenuCommand.UpdateFields,
-        acceleratorOf(SHORTCUTS.updateFields),
-      ),
+      commandItem(MenuCommand.UpdateFields),
     ],
   }
 }
@@ -414,10 +380,9 @@ function reviewMenu(): MenuItemConstructorOptions {
     label: t('menu.review'),
     submenu: [
       {
-        label: t('revisions.track'),
+        ...commandItem(MenuCommand.ToggleTrackChanges),
         type: 'checkbox',
         checked: trackChangesOn,
-        accelerator: acceleratorOf(SHORTCUTS.trackChanges),
         toolTip: t('revisions.trackHint'),
         click: () => {
           dispatch(MenuCommand.ToggleTrackChanges)
@@ -428,21 +393,21 @@ function reviewMenu(): MenuItemConstructorOptions {
       {
         label: t('revisions.show'),
         submenu: [
-          revisionViewItem(RevisionView.All, 'revisions.show.all', MenuCommand.ShowAllMarkup),
-          revisionViewItem(RevisionView.Simple, 'revisions.show.simple', MenuCommand.ShowSimpleMarkup),
-          revisionViewItem(RevisionView.None, 'revisions.show.none', MenuCommand.ShowNoMarkup),
-          revisionViewItem(RevisionView.Original, 'revisions.show.original', MenuCommand.ShowOriginal),
+          revisionViewItem(RevisionView.All, MenuCommand.ShowAllMarkup),
+          revisionViewItem(RevisionView.Simple, MenuCommand.ShowSimpleMarkup),
+          revisionViewItem(RevisionView.None, MenuCommand.ShowNoMarkup),
+          revisionViewItem(RevisionView.Original, MenuCommand.ShowOriginal),
         ],
       },
       { type: 'separator' },
-      commandItem('revisions.accept', MenuCommand.AcceptChange),
-      commandItem('revisions.reject', MenuCommand.RejectChange),
+      commandItem(MenuCommand.AcceptChange),
+      commandItem(MenuCommand.RejectChange),
       { type: 'separator' },
-      commandItem('revisions.acceptAll', MenuCommand.AcceptAllChanges),
-      commandItem('revisions.rejectAll', MenuCommand.RejectAllChanges),
+      commandItem(MenuCommand.AcceptAllChanges),
+      commandItem(MenuCommand.RejectAllChanges),
       { type: 'separator' },
-      commandItem('revisions.next', MenuCommand.NextChange),
-      commandItem('revisions.previous', MenuCommand.PreviousChange),
+      commandItem(MenuCommand.NextChange),
+      commandItem(MenuCommand.PreviousChange),
     ],
   }
 }
@@ -454,13 +419,13 @@ function toolsMenu(preferences: EditorPreferences): MenuItemConstructorOptions {
       preferenceToggle('menu.tools.spellcheck', 'spellcheck', preferences),
       preferenceToggle('menu.tools.typography', 'typography', preferences),
       { type: 'separator' },
-      commandItem('menu.tools.wordCount', MenuCommand.WordCount, acceleratorOf(SHORTCUTS.wordCount)),
-      commandItem('menu.tools.authorName', MenuCommand.AuthorName),
+      commandItem(MenuCommand.WordCount),
+      commandItem(MenuCommand.AuthorName),
       { type: 'separator' },
-      commandItem('menu.tools.aiAssistant', MenuCommand.AiAssistant, acceleratorOf(SHORTCUTS.aiAssistant)),
-      commandItem('menu.tools.aiProviders', MenuCommand.AiProviders),
+      commandItem(MenuCommand.AiAssistant),
+      commandItem(MenuCommand.AiProviders),
       { type: 'separator' },
-      commandItem('menu.tools.options', MenuCommand.Options),
+      commandItem(MenuCommand.Options),
     ],
   }
 }

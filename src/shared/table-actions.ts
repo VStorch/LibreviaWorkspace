@@ -1,3 +1,4 @@
+import { COMMANDS } from './commands/registry.js'
 import type { MessageKey } from './i18n/index.js'
 
 /** The label is a catalog key: each consumer translates with its own `t`. */
@@ -28,17 +29,21 @@ export interface TableActionInfo {
   readonly group: number
 }
 
+function action(id: TableAction, needsTable: boolean, group: number): TableActionInfo {
+  return { id, labelKey: COMMANDS[id].labelKey, needsTable, group }
+}
+
 export const TABLE_ACTIONS: readonly TableActionInfo[] = [
-  { id: TableAction.Insert, labelKey: 'table.insert', needsTable: false, group: 0 },
-  { id: TableAction.RowBefore, labelKey: 'table.rowBefore', needsTable: true, group: 1 },
-  { id: TableAction.RowAfter, labelKey: 'table.rowAfter', needsTable: true, group: 1 },
-  { id: TableAction.ColumnBefore, labelKey: 'table.columnBefore', needsTable: true, group: 1 },
-  { id: TableAction.ColumnAfter, labelKey: 'table.columnAfter', needsTable: true, group: 1 },
-  { id: TableAction.DeleteRow, labelKey: 'table.deleteRow', needsTable: true, group: 2 },
-  { id: TableAction.DeleteColumn, labelKey: 'table.deleteColumn', needsTable: true, group: 2 },
-  { id: TableAction.Delete, labelKey: 'table.delete', needsTable: true, group: 2 },
-  { id: TableAction.MergeCells, labelKey: 'table.mergeCells', needsTable: true, group: 3 },
-  { id: TableAction.SplitCell, labelKey: 'table.splitCell', needsTable: true, group: 3 },
-  { id: TableAction.ToggleHeaderRow, labelKey: 'table.headerRow', needsTable: true, group: 4 },
-  { id: TableAction.Properties, labelKey: 'table.properties', needsTable: true, group: 4 },
+  action(TableAction.Insert, false, 0),
+  action(TableAction.RowBefore, true, 1),
+  action(TableAction.RowAfter, true, 1),
+  action(TableAction.ColumnBefore, true, 1),
+  action(TableAction.ColumnAfter, true, 1),
+  action(TableAction.DeleteRow, true, 2),
+  action(TableAction.DeleteColumn, true, 2),
+  action(TableAction.Delete, true, 2),
+  action(TableAction.MergeCells, true, 3),
+  action(TableAction.SplitCell, true, 3),
+  action(TableAction.ToggleHeaderRow, true, 4),
+  action(TableAction.Properties, true, 4),
 ]
