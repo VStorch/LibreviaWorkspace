@@ -138,6 +138,7 @@ test.describe('format of new files', () => {
     }, folder)
 
     await menu(session, 'new-document')
+    await expect(session.window.locator('.ProseMirror')).toBeFocused()
     await session.window.keyboard.type('Primeiro')
     await menu(session, 'save')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
@@ -171,6 +172,7 @@ test.describe('format of new files', () => {
     await menu(session, 'new-document')
     await expect(session.window.locator('.statusbar__state')).toBeVisible()
     await expect(session.window).toHaveTitle(/Documento sem título\.odt/)
+    await expect(session.window.locator('.ProseMirror')).toBeFocused()
     await session.window.keyboard.type('Ata')
     await menu(session, 'save')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
