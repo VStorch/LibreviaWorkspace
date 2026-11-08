@@ -11,6 +11,7 @@ import {
   assertViewingAllowed,
   authorizePath,
   isPathAuthorized,
+  pathKey,
   resetAuthorizedPaths,
 } from './paths.js'
 
@@ -154,5 +155,16 @@ describe('view-only PDFs', () => {
     allowViewing(path)
 
     expect(isPathAuthorized(path)).toBe(false)
+  })
+})
+
+describe('pathKey', () => {
+  it('ignores case only where the file system does', () => {
+    expect(pathKey('C:\\Users\\Ana\\Relatorio.docx', 'win32')).toBe(
+      pathKey('c:\\users\\ana\\relatorio.DOCX', 'win32'),
+    )
+    expect(pathKey('/home/ana/Relatorio.docx', 'linux')).not.toBe(
+      pathKey('/home/ana/relatorio.docx', 'linux'),
+    )
   })
 })

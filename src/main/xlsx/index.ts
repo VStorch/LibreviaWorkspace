@@ -3,7 +3,6 @@
  * `SOMA(A1;B1)`), not in the sidecar: the parser already exists on the TypeScript side.
  */
 
-import { readFile } from 'node:fs/promises'
 import { z } from 'zod'
 import { AppError, ErrorCode } from '@shared/errors.js'
 import type { LossInventory } from '@shared/types.js'
@@ -22,6 +21,7 @@ import { sidecarInventorySchema } from '../sidecar/messages.js'
 import { SidecarMethod } from '../sidecar/protocol.js'
 import { t } from '../i18n.js'
 import { readFileBytes } from '../fs/read-bytes.js'
+import { OriginalFormat, originalOf, rememberOriginal } from '../opened-original.js'
 
 const openResultSchema = z.object({
   workbook: z.unknown(),
@@ -34,23 +34,6 @@ const saveResultSchema = z.object({
   cellsCleared: z.number().int().nonnegative(),
   cellsPreserved: z.number().int().nonnegative(),
 })
-
-let openedOriginal: { path: string; bytes: Buffer } | null = null
-
-export function forgetOpenedXlsx(): void {
-  openedOriginal = null
-}
-
-/** See `adoptOriginal`. */
-export async function adoptXlsxOriginal(path: string): Promise<boolean> {
-  try {
-    openedOriginal = { path, bytes: await readFile(path) }
-    return true
-  } catch {
-    openedOriginal = null
-    return false
-  }
-}
 
 export interface OpenedXlsx {
   readonly content: string
@@ -74,7 +57,7 @@ export async function decodeXlsx(client: SidecarClient, path: string, bytes: Buf
   }
 
   const model = translate(toModel(parsed.data.workbook), fromXlsxFormula)
-  openedOriginal = { path, bytes }
+  rememberOriginal(path, bytes, OriginalFormat.Xlsx)
 
   const cells = model.sheets.reduce((total, sheet) => total + Object.keys(sheet.cells).length, 0)
   console.info(
@@ -96,9 +79,13 @@ export interface SavedXlsx {
  * Without an original, the sidecar builds a new package: a spreadsheet is grid, values and
  * formulas, with nothing to lose.
  */
-export async function saveXlsx(client: SidecarClient, ssheetContent: string): Promise<SavedXlsx> {
+export async function saveXlsx(
+  client: SidecarClient,
+  ssheetContent: string,
+  origin: string | null,
+): Promise<SavedXlsx> {
   const model = translate(readSsheet(ssheetContent), toXlsxFormula)
-  const original = openedOriginal?.bytes
+  const original = originalOf(origin, OriginalFormat.Xlsx)
 
   const reply = await client.request(
     SidecarMethod.XlsxSave,
@@ -108,7 +95,7 @@ export async function saveXlsx(client: SidecarClient, ssheetContent: string): Pr
       // A patch: the sidecar rewrites only the fields that differ from the original's.
       ...(model.properties === undefined ? {} : { properties: model.properties }),
     },
-    original === undefined ? new Uint8Array(0) : new Uint8Array(original),
+    original === null ? new Uint8Array(0) : new Uint8Array(original),
   )
 
   const parsed = saveResultSchema.safeParse(reply.result)

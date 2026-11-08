@@ -31,6 +31,7 @@ const api: AppApi = {
     openRecent: (payload) => ipcRenderer.invoke(IpcChannel.FileOpenRecent, payload),
     save: (payload) => ipcRenderer.invoke(IpcChannel.FileSave, payload),
     chooseSavePath: (payload) => ipcRenderer.invoke(IpcChannel.FileChooseSavePath, payload),
+    release: (payload) => ipcRenderer.invoke(IpcChannel.FileRelease, payload),
     autosave: (payload) => ipcRenderer.invoke(IpcChannel.FileAutosave, payload),
   },
   template: {

@@ -203,6 +203,10 @@ export const ipcContracts = {
     }),
     response: saveResultSchema,
   },
+  [IpcChannel.FileRelease]: {
+    request: z.object({ path: z.string().min(1).max(MAX_PATH_LENGTH) }),
+    response: z.object({}),
+  },
   [IpcChannel.FileAutosave]: {
     // A null `path` is work that was never saved, where recovery matters most, since there is no
     // file to go back to.

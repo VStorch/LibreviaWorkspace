@@ -22,14 +22,9 @@ import { chooseSaveFormat, showOpenFileDialog, showSaveFileDialog } from '../dia
 import { openDocx, saveDocx } from '../docx/index.js'
 import { openOdt, saveOdt } from '../odt/index.js'
 import { odtGenerator } from '../odt/generator.js'
-import {
-  followOriginal,
-  forgetOpenedOriginal,
-  OriginalFormat,
-  type SavedOriginal,
-} from '../opened-original.js'
+import { followOriginal, releaseOriginal, OriginalFormat, type SavedOriginal } from '../opened-original.js'
 import type { SavedPackage } from '../package-document.js'
-import { forgetOpenedXlsx, openXlsx, saveXlsx } from '../xlsx/index.js'
+import { openXlsx, saveXlsx } from '../xlsx/index.js'
 import { sidecar } from '../sidecar/index.js'
 import { writeFileAtomic } from '../fs/atomic-write.js'
 import {
@@ -90,11 +85,6 @@ export async function loadFile(path: string, templateName?: string): Promise<Loa
 
   const loaded = await loadContent(path)
 
-  // The original bytes apply to **one** file: otherwise the next save would write into the wrong
-  // package.
-  if (!isWordPackagePath(path) && !isOdtPackagePath(path)) forgetOpenedOriginal()
-  if (!isExcelPath(path)) forgetOpenedXlsx()
-
   if (isWordTemplatePath(path)) return loadAsNewDocument(path, loaded, WORD_EXTENSION, templateName)
   if (isOdtTemplatePath(path)) return loadAsNewDocument(path, loaded, ODT_EXTENSION, templateName)
 
@@ -151,8 +141,6 @@ function loadAsNewDocument(
  */
 async function loadPdf(path: string): Promise<LoadedFile> {
   await assertViewablePdf(path)
-  forgetOpenedOriginal()
-  forgetOpenedXlsx()
 
   const source = allowViewing(path)
   rememberRecentFile(source)
@@ -189,7 +177,7 @@ async function encodeForDestination(path: string, content: string, origin: strin
     })
     return { saved: odt, original: { ...startingPackage(odt, OriginalFormat.Odt), created: odt.created } }
   }
-  return { saved: isExcelPath(path) ? await saveXlsx(sidecar(), content) : null, original: null }
+  return { saved: isExcelPath(path) ? await saveXlsx(sidecar(), content, origin) : null, original: null }
 }
 
 function startingPackage(saved: SavedPackage, format: OriginalFormat): SavedOriginal {
@@ -244,6 +232,11 @@ export function registerFileHandlers(): void {
     // Only authorizes: writing is another call, so the loss warning comes before writing.
     const path = authorizePath(destination)
     return { canceled: false as const, path, name: fileNameFromPath(path) }
+  })
+
+  handle(IpcChannel.FileRelease, (payload) => {
+    releaseOriginal(payload.path)
+    return {}
   })
 
   handle(IpcChannel.RecentList, async () => ({ files: [...(await listRecentFiles())] }))

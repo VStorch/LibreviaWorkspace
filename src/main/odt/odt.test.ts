@@ -18,12 +18,7 @@ import { withoutOids } from '@services/document/oids.js'
 import { saveDocx } from '../docx/index.js'
 import { sdocContentOf } from '../package-document.js'
 import { t } from '../i18n.js'
-import {
-  followOriginal,
-  forgetOpenedOriginal,
-  isCreatedOriginal,
-  OriginalFormat,
-} from '../opened-original.js'
+import { followOriginal, resetOriginals, isCreatedOriginal, OriginalFormat } from '../opened-original.js'
 import { decodeOdt, exportOdt, openOdt, saveOdt } from './index.js'
 
 const client = new SidecarClient(() => Promise.resolve(sidecarPathIn(process.cwd())))
@@ -296,7 +291,7 @@ describe.skipIf(!published)('odt.save', () => {
   })
 
   it('saves a document without an ODT original into the minimal package, rebuilt on each save', async () => {
-    forgetOpenedOriginal()
+    resetOriginals()
     const content = editLast(JSON.stringify({ ...MODEL, doc: withOids(MODEL.doc) }), 'Novo')
     const target = { origin: null, generator: GENERATOR, template: false }
 
@@ -326,7 +321,7 @@ describe.skipIf(!published)('ODT templates', () => {
   afterAll(() => rm(directory, { recursive: true, force: true }))
 
   it('saves as .ott, and a document from it as .odt over the template package', async () => {
-    forgetOpenedOriginal()
+    resetOriginals()
     const template = await saveOdt(client, sdocContentOf(MODEL), {
       origin: null,
       generator: GENERATOR,

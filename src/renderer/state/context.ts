@@ -33,6 +33,16 @@ export function toSerialized(cause: unknown): SerializedError {
   return { code: 'INTERNAL', message: t('shell.error.unexpected') }
 }
 
+/** Main keeps the opened package of every file on screen; one that leaves it would only cost memory. */
+export function releaseFile(path: string): void {
+  void window.api.file.release({ path })
+}
+
+/** Ignoring case, as Windows does: keeping an original too long costs memory, dropping it costs the save. */
+function mayBeSameFile(a: string, b: string | null | undefined): boolean {
+  return typeof b === 'string' && a.toLowerCase() === b.toLowerCase()
+}
+
 export function createWorkspaceContext(set: SetWorkspace, get: GetWorkspace): WorkspaceContext {
   let documentSource: DocumentSource | null = null
 
@@ -91,6 +101,8 @@ export function createWorkspaceContext(set: SetWorkspace, get: GetWorkspace): Wo
     // Also on recovery: the content is already on screen, and autosave writes it again.
     void forgetDraft()
 
+    const previous = get().file?.path ?? null
+    if (previous !== null && !mayBeSameFile(previous, file?.path)) releaseFile(previous)
     set((state) => loadedState(file, model, workbook, state.generation))
   }
 

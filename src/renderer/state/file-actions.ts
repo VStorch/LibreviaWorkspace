@@ -20,6 +20,7 @@ import {
   type GetWorkspace,
   type SetWorkspace,
   type WorkspaceContext,
+  releaseFile,
 } from './context.js'
 import type { LoadedFile, OpenFile, WorkspaceState } from './types.js'
 
@@ -253,6 +254,8 @@ function createSaveActions(
     closeFile: async () => {
       if (!(await ctx.ensureChangesHandled())) return
 
+      const path = get().file?.path ?? null
+      if (path !== null) releaseFile(path)
       set((state) => loadedState(null, createEmptyDocument(), null, state.generation))
       await ctx.forgetDraft()
       await get().refreshRecents()

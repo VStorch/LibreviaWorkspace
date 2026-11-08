@@ -1,38 +1,40 @@
 /**
- * The package the open document came from, as it was on disk when opened, not as it is now, which
- * someone else may have changed. The bytes live **here**, not in the stateless sidecar: its death
- * does not cost the surgical save. One original at a time, and of one format: a block's `oid` only
- * means something in the package it was read from.
+ * The packages the open files came from, as they were on disk when opened, not as they are now,
+ * which someone else may have changed. The bytes live **here**, not in the stateless sidecar: its
+ * death does not cost the surgical save. One original per path, and of one format: a block's `oid`
+ * only means something in the package it was read from. The renderer releases a path when it closes
+ * that file.
  */
 
 import { readFile } from 'node:fs/promises'
-import { normalizePath } from './fs/paths.js'
+import { pathKey } from './fs/paths.js'
 
-export const OriginalFormat = { Docx: 'docx', Odt: 'odt' } as const
+export const OriginalFormat = { Docx: 'docx', Odt: 'odt', Xlsx: 'xlsx' } as const
 export type OriginalFormat = (typeof OriginalFormat)[keyof typeof OriginalFormat]
 
 interface OpenedOriginal {
-  readonly path: string
   readonly bytes: Buffer
   readonly format: OriginalFormat
   /** The minimal package of a document that had no original of this format: rebuilt on each save. */
   readonly created: boolean
 }
 
-let opened: OpenedOriginal | null = null
+const opened = new Map<string, OpenedOriginal>()
 
-/** Normalized, as `authorizePath` returns it and `origin` brings it. */
 export function rememberOriginal(path: string, bytes: Buffer, format: OriginalFormat, created = false): void {
-  opened = { path: normalizePath(path), bytes, format, created }
+  opened.set(pathKey(path), { bytes, format, created })
 }
 
-export function forgetOpenedOriginal(): void {
-  opened = null
+export function releaseOriginal(path: string): void {
+  opened.delete(pathKey(path))
+}
+
+export function resetOriginals(): void {
+  opened.clear()
 }
 
 function openedFor(origin: string | null): OpenedOriginal | null {
-  if (opened === null || origin === null || opened.path !== normalizePath(origin)) return null
-  return opened
+  return origin === null ? null : (opened.get(pathKey(origin)) ?? null)
 }
 
 /** The format of the original kept for `origin`, or `null` when there is none. */
@@ -60,7 +62,7 @@ export async function adoptOriginal(path: string, format: OriginalFormat): Promi
     rememberOriginal(path, await readFile(path), format)
     return true
   } catch {
-    opened = null
+    releaseOriginal(path)
     return false
   }
 }
@@ -82,10 +84,10 @@ export function followOriginal(
   destination: string,
   saved: SavedOriginal | null,
 ): void {
-  if (saved !== null) {
-    rememberOriginal(destination, saved.original, saved.format, saved.created)
-    return
-  }
-  const kept = openedFor(origin)
+  const kept =
+    saved === null
+      ? openedFor(origin)
+      : { bytes: saved.original, format: saved.format, created: saved.created === true }
+  if (origin !== null) releaseOriginal(origin)
   if (kept !== null) rememberOriginal(destination, kept.bytes, kept.format, kept.created)
 }

@@ -13,6 +13,8 @@ export const IpcChannel = {
    * write is what allows warning about formatting loss before any byte reaches the disk.
    */
   FileChooseSavePath: 'file:choose-save-path',
+  /** The file left the screen: main drops the package it kept to save it surgically. */
+  FileRelease: 'file:release',
 
   /**
    * Stores what is on screen as a recovery draft.
@@ -134,6 +136,7 @@ export const INVOCABLE_IPC_CHANNELS = [
   IpcChannel.FileOpenRecent,
   IpcChannel.FileSave,
   IpcChannel.FileChooseSavePath,
+  IpcChannel.FileRelease,
   IpcChannel.FileAutosave,
   IpcChannel.RecoveryPeek,
   IpcChannel.RecoveryRestore,

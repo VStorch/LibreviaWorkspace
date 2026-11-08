@@ -19,6 +19,12 @@ export function normalizePath(path: string): string {
   return resolve(path)
 }
 
+/** Windows compares names without case: `Relatorio.docx` and `relatorio.docx` are one file there. */
+export function pathKey(path: string, platform: NodeJS.Platform = process.platform): string {
+  const normalized = normalizePath(path)
+  return platform === 'win32' ? normalized.toLowerCase() : normalized
+}
+
 export function authorizePath(path: string): string {
   const normalized = normalizePath(path)
   authorizedPaths.add(normalized)
