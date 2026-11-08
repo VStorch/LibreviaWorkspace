@@ -158,6 +158,26 @@ describe('closing a tab', () => {
   })
 })
 
+describe('saving as', () => {
+  it('refuses a path open in another tab, which would save over it', async () => {
+    const api = stubApi()
+    const save = vi.fn(() => ok({ name: 'a.txt' }))
+    Object.assign(api.file, {
+      chooseSavePath: vi.fn(() => ok({ canceled: false, path: '/docs/a.txt', name: 'a.txt' })),
+      save,
+    })
+    await openRecent('/docs/a.txt')
+    await openRecent('/docs/b.txt')
+    const b = activeWorkspaceStore()
+
+    expect(await b.getState().saveAs()).toBe(false)
+
+    expect(save).not.toHaveBeenCalled()
+    expect(b.getState().file?.path).toBe('/docs/b.txt')
+    expect(b.getState().error?.message).toContain('a.txt')
+  })
+})
+
 describe('closing all tabs', () => {
   it('closes every tab and leaves Home', async () => {
     stubApi()

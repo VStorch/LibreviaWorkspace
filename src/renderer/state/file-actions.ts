@@ -14,6 +14,7 @@ import { currentPreferences } from './preferences.js'
 import { t } from '../i18n.js'
 import { refuseViewOnly } from './view-only.js'
 import { refreshRecents } from './recents.js'
+import { isOpenInAnotherTab } from './path-holder.js'
 import {
   toSerialized,
   workbookOf,
@@ -85,6 +86,12 @@ function createTabLifecycle(
       if (source !== null) set({ initialDoc: source.readDoc() })
     },
   }
+}
+
+/** Two tabs on one file would each save over the other. */
+function refuseHeldPath(set: SetWorkspace, name: string): false {
+  set({ error: { code: 'INTERNAL', message: t('shell.saveAs.openInAnotherTab', { name }) } })
+  return false
 }
 
 /** A spreadsheet has no Word format to go to. */
@@ -166,6 +173,7 @@ function createSaveActions(
 
       const chosen = await ctx.call(() => chooseSavePath(file, wordOnly))
       if (chosen === null || chosen.canceled) return false
+      if (isOpenInAnotherTab(chosen.path, get())) return refuseHeldPath(set, chosen.name)
 
       // Before writing: giving up here writes no byte.
       const answer = await confirmPlainTextLoss(chosen.path, chosen.name)

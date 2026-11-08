@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { DocumentKind, type DraftSummary } from '@shared/types.js'
 import type { IpcResult } from '@shared/ipc.js'
-import { canPlaceTab, findOpenTab, isHomeTab, MAX_OPEN_TABS } from '@services/tabs/tab-order.js'
+import { canPlaceTab, isHomeTab, MAX_OPEN_TABS } from '@services/tabs/tab-order.js'
 import { t } from '../i18n.js'
 import { callReporting, releaseFile } from './context.js'
 import { refreshRecents, setRecents } from './recents.js'
@@ -9,6 +9,7 @@ import {
   activateTab,
   activeWorkspaceStore,
   addTab,
+  findTabWithPath,
   removeTab,
   tabOrderOf,
   tabStore,
@@ -33,8 +34,6 @@ type NewKind = typeof DocumentKind.Document | typeof DocumentKind.Spreadsheet
  * already exists also replaces an untouched blank one, as Word does.
  */
 type Replaces = 'home' | 'pristine'
-
-const PLATFORM = typeof navigator !== 'undefined' && /Windows/.test(navigator.userAgent) ? 'win32' : 'other'
 
 export function setTemplateGallery(templateGallery: boolean): void {
   useShell.setState({ templateGallery })
@@ -77,10 +76,7 @@ function place(store: WorkspaceStore, replaces: Replaces): void {
 
 /** The same file in two tabs would save over itself: opening it again shows its tab. */
 function showOpenTab(path: string): boolean {
-  const tabs = useTabs
-    .getState()
-    .tabs.map((tab) => ({ id: tab.id, path: tab.store.getState().file?.path ?? null }))
-  const found = findOpenTab(tabs, path, PLATFORM)
+  const found = findTabWithPath(path)
   if (found === null) return false
   activateTab(found)
   return true

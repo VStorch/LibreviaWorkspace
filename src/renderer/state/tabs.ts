@@ -3,6 +3,7 @@ import { create } from 'zustand'
 import {
   activateTab as activateInOrder,
   closeTab as closeInOrder,
+  findOpenTab,
   HOME_TAB_ID,
   nextTab,
   openTab,
@@ -10,6 +11,7 @@ import {
   placeTab,
   type TabOrder,
 } from '@services/tabs/tab-order.js'
+import { setPathHolder } from './path-holder.js'
 import { createWorkspaceStore, type WorkspaceStore } from './workspace-store.js'
 
 export interface TabEntry {
@@ -28,6 +30,22 @@ const HOME: TabEntry = { id: HOME_TAB_ID, store: createWorkspaceStore() }
 export const useTabs = create<TabsState>(() => ({ tabs: [HOME], activeId: HOME_TAB_ID }))
 
 let lastTabNumber = 0
+
+const PLATFORM = typeof navigator !== 'undefined' && /Windows/.test(navigator.userAgent) ? 'win32' : 'other'
+
+function tabPaths(tabs: readonly TabEntry[]): { id: string; path: string | null }[] {
+  return tabs.map((tab) => ({ id: tab.id, path: tab.store.getState().file?.path ?? null }))
+}
+
+/** The tab with the file open, on the platform's terms of what makes two paths the same. */
+export function findTabWithPath(path: string): string | null {
+  return findOpenTab(tabPaths(useTabs.getState().tabs), path, PLATFORM)
+}
+
+setPathHolder((path, asker) => {
+  const others = useTabs.getState().tabs.filter((tab) => tab.store.getState() !== asker)
+  return findOpenTab(tabPaths(others), path, PLATFORM) !== null
+})
 
 export function tabOrderOf({ tabs, activeId }: TabsState): TabOrder {
   return { ids: tabs.map((tab) => tab.id), activeId }
