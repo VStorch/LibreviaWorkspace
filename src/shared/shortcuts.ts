@@ -146,6 +146,8 @@ export const SHORTCUTS = {
     does: 'Comentário',
   },
 
+  showHome: { owner: ShortcutOwner.Menu, key: { mod: true, key: 'T' }, does: 'Início' },
+
   // ## Menu → View
   nextTab: { owner: ShortcutOwner.Menu, key: { mod: true, key: 'Tab' }, does: 'Próxima aba' },
   previousTab: {

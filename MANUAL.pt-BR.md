@@ -106,6 +106,8 @@ PDF. Menus e barra de ferramentas agem no arquivo que está na tela.
   alterações não salvas, o aplicativo pergunta antes.
 - **Arquivo → Fechar todas as abas** (`Ctrl+Shift+W`) fecha uma por uma. Se você mantiver um
   arquivo na pergunta, os que vêm depois dele continuam abertos.
+- **+**, no fim da barra, ou **Arquivo → Início** (`Ctrl+T`) mostra a aba Início, de onde se cria ou
+  abre outro arquivo.
 - Abrir um arquivo que já está aberto mostra a aba dele, em vez de uma segunda cópia.
 - Ficam abertos até 16 arquivos ao mesmo tempo. Feche um para abrir outro.
 - A aba **Início** tem os arquivos recentes e os botões de criar e abrir. O primeiro arquivo que
@@ -252,6 +254,7 @@ São os atalhos do Word, com poucas exceções, explicadas no fim da tabela.
 | `Ctrl+Shift+S` | salvar como |
 | `Ctrl+W` | fechar o arquivo |
 | `Ctrl+Shift+W` | fechar todas as abas |
+| `Ctrl+T` | aba Início |
 | `Ctrl+Tab`, `Ctrl+PgDn` | próxima aba (numa planilha, `Ctrl+PgDn` vai para a próxima aba de baixo) |
 | `Ctrl+Shift+Tab`, `Ctrl+PgUp` | aba anterior (numa planilha, `Ctrl+PgUp` vai para a aba de baixo anterior) |
 | `Ctrl+P` | imprimir |

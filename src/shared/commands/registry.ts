@@ -37,7 +37,7 @@ export const COMMANDS = {
     labelKey: 'menu.file.closeAll',
     shortcut: 'closeAllTabs',
   },
-  [MenuCommand.ShowHome]: { id: MenuCommand.ShowHome, labelKey: 'menu.file.home' },
+  [MenuCommand.ShowHome]: { id: MenuCommand.ShowHome, labelKey: 'menu.file.home', shortcut: 'showHome' },
   [MenuCommand.NextTab]: { id: MenuCommand.NextTab, labelKey: 'menu.view.nextTab', shortcut: 'nextTab' },
   [MenuCommand.PreviousTab]: {
     id: MenuCommand.PreviousTab,

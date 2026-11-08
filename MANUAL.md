@@ -106,6 +106,8 @@ spreadsheet or PDF. Menus and toolbar act on the file on screen.
   application asks first.
 - **File → Close all tabs** (`Ctrl+Shift+W`) closes them one by one. If you keep a file at the
   question, the ones after it stay open.
+- **+**, at the end of the bar, or **File → Home** (`Ctrl+T`) shows the Home tab, where you create
+  or open another file.
 - Opening a file that is already open shows its tab, instead of a second copy.
 - Up to 16 files stay open at once. Close one to open another.
 - The **Home** tab has the recent files and the buttons to create and open. The first file you open
@@ -249,6 +251,7 @@ They are Word's shortcuts, with few exceptions, explained at the end of the tabl
 | `Ctrl+Shift+S` | save as |
 | `Ctrl+W` | close the file |
 | `Ctrl+Shift+W` | close all tabs |
+| `Ctrl+T` | Home tab |
 | `Ctrl+Tab`, `Ctrl+PgDn` | next tab (on a spreadsheet, `Ctrl+PgDn` goes to its next tab at the bottom) |
 | `Ctrl+Shift+Tab`, `Ctrl+PgUp` | previous tab (on a spreadsheet, `Ctrl+PgUp` goes to its previous tab at the bottom) |
 | `Ctrl+P` | print |

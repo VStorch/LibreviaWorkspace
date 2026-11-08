@@ -58,6 +58,7 @@
       {
         "label": "Início",
         "type": "normal",
+        "accelerator": "CmdOrCtrl+T",
         "enabled": true
       },
       {
