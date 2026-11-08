@@ -1,6 +1,7 @@
 import { app, BrowserWindow, Menu, type MenuItemConstructorOptions } from 'electron'
 import { COMMANDS, type CommandMeta } from '@shared/commands/registry.js'
 import { APP_NAME } from '@shared/constants.js'
+import { latestOnly } from '@shared/latest-only.js'
 import { LANGUAGES, LANGUAGE_NAMES, type MessageKey } from '@shared/i18n/index.js'
 import { SHORTCUTS, acceleratorOf } from '@shared/shortcuts.js'
 import { TABLE_ACTIONS } from '@shared/table-actions.js'
@@ -452,12 +453,7 @@ async function openLogFolder(): Promise<void> {
   if (folder !== null) await openFolder(folder)
 }
 
-let latestRefresh = 0
-
-/** Two refreshes may finish out of order: only the latest one, which read the newest state, installs. */
-export async function refreshMenu(): Promise<void> {
-  latestRefresh += 1
-  const refresh = latestRefresh
-  const template = await buildTemplate(menuSnapshotOf(focusedWindow()))
-  if (refresh === latestRefresh) Menu.setApplicationMenu(Menu.buildFromTemplate(template))
-}
+export const refreshMenu = latestOnly(
+  () => buildTemplate(menuSnapshotOf(focusedWindow())),
+  (template) => Menu.setApplicationMenu(Menu.buildFromTemplate(template)),
+)
