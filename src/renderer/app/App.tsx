@@ -13,12 +13,8 @@ import { answerMcpRequests } from '../document/mcp-document.js'
 import { watchMcpClients } from '../state/mcp-clients.js'
 import { TemplateGallery } from '../components/TemplateGallery.js'
 import { DocumentEditor } from '../document/DocumentEditor.js'
-import {
-  EditorCommand,
-  asEditorCommand,
-  emitEditorCommand,
-  onEditorCommand,
-} from '../document/editor-commands.js'
+import { EditorCommand, onEditorCommand } from '../document/editor-commands.js'
+import { executeCommand, registerHandlers, type CommandHandlers } from '../commands/execute.js'
 import { HomePage } from '../pages/HomePage.js'
 import { PdfView } from '../pdf/PdfView.js'
 import { SheetTabs } from '../spreadsheet/SheetTabs.js'
@@ -36,24 +32,12 @@ import { useReadingMode } from '../state/reading.js'
 import { setOptionsDialog, useOptionsDialog } from '../state/options-dialog.js'
 import { useTheme } from '../state/theme.js'
 import { runZoomCommand } from '../state/zoom.js'
-import { revisionViewOfCommand, setRevisionView, useRevisionView } from '../state/revision-view.js'
+import { REVISION_VIEW_HANDLERS, useRevisionView } from '../state/revision-view.js'
 import { useWorkspace } from '../state/workspace.js'
 import { t } from '../i18n.js'
 
 /** The most work a crash can cost; less would weigh on large documents. */
 const AUTOSAVE_INTERVAL_MS = 8_000
-
-async function runMenuCommand(command: MenuCommand, path: string | undefined): Promise<void> {
-  const workspace = useWorkspace.getState()
-
-  // Editor commands, recognized by name: App holds no reference to the editor.
-  const editorCommand = asEditorCommand(command)
-  if (editorCommand !== null) return emitEditorCommand(editorCommand)
-  const revisionView = revisionViewOfCommand(command)
-  if (revisionView !== null) return setRevisionView(revisionView)
-
-  await MENU_ACTIONS[command]?.(workspace, path)
-}
 
 type Workspace = ReturnType<typeof useWorkspace.getState>
 
@@ -120,6 +104,20 @@ const MENU_ACTIONS: Partial<Record<MenuCommand, MenuAction>> = {
   [MenuCommand.ZoomReset]: () => runZoomCommand(MenuCommand.ZoomReset),
   [MenuCommand.ZoomFitWidth]: () => runZoomCommand(MenuCommand.ZoomFitWidth),
   [MenuCommand.Options]: () => setOptionsDialog(true),
+}
+
+function shellHandlers(): CommandHandlers {
+  const entries = Object.entries(MENU_ACTIONS) as [MenuCommand, MenuAction][]
+  return Object.fromEntries(
+    entries.map(([id, action]) => [
+      id,
+      {
+        run: async (arg?: string) => {
+          await action(useWorkspace.getState(), arg)
+        },
+      },
+    ]),
+  )
 }
 
 export function App(): React.JSX.Element {
@@ -194,13 +192,19 @@ function useWorkspaceLifecycle(): void {
   }, [])
 
   useEffect(() => {
+    const unregisterShell = registerHandlers('shell', shellHandlers())
+    const unregisterRevisions = registerHandlers('revisions', REVISION_VIEW_HANDLERS)
     let commands = Promise.resolve()
     const unsubscribe = window.api.menu.onCommand(({ command, path }) => {
-      commands = commands.then(() => runMenuCommand(command, path)).catch(console.error)
+      commands = commands.then(() => executeCommand(command, path)).catch(console.error)
     })
     // Subscribes before asking main for files picked in the file manager.
     void window.api.window.ready({})
-    return unsubscribe
+    return () => {
+      unsubscribe()
+      unregisterRevisions()
+      unregisterShell()
+    }
   }, [])
 }
 

@@ -61,31 +61,6 @@ export function asEditorCommand(command: string): EditorCommand | null {
   return KNOWN.has(command) ? (command as EditorCommand) : null
 }
 
-/** The list holds the exceptions: a new command starts blocked when read-only. */
-const READS_ONLY: ReadonlySet<EditorCommand> = new Set<EditorCommand>([
-  EditorCommand.FindReplace,
-  EditorCommand.WordCount,
-  // The dialog opens for "Go to"; add and delete grey out inside it.
-  EditorCommand.InsertBookmark,
-  // Moving between comments only reads; the author name is a preference, not the document.
-  EditorCommand.NextComment,
-  EditorCommand.PreviousComment,
-  EditorCommand.AuthorName,
-  // Moving between changes also only reads; accepting and rejecting edit.
-  EditorCommand.NextChange,
-  EditorCommand.PreviousChange,
-  // The equation opens for viewing; the dialog only saves when the document is editable.
-  EditorCommand.EditEquation,
-  // Setting up assistants is a preference, not the document.
-  EditorCommand.AiProviders,
-  // The chat only reads; applying and inserting grey out inside the panel.
-  EditorCommand.AiAssistant,
-])
-
-export function runsWhileLocked(command: EditorCommand): boolean {
-  return READS_ONLY.has(command)
-}
-
 const listeners = new Set<(command: EditorCommand) => void>()
 
 export function onEditorCommand(listener: (command: EditorCommand) => void): () => void {

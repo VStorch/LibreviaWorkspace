@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { MenuCommand } from '@shared/types.js'
-import { EditorCommand, asEditorCommand, runsWhileLocked } from './editor-commands.js'
+import { runsWhileLocked } from '@shared/commands/registry.js'
+import { EditorCommand, asEditorCommand } from './editor-commands.js'
 
 describe('editor commands in read-only mode', () => {
   it('only search, counting, bookmarks, navigation, opening the equation, configuring assistants and the assistant panel run with the document locked', () => {

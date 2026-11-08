@@ -8,6 +8,8 @@ export interface CommandMeta {
   readonly id: CommandId
   readonly labelKey: MessageKey
   readonly shortcut?: ShortcutId
+  /** Runs while the document is locked; a new command starts blocked. */
+  readonly readsOnly?: true
   /** The page handles the key; the menu only shows it, or on macOS it would take it from the page. */
   readonly registerAccelerator?: false
 }
@@ -36,6 +38,7 @@ export const COMMANDS = {
     id: MenuCommand.FindReplace,
     labelKey: 'menu.edit.findReplace',
     shortcut: 'findReplace',
+    readsOnly: true,
   },
   [MenuCommand.ExportPdf]: { id: MenuCommand.ExportPdf, labelKey: 'menu.file.exportPdf' },
   [MenuCommand.ExportHtml]: { id: MenuCommand.ExportHtml, labelKey: 'menu.file.exportHtml' },
@@ -91,6 +94,7 @@ export const COMMANDS = {
     id: MenuCommand.WordCount,
     labelKey: 'menu.tools.wordCount',
     shortcut: 'wordCount',
+    readsOnly: true,
   },
   [MenuCommand.DocumentProperties]: { id: MenuCommand.DocumentProperties, labelKey: 'menu.file.properties' },
   [MenuCommand.InspectDocument]: { id: MenuCommand.InspectDocument, labelKey: 'menu.file.inspect' },
@@ -107,12 +111,19 @@ export const COMMANDS = {
     id: MenuCommand.InsertDisplayEquation,
     labelKey: 'menu.insert.displayEquation',
   },
-  [MenuCommand.EditEquation]: { id: MenuCommand.EditEquation, labelKey: 'document.math.dialog.title' },
+  // The equation opens for viewing; the dialog only saves when the document is editable.
+  [MenuCommand.EditEquation]: {
+    id: MenuCommand.EditEquation,
+    labelKey: 'document.math.dialog.title',
+    readsOnly: true,
+  },
   [MenuCommand.ImageProperties]: { id: MenuCommand.ImageProperties, labelKey: 'menu.format.image' },
+  // The dialog opens for "Go to"; add and delete grey out inside it.
   [MenuCommand.InsertBookmark]: {
     id: MenuCommand.InsertBookmark,
     labelKey: 'menu.insert.bookmark',
     shortcut: 'insertBookmark',
+    readsOnly: true,
   },
   [MenuCommand.InsertComment]: {
     id: MenuCommand.InsertComment,
@@ -129,14 +140,30 @@ export const COMMANDS = {
     labelKey: 'menu.insert.endnote',
     shortcut: 'insertEndnote',
   },
-  [MenuCommand.NextComment]: { id: MenuCommand.NextComment, labelKey: 'menu.insert.nextComment' },
-  [MenuCommand.PreviousComment]: { id: MenuCommand.PreviousComment, labelKey: 'menu.insert.previousComment' },
+  [MenuCommand.NextComment]: {
+    id: MenuCommand.NextComment,
+    labelKey: 'menu.insert.nextComment',
+    readsOnly: true,
+  },
+  [MenuCommand.PreviousComment]: {
+    id: MenuCommand.PreviousComment,
+    labelKey: 'menu.insert.previousComment',
+    readsOnly: true,
+  },
   [MenuCommand.AcceptChange]: { id: MenuCommand.AcceptChange, labelKey: 'revisions.accept' },
   [MenuCommand.RejectChange]: { id: MenuCommand.RejectChange, labelKey: 'revisions.reject' },
   [MenuCommand.AcceptAllChanges]: { id: MenuCommand.AcceptAllChanges, labelKey: 'revisions.acceptAll' },
   [MenuCommand.RejectAllChanges]: { id: MenuCommand.RejectAllChanges, labelKey: 'revisions.rejectAll' },
-  [MenuCommand.NextChange]: { id: MenuCommand.NextChange, labelKey: 'revisions.next' },
-  [MenuCommand.PreviousChange]: { id: MenuCommand.PreviousChange, labelKey: 'revisions.previous' },
+  [MenuCommand.NextChange]: {
+    id: MenuCommand.NextChange,
+    labelKey: 'revisions.next',
+    readsOnly: true,
+  },
+  [MenuCommand.PreviousChange]: {
+    id: MenuCommand.PreviousChange,
+    labelKey: 'revisions.previous',
+    readsOnly: true,
+  },
   [MenuCommand.ToggleTrackChanges]: {
     id: MenuCommand.ToggleTrackChanges,
     labelKey: 'revisions.track',
@@ -146,7 +173,12 @@ export const COMMANDS = {
   [MenuCommand.ShowSimpleMarkup]: { id: MenuCommand.ShowSimpleMarkup, labelKey: 'revisions.show.simple' },
   [MenuCommand.ShowNoMarkup]: { id: MenuCommand.ShowNoMarkup, labelKey: 'revisions.show.none' },
   [MenuCommand.ShowOriginal]: { id: MenuCommand.ShowOriginal, labelKey: 'revisions.show.original' },
-  [MenuCommand.AuthorName]: { id: MenuCommand.AuthorName, labelKey: 'menu.tools.authorName' },
+  // A preference, not the document.
+  [MenuCommand.AuthorName]: {
+    id: MenuCommand.AuthorName,
+    labelKey: 'menu.tools.authorName',
+    readsOnly: true,
+  },
   [MenuCommand.Options]: { id: MenuCommand.Options, labelKey: 'menu.tools.options' },
   [MenuCommand.InsertTableOfContents]: {
     id: MenuCommand.InsertTableOfContents,
@@ -170,12 +202,19 @@ export const COMMANDS = {
     id: MenuCommand.InsertPropertyField,
     labelKey: 'menu.insert.propertyField',
   },
+  // The chat only reads; applying and inserting grey out inside the panel.
   [MenuCommand.AiAssistant]: {
     id: MenuCommand.AiAssistant,
     labelKey: 'menu.tools.aiAssistant',
     shortcut: 'aiAssistant',
+    readsOnly: true,
   },
-  [MenuCommand.AiProviders]: { id: MenuCommand.AiProviders, labelKey: 'menu.tools.aiProviders' },
+  // A preference, not the document.
+  [MenuCommand.AiProviders]: {
+    id: MenuCommand.AiProviders,
+    labelKey: 'menu.tools.aiProviders',
+    readsOnly: true,
+  },
   [MenuCommand.TableInsert]: {
     id: MenuCommand.TableInsert,
     labelKey: 'table.insert',
@@ -194,3 +233,8 @@ export const COMMANDS = {
   [MenuCommand.TableProperties]: { id: MenuCommand.TableProperties, labelKey: 'table.properties' },
   [MenuCommand.SaveAndExit]: { id: MenuCommand.SaveAndExit, labelKey: 'dialog.discard.save' },
 } as const satisfies { readonly [Id in CommandId]: CommandMeta & { readonly id: Id } }
+
+export function runsWhileLocked(id: CommandId): boolean {
+  const meta: CommandMeta = COMMANDS[id]
+  return meta.readsOnly === true
+}

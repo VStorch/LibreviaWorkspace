@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { MenuCommand, RevisionView } from '@shared/types.js'
+import type { CommandHandler, CommandHandlers } from '../commands/execute.js'
 
 /**
  * Neither a preference nor the document: as in Word, each window looks its own way, and printing
@@ -11,14 +12,11 @@ export function setRevisionView(view: RevisionView): void {
   if (useRevisionView.getState().view !== view) useRevisionView.setState({ view })
 }
 
-const BY_COMMAND: Partial<Record<MenuCommand, RevisionView>> = {
-  [MenuCommand.ShowAllMarkup]: RevisionView.All,
-  [MenuCommand.ShowSimpleMarkup]: RevisionView.Simple,
-  [MenuCommand.ShowNoMarkup]: RevisionView.None,
-  [MenuCommand.ShowOriginal]: RevisionView.Original,
-}
+const viewCommand = (view: RevisionView): CommandHandler => ({ run: () => setRevisionView(view) })
 
-/** `null` if the command is not one of them. */
-export function revisionViewOfCommand(command: MenuCommand): RevisionView | null {
-  return BY_COMMAND[command] ?? null
+export const REVISION_VIEW_HANDLERS: CommandHandlers = {
+  [MenuCommand.ShowAllMarkup]: viewCommand(RevisionView.All),
+  [MenuCommand.ShowSimpleMarkup]: viewCommand(RevisionView.Simple),
+  [MenuCommand.ShowNoMarkup]: viewCommand(RevisionView.None),
+  [MenuCommand.ShowOriginal]: viewCommand(RevisionView.Original),
 }
