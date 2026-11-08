@@ -1,16 +1,14 @@
 import type { SerializedError } from '@shared/errors.js'
-import { DocumentKind, type DraftSummary } from '@shared/types.js'
+import { DocumentKind } from '@shared/types.js'
 import { createEmptyDocument } from '@services/document/model.js'
 import { parseDocument } from '@services/document/serialize.js'
 import { parseWorkbook } from '@services/spreadsheet/serialize.js'
 import { recalculate } from '@services/spreadsheet/formula/recalc.js'
 import { toSerialized, type GetWorkspace, type SetWorkspace, type WorkspaceContext } from './context.js'
 import { t } from '../i18n.js'
-import type { LoadedFile, WorkspaceState } from './types.js'
+import type { LoadedFile, RecoveredDraft, WorkspaceState } from './types.js'
 
-type RecoveredDraft = DraftSummary & { readonly content: string }
-
-type DraftActions = Pick<WorkspaceState, 'autosave' | 'checkRecovery' | 'recoverDraft' | 'dismissDraft'>
+type DraftActions = Pick<WorkspaceState, 'autosave' | 'restoreDraft'>
 
 export function createDraftActions(
   set: SetWorkspace,
@@ -20,11 +18,10 @@ export function createDraftActions(
   return {
     autosave: async () => {
       const state = get()
-      // With a draft awaiting a decision, writing would erase the work it brings back.
       if (state.file === null || !state.isDirty) return
       // A PDF's only change is its properties, which have no draft: closing asks to save them.
       if (state.file.kind === DocumentKind.Pdf) return
-      if (state.pendingDraft !== null || state.autosaveBroken) return
+      if (state.autosaveBroken) return
 
       // Outside `call`: autosave does not flash the busy indicator.
       const result = await window.api.file.autosave({
@@ -38,38 +35,18 @@ export function createDraftActions(
       if (!result.ok) set(autosaveBrokenState(result.error))
     },
 
-    checkRecovery: async () => {
-      const result = await window.api.recovery.peek({})
-      const latest = result.ok ? result.data.drafts[0] : undefined
-      if (latest !== undefined) set({ pendingDraft: latest })
-    },
-
-    recoverDraft: async () => {
-      const pending = get().pendingDraft
-      if (pending === null) return
-
-      const data = await ctx.call(() => window.api.recovery.restore({ draftId: pending.draftId }))
-      // The tab takes over the draft's id, so its next autosave overwrites it instead of leaving it
-      // behind.
-      set({ pendingDraft: null, draftId: pending.draftId })
-      if (data === null || data.draft === null) return
-
+    restoreDraft: (draft) => {
+      set({ draftId: draft.draftId })
       try {
-        ctx.show(interpret(data.draft))
+        ctx.show(interpret(draft))
         // Recovered content differs from disk: marking it saved would let a close lose everything
         // again.
         set({ isDirty: true, textEdited: true })
+        return true
       } catch (cause) {
         set({ error: toSerialized(cause) })
+        return false
       }
-    },
-
-    dismissDraft: async () => {
-      const pending = get().pendingDraft
-      if (pending === null) return
-
-      set({ pendingDraft: null })
-      await window.api.recovery.discard({ draftId: pending.draftId })
     },
   }
 }

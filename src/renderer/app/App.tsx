@@ -36,6 +36,21 @@ import { runZoomCommand } from '../state/zoom.js'
 import { REVISION_VIEW_HANDLERS } from '../state/revision-view.js'
 import { activeWorkspaceStore, autosaveAllTabs, useTabs } from '../state/tabs.js'
 import { useWorkspace } from '../state/workspace.js'
+import { refreshRecents } from '../state/recents.js'
+import {
+  anyTabDirty,
+  checkRecovery,
+  clearRecents,
+  closeActiveTab,
+  newDocument,
+  newSpreadsheet,
+  openRecent,
+  openViaDialog,
+  saveAllTabs,
+  setTemplateGallery,
+  useShell,
+} from '../state/shell.js'
+import { TabBar } from '../components/TabBar.js'
 import { t } from '../i18n.js'
 
 /** The most work a crash can cost; less would weigh on large documents. */
@@ -80,19 +95,18 @@ type MenuAction = (workspace: Workspace, path: string | undefined) => Promise<un
 const MENU_ACTIONS: Partial<Record<MenuCommand, MenuAction>> = {
   [MenuCommand.Undo]: (workspace) => runHistory(workspace, EditCommand.Undo),
   [MenuCommand.Redo]: (workspace) => runHistory(workspace, EditCommand.Redo),
-  [MenuCommand.NewDocument]: (workspace) => workspace.newDocument(),
-  [MenuCommand.NewSpreadsheet]: (workspace) => workspace.newSpreadsheet(),
-  [MenuCommand.NewFromTemplate]: (workspace) => workspace.setTemplateGallery(true),
-  [MenuCommand.Open]: (workspace) => workspace.openViaDialog(),
-  [MenuCommand.OpenRecent]: (workspace, path) =>
-    path === undefined ? undefined : workspace.openRecent(path),
-  [MenuCommand.ClearRecent]: (workspace) => workspace.clearRecents(),
+  [MenuCommand.NewDocument]: () => newDocument(),
+  [MenuCommand.NewSpreadsheet]: () => newSpreadsheet(),
+  [MenuCommand.NewFromTemplate]: () => setTemplateGallery(true),
+  [MenuCommand.Open]: () => openViaDialog(),
+  [MenuCommand.OpenRecent]: (_workspace, path) => (path === undefined ? undefined : openRecent(path)),
+  [MenuCommand.ClearRecent]: () => clearRecents(),
   [MenuCommand.Save]: (workspace) => workspace.save(),
   [MenuCommand.SaveAs]: (workspace) => workspace.saveAs(),
-  [MenuCommand.CloseFile]: (workspace) => workspace.closeFile(),
-  // Only closes if the save succeeds.
-  [MenuCommand.SaveAndExit]: async (workspace) => {
-    if (await workspace.save()) await window.api.window.close({})
+  [MenuCommand.CloseFile]: () => closeActiveTab(),
+  // Only closes if every save succeeds.
+  [MenuCommand.SaveAndExit]: async () => {
+    if (await saveAllTabs()) await window.api.window.close({})
   },
   [MenuCommand.InspectDocument]: (workspace) => workspace.setInspector(workspace.file !== null),
   [MenuCommand.ExportPdf]: (workspace) => workspace.exportPdf(),
@@ -126,7 +140,7 @@ function shellHandlers(): CommandHandlers {
 export function App(): React.JSX.Element {
   const hasFile = useWorkspace((state) => state.file !== null)
   const viewedPdf = useWorkspace((state) => (state.file?.kind === DocumentKind.Pdf ? state.file.path : null))
-  const templateGallery = useWorkspace((state) => state.templateGallery)
+  const templateGallery = useShell((state) => state.templateGallery)
   const inspector = useWorkspace((state) => state.inspector && state.file !== null)
   // The editor is remounted for each document and each tab, with no leftover state.
   const tabId = useTabs((tabs) => tabs.activeId)
@@ -146,6 +160,7 @@ export function App(): React.JSX.Element {
         .filter((name) => name !== '')
         .join(' ')}
     >
+      <TabBar />
       <ErrorBanner />
       <RecoveryBanner />
       <ReadOnlyBanner />
@@ -173,8 +188,8 @@ export function App(): React.JSX.Element {
 /** Recent files, recovery, preferences, theme, autosave and the main menu. */
 function useWorkspaceLifecycle(): void {
   useEffect(() => {
-    void useWorkspace.getState().refreshRecents()
-    void useWorkspace.getState().checkRecovery()
+    void refreshRecents()
+    void checkRecovery()
   }, [])
 
   // The copy of the preferences the screen draws; main owns them.
@@ -215,11 +230,8 @@ function useWorkspaceLifecycle(): void {
 /** The window title and the state main's menu shows. */
 function useWindowStateSync(): void {
   useEffect(() => {
-    // Only when the title or the unsaved flag change, not on every key press.
-    let lastTitle = ''
-    let lastDirty: boolean | null = null
-    let lastTracking: boolean | null = null
-    let lastView: string | null = null
+    // Only when the title or the unsaved flags change, not on every key press.
+    let last = ''
 
     const sync = (): void => {
       const state = useWorkspace.getState()
@@ -228,25 +240,21 @@ function useWindowStateSync(): void {
       // It belongs to the document: off with a spreadsheet open.
       const trackChanges = state.workbook === null && state.trackChanges === true
       const { revisionView } = state
-      if (
-        title === lastTitle &&
-        state.isDirty === lastDirty &&
-        trackChanges === lastTracking &&
-        revisionView === lastView
-      )
-        return
+      const { isDirty } = state
+      const unsavedWork = anyTabDirty()
+      const key = JSON.stringify([title, isDirty, unsavedWork, trackChanges, revisionView])
+      if (key === last) return
 
-      lastTitle = title
-      lastDirty = state.isDirty
-      lastTracking = trackChanges
-      lastView = revisionView
-      void window.api.window.setState({ title, isDirty: state.isDirty, trackChanges, revisionView })
-      document.title = buildWindowTitle(state.file?.name ?? null, state.isDirty, 'Librevia', untitled)
+      last = key
+      void window.api.window.setState({ title, isDirty, unsavedWork, trackChanges, revisionView })
+      document.title = buildWindowTitle(state.file?.name ?? null, isDirty, 'Librevia', untitled)
     }
 
     sync()
     const unsubscribe = useWorkspace.subscribe(sync)
+    const unsubscribeTabs = useTabs.subscribe(sync)
     return () => {
+      unsubscribeTabs()
       unsubscribe()
     }
   }, [])

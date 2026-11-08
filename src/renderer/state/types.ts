@@ -1,5 +1,5 @@
 import type { SerializedError } from '@shared/errors.js'
-import type { DocumentKind, DraftSummary, LossInventory, RecentFile, RevisionView } from '@shared/types.js'
+import type { DocumentKind, DraftSummary, LossInventory, RevisionView } from '@shared/types.js'
 import type {
   DocumentComment,
   DocumentModel,
@@ -33,6 +33,18 @@ export interface LoadedFile {
   readonly model: DocumentModel
   readonly workbook: WorkbookModel | null
 }
+
+/** What main hands over when a file opens. */
+export interface OpenedFile {
+  readonly path: string
+  readonly name: string
+  readonly content: string
+  // `| undefined`: the IPC contract declares the property as possibly undefined.
+  readonly inventory?: LossInventory | undefined
+  readonly template?: boolean | undefined
+}
+
+export type RecoveredDraft = DraftSummary & { readonly content: string }
 
 /** The HTML comes from the editor itself, so the PDF matches the screen. */
 export interface DocumentSource {
@@ -90,7 +102,6 @@ export interface WorkspaceState {
   textEdited: boolean
   stats: { characters: number; words: number }
   pageCount: number
-  recents: readonly RecentFile[]
   error: SerializedError | null
   /** Not a failure: the file opened, and this says what will not show. */
   notice: LossInventory | null
@@ -98,8 +109,6 @@ export interface WorkspaceState {
   savedLoss: readonly string[] | null
   /** Names this tab's draft in the recovery folder; a new file in the same tab overwrites it. */
   draftId: string
-  /** While it awaits a decision, autosave does not write over it. */
-  pendingDraft: DraftSummary | null
   /** Turned on by itself when there is **structural** loss; the user unlocks with one click. */
   readOnly: boolean
   /** Retrying every eight seconds would fill the screen with warnings. */
@@ -129,10 +138,7 @@ export interface WorkspaceState {
   dismissError: () => void
   dismissNotice: () => void
   showError: (error: SerializedError) => void
-  refreshRecents: () => Promise<void>
 
-  newDocument: () => Promise<void>
-  newSpreadsheet: () => Promise<void>
   updateSheet: (sheet: Sheet) => void
   changeStructure: (change: StructuralChange) => void
   selectSheet: (index: number) => void
@@ -142,10 +148,6 @@ export interface WorkspaceState {
   /** Every sheet edit above is one step; navigating between tabs is not. */
   undoSheet: () => void
   redoSheet: () => void
-  openViaDialog: () => Promise<void>
-  openRecent: (path: string) => Promise<void>
-  templateGallery: boolean
-  setTemplateGallery: (open: boolean) => void
   /** File → Inspect document. */
   inspector: boolean
   setInspector: (open: boolean) => void
@@ -153,21 +155,23 @@ export interface WorkspaceState {
   inspectPersonalData: () => Promise<PrivacyReport | null>
   /** Marks the file modified: only saving writes the clean version. */
   removePersonalData: (categories: readonly PrivacyCategory[]) => Promise<boolean>
-  /** `null` browses for a `.dotx` or `.ott`. Returns whether the new document reached the screen. */
-  newFromTemplate: (
-    template: { readonly source: 'builtin' | 'user'; readonly id: string } | null,
-  ) => Promise<boolean>
+  /** Into this tab, which is new: `false` leaves the error in this store. */
+  loadFile: (opened: OpenedFile) => boolean
+  startNew: (kind: typeof DocumentKind.Document | typeof DocumentKind.Spreadsheet) => void
+  /** Takes over the draft's id, so the next autosave overwrites it instead of leaving it behind. */
+  restoreDraft: (draft: RecoveredDraft) => boolean
+  /** `false` when the user gave up closing. */
+  confirmClose: () => Promise<boolean>
+  /** The tab is leaving: main drops its package and the draft goes. */
+  release: () => Promise<void>
+  /** Before the editor unmounts: a hidden tab saves and autosaves from this snapshot. */
+  suspend: () => void
   save: () => Promise<boolean>
   /** `wordOnly` offers only `.docx`, and the document goes on from there, as with any save as. */
   saveAs: (options?: { readonly wordOnly?: boolean }) => Promise<boolean>
-  closeFile: () => Promise<void>
-  clearRecents: () => Promise<void>
 
   /** By timer, not by key press. */
   autosave: () => Promise<void>
-  checkRecovery: () => Promise<void>
-  recoverDraft: () => Promise<void>
-  dismissDraft: () => Promise<void>
   allowEditing: () => void
 
   exportPdf: () => Promise<boolean>

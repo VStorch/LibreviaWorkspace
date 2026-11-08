@@ -13,8 +13,8 @@ import { hasReportableLoss, locksEditing, lostOnSave } from '@services/file/inve
 import { currentPreferences } from './preferences.js'
 import { t } from '../i18n.js'
 import { refuseViewOnly } from './view-only.js'
+import { refreshRecents } from './recents.js'
 import {
-  loadedState,
   toSerialized,
   workbookOf,
   type GetWorkspace,
@@ -22,132 +22,67 @@ import {
   type WorkspaceContext,
   releaseFile,
 } from './context.js'
-import type { LoadedFile, OpenFile, WorkspaceState } from './types.js'
-
-interface OpenedFile {
-  readonly path: string
-  readonly name: string
-  readonly content: string
-  // `| undefined`: the IPC contract declares the property as possibly undefined.
-  readonly inventory?: LossInventory | undefined
-  readonly template?: boolean | undefined
-}
+import type { LoadedFile, OpenedFile, OpenFile, WorkspaceState } from './types.js'
 
 type PlainTextAnswer = 'proceed' | 'cancel' | 'chooseAnother'
 
 type FileActions = Pick<
   WorkspaceState,
-  | 'refreshRecents'
-  | 'clearRecents'
-  | 'newDocument'
-  | 'newSpreadsheet'
-  | 'openViaDialog'
-  | 'openRecent'
-  | 'newFromTemplate'
-  | 'save'
-  | 'saveAs'
-  | 'closeFile'
+  'loadFile' | 'startNew' | 'save' | 'saveAs' | 'confirmClose' | 'release' | 'suspend'
 >
 
 export function createFileActions(set: SetWorkspace, get: GetWorkspace, ctx: WorkspaceContext): FileActions {
-  return { ...createOpenActions(set, get, ctx), ...createSaveActions(set, get, ctx) }
+  return {
+    ...createOpenActions(set, ctx),
+    ...createSaveActions(set, get, ctx),
+    ...createTabLifecycle(set, get, ctx),
+  }
 }
 
-type OpenActions = Pick<
-  FileActions,
-  | 'refreshRecents'
-  | 'clearRecents'
-  | 'newDocument'
-  | 'newSpreadsheet'
-  | 'openViaDialog'
-  | 'openRecent'
-  | 'newFromTemplate'
->
-
-function createOpenActions(set: SetWorkspace, get: GetWorkspace, ctx: WorkspaceContext): OpenActions {
-  async function openFile(load: () => Promise<OpenedFile | null>): Promise<boolean> {
-    const opened = await load()
-    if (opened === null) return false
-
-    try {
-      ctx.show(interpret(opened))
-      set(openedNotice(opened.inventory))
-    } catch (cause) {
-      set({ error: toSerialized(cause) })
-      return false
-    }
-
-    await get().refreshRecents()
-    return true
-  }
-
+function createOpenActions(
+  set: SetWorkspace,
+  ctx: WorkspaceContext,
+): Pick<FileActions, 'loadFile' | 'startNew'> {
   return {
-    refreshRecents: async () => {
-      const data = await ctx.call(() => window.api.recent.list({}))
-      if (data !== null) set({ recents: data.files })
+    loadFile: (opened) => {
+      try {
+        ctx.show(interpret(opened))
+        set(openedNotice(opened.inventory))
+        return true
+      } catch (cause) {
+        set({ error: toSerialized(cause) })
+        return false
+      }
     },
 
-    clearRecents: async () => {
-      const data = await ctx.call(() => window.api.recent.clear({}))
-      if (data !== null) set({ recents: data.files })
-    },
-
-    newDocument: async () => {
-      if (!(await ctx.ensureChangesHandled())) return
+    startNew: (kind) => {
       ctx.show({
-        file: {
-          path: null,
-          name: untitledName(DocumentKind.Document),
-          kind: DocumentKind.Document,
-        },
+        file: { path: null, name: untitledName(kind), kind },
         model: createEmptyDocument(),
-        workbook: null,
+        workbook:
+          kind === DocumentKind.Spreadsheet ? createEmptyWorkbook(currentPreferences().language) : null,
       })
     },
+  }
+}
 
-    newSpreadsheet: async () => {
-      if (!(await ctx.ensureChangesHandled())) return
-      ctx.show({
-        file: {
-          path: null,
-          name: untitledName(DocumentKind.Spreadsheet),
-          kind: DocumentKind.Spreadsheet,
-        },
-        model: createEmptyDocument(),
-        workbook: createEmptyWorkbook(currentPreferences().language),
-      })
+function createTabLifecycle(
+  set: SetWorkspace,
+  get: GetWorkspace,
+  ctx: WorkspaceContext,
+): Pick<FileActions, 'confirmClose' | 'release' | 'suspend'> {
+  return {
+    confirmClose: () => ctx.ensureChangesHandled(),
+
+    release: async () => {
+      const path = get().file?.path ?? null
+      if (path !== null) releaseFile(path)
+      await ctx.forgetDraft()
     },
 
-    openViaDialog: async () => {
-      if (!(await ctx.ensureChangesHandled())) return
-      await openFile(async () => {
-        const data = await ctx.call(() => window.api.file.open({}))
-        return data === null || data.canceled ? null : data.file
-      })
-    },
-
-    newFromTemplate: async (template) => {
-      if (!(await ctx.ensureChangesHandled())) return false
-      return openFile(async () => {
-        if (template !== null) {
-          const data = await ctx.call(() => window.api.template.open(template))
-          return data === null ? null : data.file
-        }
-        const data = await ctx.call(() => window.api.template.browse({}))
-        return data === null || data.canceled ? null : data.file
-      })
-    },
-
-    openRecent: async (path) => {
-      if (!(await ctx.ensureChangesHandled())) return
-      await openFile(async () => {
-        const data = await ctx.call(() => window.api.file.openRecent({ path }))
-        if (data === null) {
-          await get().refreshRecents()
-          return null
-        }
-        return data.file
-      })
+    suspend: () => {
+      const source = ctx.source()
+      if (source !== null) set({ initialDoc: source.readDoc() })
     },
   }
 }
@@ -162,7 +97,7 @@ function createSaveActions(
   set: SetWorkspace,
   get: GetWorkspace,
   ctx: WorkspaceContext,
-): Pick<FileActions, 'save' | 'saveAs' | 'closeFile'> {
+): Pick<FileActions, 'save' | 'saveAs'> {
   /** A spreadsheet does not take the text path: it has no formatting to lose. */
   function encodeFor(path: string): string {
     if (get().workbook !== null || !isPlainTextPath(path)) stampForSave(set, get)
@@ -193,7 +128,7 @@ function createSaveActions(
     const lost = lostOnSave(inventory)
     set({ file, isDirty: false, textEdited: false, savedLoss: lost.length > 0 ? lost : null })
     await ctx.forgetDraft()
-    await get().refreshRecents()
+    await refreshRecents()
   }
 
   return {
@@ -249,16 +184,6 @@ function createSaveActions(
 
       await afterSave({ path: chosen.path, name: data.name, kind: file.kind }, data.inventory)
       return true
-    },
-
-    closeFile: async () => {
-      if (!(await ctx.ensureChangesHandled())) return
-
-      const path = get().file?.path ?? null
-      if (path !== null) releaseFile(path)
-      set((state) => loadedState(null, createEmptyDocument(), null, state.generation))
-      await ctx.forgetDraft()
-      await get().refreshRecents()
     },
   }
 }

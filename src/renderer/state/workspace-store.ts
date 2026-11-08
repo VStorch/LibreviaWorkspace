@@ -49,14 +49,11 @@ export function createWorkspaceStore(): WorkspaceStore {
       textEdited: false,
       stats: { characters: 0, words: 0 },
       pageCount: 1,
-      recents: [],
       error: null,
       notice: null,
       savedLoss: null,
       draftId: crypto.randomUUID(),
-      pendingDraft: null,
       readOnly: false,
-      templateGallery: false,
       inspector: false,
       autosaveBroken: false,
       busy: false,
@@ -86,7 +83,6 @@ export function createWorkspaceStore(): WorkspaceStore {
       dismissNotice: () => set({ notice: null, savedLoss: null }),
       showError: (error) => set({ error }),
       allowEditing: () => set({ readOnly: false }),
-      setTemplateGallery: (templateGallery) => set({ templateGallery }),
       setInspector: (inspector) => set({ inspector }),
       setRevisionView: (revisionView) => {
         if (get().revisionView !== revisionView) set({ revisionView })

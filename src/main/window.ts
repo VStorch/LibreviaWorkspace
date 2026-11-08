@@ -12,7 +12,7 @@ import { SECURE_WEB_PREFERENCES } from './security-policy.js'
 import { applyNavigationPolicy } from './security.js'
 
 interface WindowState {
-  isDirty: boolean
+  unsavedWork: boolean
   fileLabel: string
   bypassGuard: boolean
 }
@@ -22,7 +22,7 @@ const states = new WeakMap<BrowserWindow, WindowState>()
 function stateOf(window: BrowserWindow): WindowState {
   const existing = states.get(window)
   if (existing !== undefined) return existing
-  const created: WindowState = { isDirty: false, fileLabel: t('shell.file.untitled'), bypassGuard: false }
+  const created: WindowState = { unsavedWork: false, fileLabel: t('shell.file.untitled'), bypassGuard: false }
   states.set(window, created)
   return created
 }
@@ -32,12 +32,15 @@ export function devServerUrl(): string | null {
   return process.env['ELECTRON_RENDERER_URL'] ?? null
 }
 
-export function updateWindowState(window: BrowserWindow, title: string, isDirty: boolean): void {
+export function updateWindowState(
+  window: BrowserWindow,
+  shown: { title: string; isDirty: boolean; unsavedWork: boolean },
+): void {
   const state = stateOf(window)
-  state.isDirty = isDirty
-  state.fileLabel = title
-  window.setTitle(`${isDirty ? '• ' : ''}${title} — ${APP_NAME}`)
-  window.setDocumentEdited(isDirty)
+  state.unsavedWork = shown.unsavedWork
+  state.fileLabel = shown.title
+  window.setTitle(`${shown.isDirty ? '• ' : ''}${shown.title} — ${APP_NAME}`)
+  window.setDocumentEdited(shown.unsavedWork)
 }
 
 /** The renderer has already decided what to do. */
@@ -70,7 +73,7 @@ export function broadcastPush<C extends PushIpcChannel>(channel: C, payload: Pus
 function installCloseGuard(window: BrowserWindow): void {
   window.on('close', (event) => {
     const state = stateOf(window)
-    if (state.bypassGuard || !state.isDirty) return
+    if (state.bypassGuard || !state.unsavedWork) return
 
     event.preventDefault()
 

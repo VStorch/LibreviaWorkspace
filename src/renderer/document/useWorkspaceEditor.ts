@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useLayoutEffect, useState } from 'react'
 import { useEditor, type Editor } from '@tiptap/react'
 import { currentPreferences } from '../state/preferences.js'
 import { anonymousName } from '../state/privacy-actions.js'
@@ -38,7 +38,6 @@ export function useWorkspaceEditor(): WorkspaceEditor {
       revisionAuthor: () => signingName() || anonymousName(),
     }),
     content: initialDoc,
-    autofocus: 'start',
     onUpdate: ({ editor: current, transaction }) => {
       // Pagination arrives as a transaction: treating it as an edit would mark the document dirty.
       if (isPaginationOnly(transaction)) return
@@ -55,6 +54,12 @@ export function useWorkspaceEditor(): WorkspaceEditor {
       },
     },
   })
+
+  // Tiptap's `autofocus` waits for a timer and a frame: keys typed right after Ctrl+N would go
+  // nowhere. A new state's cursor is already at the start.
+  useLayoutEffect(() => {
+    if (editor !== null && !editor.isDestroyed && editor.view.dom.isConnected) editor.view.focus()
+  }, [editor])
 
   useOfferToMcp(editor)
   return { editor, searchStatus, contentRevision, touch }

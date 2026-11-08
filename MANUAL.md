@@ -82,7 +82,7 @@ can be opened with Librevia from the right-click menu in File Explorer.
 | `.sdoc` | Librevia document | keeps everything, with no loss at all |
 | `.ssheet` | Librevia spreadsheet | keeps everything, with no loss at all |
 | `.txt` | plain text | opens and saves; saving to it discards the formatting, and the application warns first |
-| `.pdf` | PDF document | opens read-only, in place of the open file, like the others. The status bar shows the page and the zoom; **Edit → Find and replace…** searches the text; a protected PDF asks for the password, which is not stored; **File → Properties…** changes title, author, subject and keywords, and **Save** appends only that at the end of the file; **File → Print…** opens the PDF in the print window, where you can also save a copy |
+| `.pdf` | PDF document | opens read-only, in a tab of its own, like the others. The status bar shows the page and the zoom; **Edit → Find and replace…** searches the text; a protected PDF asks for the password, which is not stored; **File → Properties…** changes title, author, subject and keywords, and **Save** appends only that at the end of the file; **File → Print…** opens the PDF in the print window, where you can also save a copy |
 
 And these Librevia **creates**. `.pdf` also opens for reading, as the table above shows:
 
@@ -90,6 +90,27 @@ And these Librevia **creates**. `.pdf` also opens for reading, as the table abov
 | --- | --- |
 | `.pdf` | **File → Export to PDF…**, for documents and spreadsheets |
 | `.docx`, `.odt`, `.html`, `.md` | **File → Export as**, for documents only |
+
+<a id="tabs"></a>
+
+### Tabs
+
+Each open file has a tab at the top of the window, with an icon for its kind: document,
+spreadsheet or PDF. Menus and toolbar act on the file on screen.
+
+- Click a tab to show its file. A dot after the name means unsaved changes.
+- **×**, a middle click on the tab, or **File → Close file** closes it. With unsaved changes, the
+  application asks first.
+- Opening a file that is already open shows its tab, instead of a second copy.
+- Up to 16 files stay open at once. Close one to open another.
+- The **Home** tab has the recent files and the buttons to create and open. The first file you open
+  from it takes its place; **+** brings it back. Closing the last file leaves Home alone.
+- A blank document you did not touch gives its place to the next file you open, as in Word. **New
+  document** always opens a new tab.
+- Hidden tabs keep their drafts too, every eight seconds.
+
+When you come back to a document, the cursor is at the start and **Undo** does not reach what you
+did before switching. Spreadsheets keep their undo.
 
 <a id="format-of-new-files"></a>
 
@@ -1052,8 +1073,8 @@ Every eight seconds, what is on screen is kept in a draft, **never over your fil
 computer shuts down or the application closes suddenly, on the next start a blue banner offers the
 work back:
 
-- **Recover** brings the content to the screen, marked as *unsaved*, because that is what it is.
-  Check it and save it wherever you want.
+- **Recover** brings the content back in a tab of its own, marked as *unsaved*, because that is
+  what it is. Check it and save it wherever you want.
 - **Discard** deletes the draft.
 
 While the banner is on screen, the draft **is not overwritten**. You can ignore it for a while,

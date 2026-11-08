@@ -85,24 +85,23 @@ describe('useWorkspace', () => {
   })
 })
 
-const RECENT = { path: '/docs/a.docx', name: 'a.docx', kind: DocumentKind.Document, openedAt: 1 }
-
 describe('work started in a tab', () => {
   it('lands in the tab that started it after a switch', async () => {
     let finish: (value: unknown) => void = () => undefined
-    const list = vi.fn(() => new Promise((resolve) => (finish = resolve)))
-    vi.stubGlobal('window', { api: { recent: { list } } })
+    const inspect = vi.fn(() => new Promise((resolve) => (finish = resolve)))
+    vi.stubGlobal('window', { api: { privacy: { inspect } } })
     const first = initialTabs.tabs[0]!.store
+    first.setState({ file: { path: '/docs/a.docx', name: 'a.docx', kind: DocumentKind.Document } })
     const second = openSecondTab()
 
-    const pending = useWorkspace.getState().refreshRecents()
+    const pending = useWorkspace.getState().inspectPersonalData()
     activate('tab-2')
-    finish({ ok: true, data: { files: [RECENT] } })
+    finish({ ok: false, error: { code: 'INTERNAL', message: 'failed' } })
     await pending
 
-    expect(first.getState().recents).toEqual([RECENT])
+    expect(first.getState().error?.message).toBe('failed')
     expect(first.getState().busy).toBe(false)
-    expect(second.getState().recents).toEqual([])
+    expect(second.getState().error).toBeNull()
     expect(second.getState().busy).toBe(false)
   })
 

@@ -1,5 +1,13 @@
 import { useState } from 'react'
 import { create } from 'zustand'
+import {
+  activateTab as activateInOrder,
+  closeTab as closeInOrder,
+  HOME_TAB_ID,
+  openTab,
+  placeTab,
+  type TabOrder,
+} from '@services/tabs/tab-order.js'
 import { createWorkspaceStore, type WorkspaceStore } from './workspace-store.js'
 
 export interface TabEntry {
@@ -12,12 +20,50 @@ export interface TabsState {
   activeId: string
 }
 
-const FIRST_TAB_ID = 'tab-1'
+/** Home is a tab like the others, with a store that never holds a file. */
+const HOME: TabEntry = { id: HOME_TAB_ID, store: createWorkspaceStore() }
 
-export const useTabs = create<TabsState>(() => ({
-  tabs: [{ id: FIRST_TAB_ID, store: createWorkspaceStore() }],
-  activeId: FIRST_TAB_ID,
-}))
+export const useTabs = create<TabsState>(() => ({ tabs: [HOME], activeId: HOME_TAB_ID }))
+
+let lastTabNumber = 0
+
+export function tabOrderOf({ tabs, activeId }: TabsState): TabOrder {
+  return { ids: tabs.map((tab) => tab.id), activeId }
+}
+
+/** The tab being left keeps what its editor shows: hidden, it has no editor to read from. */
+function applyOrder(order: TabOrder, added?: TabEntry): void {
+  const current = useTabs.getState()
+  if (order.activeId !== current.activeId) activeStoreOf(current).getState().suspend()
+  const known = added === undefined ? current.tabs : [...current.tabs, added]
+  const tabs = order.ids.map((id) => known.find((tab) => tab.id === id) ?? HOME)
+  useTabs.setState({ tabs, activeId: order.activeId })
+}
+
+export function activateTab(id: string): void {
+  applyOrder(activateInOrder(tabOrderOf(useTabs.getState()), id))
+}
+
+export function showHome(): void {
+  HOME.store.setState({ error: null })
+  applyOrder(openTab(tabOrderOf(useTabs.getState()), HOME_TAB_ID))
+}
+
+/** Activates the new tab, in the place of `replacedId` when given. */
+export function addTab(store: WorkspaceStore, replacedId: string | null): void {
+  lastTabNumber += 1
+  const entry = { id: `tab-${lastTabNumber}`, store }
+  applyOrder(placeTab(tabOrderOf(useTabs.getState()), entry.id, replacedId), entry)
+}
+
+/** Without asking: the caller already dealt with the changes. Closing the last leaves Home alone. */
+export function removeTab(id: string): void {
+  applyOrder(closeInOrder(tabOrderOf(useTabs.getState()), id))
+}
+
+export function tabStore(id: string): WorkspaceStore | undefined {
+  return useTabs.getState().tabs.find((tab) => tab.id === id)?.store
+}
 
 export function activeStoreOf({ tabs, activeId }: TabsState): WorkspaceStore {
   const active = tabs.find((tab) => tab.id === activeId) ?? tabs[0]

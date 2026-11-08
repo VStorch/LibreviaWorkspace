@@ -304,7 +304,10 @@ export const ipcContracts = {
   [IpcChannel.WindowSetState]: {
     request: z.object({
       title: z.string().max(300),
+      /** The tab on screen: the dot in the title. */
       isDirty: z.boolean(),
+      /** Any tab, hidden ones included: what the close guard asks about. */
+      unsavedWork: z.boolean(),
       /** For the check mark in the Review menu. */
       trackChanges: z.boolean(),
       /** For the checked item in Review → Show. */

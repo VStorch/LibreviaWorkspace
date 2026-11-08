@@ -156,6 +156,16 @@ export const SHELL = {
 
   'shell.home.recentFiles': { pt: 'Arquivos recentes', en: 'Recent files' },
   'shell.home.clear': { pt: 'Limpar', en: 'Clear' },
+
+  'shell.tabs.list': { pt: 'Arquivos abertos', en: 'Open files' },
+  'shell.tabs.home': { pt: 'Início', en: 'Home' },
+  'shell.tabs.openHome': { pt: 'Abrir a aba Início', en: 'Open the Home tab' },
+  'shell.tabs.close': { pt: 'Fechar {name}', en: 'Close {name}' },
+  'shell.tabs.unsaved': { pt: '{name}, não salvo', en: '{name}, not saved' },
+  'shell.tabs.full': {
+    pt: 'Já há {count} arquivos abertos. Feche um para abrir outro.',
+    en: 'There are already {count} files open. Close one to open another.',
+  },
   'shell.home.emptyRecents': { pt: 'Nenhum arquivo aberto ainda.', en: 'No files opened yet.' },
 
   'shell.error.unexpected': {

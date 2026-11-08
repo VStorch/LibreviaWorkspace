@@ -153,7 +153,9 @@ test.describe('revisions', () => {
       expect((contents.match(/<text:changed-region/g) ?? []).length).toBeGreaterThanOrEqual(2)
     }
 
-    // Reopened, the marks and the switch remain; accepting all cleans the text.
+    // Reopened, the marks and the switch remain; accepting all cleans the text. Closed first: opening
+    // a file that is open only shows its tab.
+    await menu(session, 'close-file')
     await menu(session, 'open')
     await expect(editor.locator('ins.revision')).toHaveText(' e novo')
     await expect(editor.locator('del.revision')).toHaveText('.')
@@ -169,6 +171,7 @@ test.describe('revisions', () => {
     expect(JSON.parse(await readFile(draft, 'utf8'))).toMatchObject({ trackChanges: true })
     await menu(session, 'toggle-track-changes')
     await expect(indicator).toHaveCount(0)
+    await menu(session, 'close-file')
     await menu(session, 'open')
     await expect(indicator).toBeVisible()
   })

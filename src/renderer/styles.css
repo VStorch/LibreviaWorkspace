@@ -1627,6 +1627,104 @@ button {
   color: var(--text);
 }
 
+/* The open files, above everything that belongs to one of them. */
+.tabbar {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 4px 8px 0;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.tabbar__list {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+}
+
+.tabbar__tab {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 220px;
+  margin-bottom: -1px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  color: var(--muted);
+}
+
+.tabbar__tab:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.tabbar__tab--active,
+.tabbar__tab--active:hover {
+  background: var(--surface);
+  border-color: var(--border);
+  border-bottom-color: var(--surface);
+  box-shadow: inset 0 2px 0 var(--accent);
+  color: var(--text);
+}
+
+.tabbar__label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 6px 4px 6px 10px;
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.tabbar__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tabbar__dirty {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.tabbar__close,
+.tabbar__add {
+  display: flex;
+  align-items: center;
+  padding: 3px;
+  margin-right: 4px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.tabbar__close .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.tabbar__close:hover,
+.tabbar__add:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.tabbar__add {
+  margin: 0 0 4px;
+}
+
 .sheet {
   height: 100%;
   display: flex;

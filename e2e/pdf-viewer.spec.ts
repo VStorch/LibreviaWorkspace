@@ -101,18 +101,17 @@ test('the viewer runs isolated: no access to the app, no windows and in another 
   expect(processes[1]).not.toBe(processes[0])
 })
 
-test('opening a PDF with unsaved changes asks first', async () => {
+test('opening a PDF beside unsaved work keeps that work in its own tab', async () => {
   await menu(session, 'new-document')
   await session.window.locator('.ProseMirror').fill('Trabalho não salvo')
 
-  await stubDialogs(session.app, { open: file, messageBox: 2 })
-  await menu(session, 'open')
-  await expect(session.window.locator('.ProseMirror')).toHaveText('Trabalho não salvo')
-  await expect(session.window.locator('.pdf-view__frame')).toHaveCount(0)
-
-  await stubDialogs(session.app, { messageBox: 1 })
+  await stubDialogs(session.app, { open: file })
   await menu(session, 'open')
   await expect(pageText()).toContainText('Relatorio anual')
+
+  await session.window.locator('.tabbar__label', { hasText: 'sdoc' }).click()
+  await expect(session.window.locator('.ProseMirror')).toHaveText('Trabalho não salvo')
+  await expect(session.window.locator('.pdf-view__frame')).toHaveCount(0)
 })
 
 test('an app dialog appears on top of the PDF', async () => {

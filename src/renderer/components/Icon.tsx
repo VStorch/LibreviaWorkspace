@@ -39,6 +39,10 @@ export type IconName =
   | 'unfreeze'
   | 'file-document'
   | 'file-spreadsheet'
+  | 'file-pdf'
+  | 'home'
+  | 'close'
+  | 'plus'
   | 'folder-open'
 
 const PATHS: Record<IconName, React.ReactNode> = {
@@ -124,6 +128,12 @@ const PATHS: Record<IconName, React.ReactNode> = {
 
   'file-document': <path d="M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 16h4" />,
   'file-spreadsheet': <path d="M6 3h8l4 4v14H6zM14 3v4h4M8.5 11.5h7M8.5 15.5h7M12 11.5v8" />,
+  'file-pdf': (
+    <path d="M6 3h8l4 4v14H6zM14 3v4h4M9 17v-4.5h1.5a1.25 1.25 0 0 1 0 2.5H9M13.5 17v-4.5h3M13.5 14.8h2.5" />
+  ),
+  home: <path d="M4 11 12 4l8 7M6.5 9v11h11V9M10 20v-5h4v5" />,
+  close: <path d="M7 7l10 10M17 7 7 17" />,
+  plus: <path d="M12 5v14M5 12h14" />,
   'folder-open': <path d="M3.5 19V6H9l2 2.5h8.5V11M3.5 19l2.8-7.5h16.2L19.7 19z" />,
 }
 

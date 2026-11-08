@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   canOpenAnother,
+  canPlaceTab,
   closeTab,
   comparablePath,
   findOpenTab,
@@ -10,6 +11,7 @@ import {
   moveTab,
   nextTab,
   openTab,
+  placeTab,
   previousTab,
   type TabOrder,
 } from './tab-order.js'
@@ -23,6 +25,36 @@ describe('openTab', () => {
 
   it('activates a tab that is already open instead of adding it twice', () => {
     expect(openTab(order(['a', 'b'], 'b'), 'a')).toEqual(order(['a', 'b'], 'a'))
+  })
+})
+
+describe('placeTab', () => {
+  it('puts the new tab where the replaced one was and activates it', () => {
+    expect(placeTab(order(['a', 'b', 'c'], 'b'), 'n', 'b')).toEqual(order(['a', 'n', 'c'], 'n'))
+  })
+
+  it('replaces Home when Home is the one given', () => {
+    expect(placeTab(HOME_ONLY, 'n', HOME_TAB_ID)).toEqual(order(['n'], 'n'))
+  })
+
+  it('appends at the end when nothing is replaced', () => {
+    expect(placeTab(order(['a'], 'a'), 'n', null)).toEqual(order(['a', 'n'], 'n'))
+  })
+})
+
+describe('canPlaceTab', () => {
+  const full = order(
+    Array.from({ length: MAX_OPEN_TABS }, (_, index) => `t${index}`),
+    't0',
+  )
+
+  it('lets a file tab be swapped even when the limit is reached', () => {
+    expect(canPlaceTab(full, 't0')).toBe(true)
+  })
+
+  it('refuses a new tab, or one replacing Home, when the limit is reached', () => {
+    expect(canPlaceTab(full, null)).toBe(false)
+    expect(canPlaceTab({ ids: [...full.ids, HOME_TAB_ID], activeId: HOME_TAB_ID }, HOME_TAB_ID)).toBe(false)
   })
 })
 

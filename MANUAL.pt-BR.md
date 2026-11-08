@@ -82,7 +82,7 @@ botão direito do Explorador de Arquivos.
 | `.sdoc` | documento do Librevia | guarda tudo, sem perda nenhuma |
 | `.ssheet` | planilha do Librevia | guarda tudo, sem perda nenhuma |
 | `.txt` | texto puro | abre e grava; salvar nele descarta a formatação, e o aplicativo avisa antes |
-| `.pdf` | documento PDF | abre só para ler, no lugar do arquivo aberto, como os outros. A barra de status mostra a página e o zoom; **Editar → Localizar** busca no texto; um PDF protegido pede a senha, que não fica guardada; **Arquivo → Propriedades** altera título, autor, assunto e palavras-chave, e **Salvar** acrescenta só isso no fim do arquivo; **Arquivo → Imprimir** abre o PDF na janela de impressão, onde também dá para salvar uma cópia |
+| `.pdf` | documento PDF | abre só para ler, numa aba própria, como os outros. A barra de status mostra a página e o zoom; **Editar → Localizar** busca no texto; um PDF protegido pede a senha, que não fica guardada; **Arquivo → Propriedades** altera título, autor, assunto e palavras-chave, e **Salvar** acrescenta só isso no fim do arquivo; **Arquivo → Imprimir** abre o PDF na janela de impressão, onde também dá para salvar uma cópia |
 
 E estes, o Librevia **cria**. O `.pdf` também abre para leitura, como mostra a tabela acima:
 
@@ -90,6 +90,28 @@ E estes, o Librevia **cria**. O `.pdf` também abre para leitura, como mostra a 
 | --- | --- |
 | `.pdf` | **Arquivo → Exportar para PDF…**, para documentos e planilhas |
 | `.docx`, `.odt`, `.html`, `.md` | **Arquivo → Exportar como**, só para documentos |
+
+<a id="abas"></a>
+
+### Abas
+
+Cada arquivo aberto tem uma aba no alto da janela, com um ícone do tipo: documento, planilha ou
+PDF. Menus e barra de ferramentas agem no arquivo que está na tela.
+
+- Clique numa aba para mostrar o arquivo dela. Um ponto depois do nome indica alterações não salvas.
+- **×**, um clique com o botão do meio na aba ou **Arquivo → Fechar arquivo** fecha a aba. Com
+  alterações não salvas, o aplicativo pergunta antes.
+- Abrir um arquivo que já está aberto mostra a aba dele, em vez de uma segunda cópia.
+- Ficam abertos até 16 arquivos ao mesmo tempo. Feche um para abrir outro.
+- A aba **Início** tem os arquivos recentes e os botões de criar e abrir. O primeiro arquivo que
+  você abre a partir dela fica no lugar dela; **+** a traz de volta. Fechar o último arquivo deixa
+  só o Início.
+- Um documento em branco que você não mexeu dá lugar ao próximo arquivo aberto, como no Word.
+  **Novo documento** sempre abre uma aba nova.
+- As abas escondidas também guardam rascunho, a cada oito segundos.
+
+Ao voltar a um documento, o cursor fica no início e **Desfazer** não alcança o que você fez antes
+de trocar de aba. As planilhas mantêm o desfazer.
 
 <a id="format-of-new-files"></a>
 
@@ -1041,8 +1063,8 @@ A cada oito segundos, o que está na tela é guardado num rascunho, **nunca por 
 arquivo**. Se o computador desligar ou o aplicativo fechar de repente, na próxima abertura aparece
 uma faixa azul oferecendo o trabalho de volta:
 
-- **Recuperar** traz o conteúdo para a tela, marcado como *não salvo*, porque é isso que ele é.
-  Confira e salve onde quiser.
+- **Recuperar** traz o conteúdo de volta numa aba própria, marcado como *não salvo*, porque é isso
+  que ele é. Confira e salve onde quiser.
 - **Descartar** apaga o rascunho.
 
 Enquanto a faixa estiver na tela, o rascunho **não é sobrescrito**. Você pode ignorá-la por um

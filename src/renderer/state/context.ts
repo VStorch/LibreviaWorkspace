@@ -43,25 +43,29 @@ function mayBeSameFile(a: string, b: string | null | undefined): boolean {
   return typeof b === 'string' && a.toLowerCase() === b.toLowerCase()
 }
 
+/** Busy while it runs, and a failure goes to the banner of the store given. */
+export async function callReporting<T>(
+  set: SetWorkspace,
+  operation: () => Promise<IpcResult<T>>,
+): Promise<T | null> {
+  set({ busy: true })
+  try {
+    const result = await operation()
+    if (result.ok) return result.data
+    set({ error: result.error })
+    return null
+  } catch {
+    set({ error: { code: 'INTERNAL', message: t('shell.error.communicationFailed') } })
+    return null
+  } finally {
+    set({ busy: false })
+  }
+}
+
 export function createWorkspaceContext(set: SetWorkspace, get: GetWorkspace): WorkspaceContext {
   let documentSource: DocumentSource | null = null
 
-  async function call<T>(operation: () => Promise<IpcResult<T>>): Promise<T | null> {
-    set({ busy: true })
-    try {
-      const result = await operation()
-      if (result.ok) return result.data
-      set({ error: result.error })
-      return null
-    } catch {
-      set({
-        error: { code: 'INTERNAL', message: t('shell.error.communicationFailed') },
-      })
-      return null
-    } finally {
-      set({ busy: false })
-    }
-  }
+  const call = <T>(operation: () => Promise<IpcResult<T>>): Promise<T | null> => callReporting(set, operation)
 
   function currentModel(): DocumentModel {
     const state = get()

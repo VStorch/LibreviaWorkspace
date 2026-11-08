@@ -1,18 +1,16 @@
 import { DocumentKind } from '@shared/types.js'
 import { Language, type MessageKey, type Vars } from '@shared/i18n/index.js'
 import { useLanguage, useT } from '../i18n.js'
-import { useWorkspace } from '../state/workspace.js'
+import { dismissDraft, recoverDraft, useShell } from '../state/shell.js'
 
 /**
- * While the banner is on screen autosave **does not write**: ignoring it costs nothing. The date is
- * what decides between the draft and the file on disk.
+ * Ignoring the banner costs nothing: each tab autosaves under its own id, never over this draft. The
+ * date is what decides between the draft and the file on disk.
  */
 export function RecoveryBanner(): React.JSX.Element | null {
   const t = useT()
   const language = useLanguage()
-  const draft = useWorkspace((state) => state.pendingDraft)
-  const recover = useWorkspace((state) => state.recoverDraft)
-  const dismiss = useWorkspace((state) => state.dismissDraft)
+  const draft = useShell((state) => state.pendingDraft)
 
   if (draft === null) return null
 
@@ -32,10 +30,14 @@ export function RecoveryBanner(): React.JSX.Element | null {
         </span>
       </div>
       <div className="banner__actions">
-        <button type="button" className="banner__action" onClick={() => void recover()}>
+        <button type="button" className="banner__action" onClick={() => void recoverDraft()}>
           {t('shell.recovery.recover')}
         </button>
-        <button type="button" className="banner__action banner__action--quiet" onClick={() => void dismiss()}>
+        <button
+          type="button"
+          className="banner__action banner__action--quiet"
+          onClick={() => void dismissDraft()}
+        >
           {t('shell.recovery.discard')}
         </button>
       </div>

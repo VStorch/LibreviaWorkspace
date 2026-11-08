@@ -30,6 +30,21 @@ export function openTab(order: TabOrder, id: string): TabOrder {
   return { ids: [...order.ids, id], activeId: id }
 }
 
+/** The new tab takes the place of the one it replaces, which leaves; without one, it goes at the end. */
+export function placeTab(order: TabOrder, id: string, replacedId: string | null): TabOrder {
+  const index = replacedId === null ? -1 : order.ids.indexOf(replacedId)
+  if (index < 0) return openTab(order, id)
+  const ids = [...order.ids]
+  ids.splice(index, 1, id)
+  return { ids, activeId: id }
+}
+
+/** Replacing a file tab keeps the count; replacing Home or adding one needs room. */
+export function canPlaceTab(order: TabOrder, replacedId: string | null): boolean {
+  const swapsAFile = replacedId !== null && !isHomeTab(replacedId) && order.ids.includes(replacedId)
+  return swapsAFile || canOpenAnother(order)
+}
+
 export function activateTab(order: TabOrder, id: string): TabOrder {
   return order.ids.includes(id) ? { ...order, activeId: id } : order
 }

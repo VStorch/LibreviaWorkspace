@@ -4,7 +4,15 @@ import swallow from '../../../build/icon.svg?raw'
 import type { RecentFile } from '@shared/types.js'
 import { Icon, type IconName } from '../components/Icon.js'
 import { useT } from '../i18n.js'
-import { useWorkspace } from '../state/workspace.js'
+import { useRecents } from '../state/recents.js'
+import {
+  clearRecents,
+  newDocument,
+  newSpreadsheet,
+  openRecent,
+  openViaDialog,
+  setTemplateGallery,
+} from '../state/shell.js'
 
 function formatWhen(timestamp: number): string {
   return new Date(timestamp).toLocaleString('pt-BR', {
@@ -17,8 +25,6 @@ function formatWhen(timestamp: number): string {
 }
 
 function RecentItem({ file }: { readonly file: RecentFile }): React.JSX.Element {
-  const openRecent = useWorkspace((state) => state.openRecent)
-
   return (
     <li>
       <button type="button" className="recent" onClick={() => void openRecent(file.path)}>
@@ -81,8 +87,7 @@ function Tile({
 
 export function HomePage(): React.JSX.Element {
   const t = useT()
-  const { recents, newDocument, newSpreadsheet, openViaDialog, clearRecents, setTemplateGallery } =
-    useWorkspace()
+  const recents = useRecents((state) => state.recents)
 
   return (
     <div className="home">
@@ -100,14 +105,14 @@ export function HomePage(): React.JSX.Element {
           tone="document"
           title={t('shell.home.newDocument')}
           hint="Ctrl+N"
-          onClick={() => void newDocument()}
+          onClick={newDocument}
         />
         <Tile
           icon="file-spreadsheet"
           tone="spreadsheet"
           title={t('shell.home.newSpreadsheet')}
           hint="Ctrl+Shift+N"
-          onClick={() => void newSpreadsheet()}
+          onClick={newSpreadsheet}
         />
         <Tile
           icon="folder-open"

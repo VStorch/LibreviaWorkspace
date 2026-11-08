@@ -44,7 +44,7 @@ export function registerWindowHandlers(): void {
   }))
 
   handle(IpcChannel.WindowSetState, (payload, event) => {
-    updateWindowState(windowOf(event), payload.title, payload.isDirty)
+    updateWindowState(windowOf(event), payload)
     setTrackChangesChecked(payload.trackChanges)
     setRevisionViewChecked(payload.revisionView)
     return { applied: true as const }

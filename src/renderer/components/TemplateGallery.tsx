@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { TemplateEntry } from '@shared/types.js'
 import { useT } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
+import { newFromTemplate, setTemplateGallery } from '../state/shell.js'
 
 interface Listing {
   readonly builtin: readonly TemplateEntry[]
@@ -11,13 +12,11 @@ interface Listing {
 /** No thumbnails, which would require rendering the package just to show it. */
 export function TemplateGallery(): React.JSX.Element {
   const t = useT()
-  const close = useWorkspace((state) => state.setTemplateGallery)
-  const newFromTemplate = useWorkspace((state) => state.newFromTemplate)
   const { listing, selected, setSelected } = useTemplateListing()
 
   async function create(template: TemplateEntry | null): Promise<void> {
     // Closes first: the warning and the browse dialog go on top.
-    close(false)
+    setTemplateGallery(false)
     await newFromTemplate(template === null ? null : { source: template.source, id: template.id })
   }
 
@@ -39,7 +38,7 @@ export function TemplateGallery(): React.JSX.Element {
         aria-modal="true"
         aria-label={t('shell.template.title')}
         onKeyDown={(event) => {
-          if (event.key === 'Escape') close(false)
+          if (event.key === 'Escape') setTemplateGallery(false)
           if (event.key === 'Enter' && selected !== null) void create(selected)
         }}
       >
@@ -75,7 +74,7 @@ export function TemplateGallery(): React.JSX.Element {
             {t('shell.template.openFolder')}
           </button>
           <span className="popover__spacer" />
-          <button type="button" className="btn" onClick={() => close(false)}>
+          <button type="button" className="btn" onClick={() => setTemplateGallery(false)}>
             {t('shell.template.cancel')}
           </button>
           <button
