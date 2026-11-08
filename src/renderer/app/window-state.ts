@@ -47,11 +47,25 @@ export function useWindowStateSync(): void {
     }
 
     sync()
-    const unsubscribe = useWorkspace.subscribe(sync)
-    const unsubscribeTabs = useTabs.subscribe(sync)
-    return () => {
-      unsubscribeTabs()
-      unsubscribe()
-    }
+    return watchEveryTab(sync)
   }, [])
+}
+
+/** Hidden tabs too: one that becomes modified out of sight must still stop a quit. */
+export function watchEveryTab(changed: () => void): () => void {
+  let watched: (() => void)[] = []
+  const watchStores = (): void => {
+    for (const stop of watched) stop()
+    watched = useTabs.getState().tabs.map((tab) => tab.store.subscribe(changed))
+  }
+
+  watchStores()
+  const stopTabs = useTabs.subscribe(() => {
+    watchStores()
+    changed()
+  })
+  return () => {
+    stopTabs()
+    for (const stop of watched) stop()
+  }
 }
