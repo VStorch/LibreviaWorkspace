@@ -14,6 +14,7 @@ export const MAX_PATH_LENGTH = 4096
 export const MAX_FONT_FAMILY_LENGTH = 100
 export const MAX_FONT_FAMILIES = 4000
 export const MAX_USER_TEMPLATES = 1000
+export const MAX_DRAFTS = 1000
 export const MAX_IMAGE_SIDE_PX = 4000
 
 /** The `docProps/` fields: the description is free text, the others fit on one line. */

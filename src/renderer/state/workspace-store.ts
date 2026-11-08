@@ -52,6 +52,7 @@ export function createWorkspaceStore(): WorkspaceStore {
       error: null,
       notice: null,
       savedLoss: null,
+      draftId: crypto.randomUUID(),
       pendingDraft: null,
       readOnly: false,
       templateGallery: false,

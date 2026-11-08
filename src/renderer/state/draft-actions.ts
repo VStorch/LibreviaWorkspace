@@ -28,6 +28,7 @@ export function createDraftActions(
 
       // Outside `call`: autosave does not flash the busy indicator.
       const result = await window.api.file.autosave({
+        draftId: state.draftId,
         path: state.file.path,
         name: state.file.name,
         kind: state.file.kind,
@@ -39,12 +40,18 @@ export function createDraftActions(
 
     checkRecovery: async () => {
       const result = await window.api.recovery.peek({})
-      if (result.ok && result.data.draft !== null) set({ pendingDraft: result.data.draft })
+      const latest = result.ok ? result.data.drafts[0] : undefined
+      if (latest !== undefined) set({ pendingDraft: latest })
     },
 
     recoverDraft: async () => {
-      const data = await ctx.call(() => window.api.recovery.restore({}))
-      set({ pendingDraft: null })
+      const pending = get().pendingDraft
+      if (pending === null) return
+
+      const data = await ctx.call(() => window.api.recovery.restore({ draftId: pending.draftId }))
+      // The tab takes over the draft's id, so its next autosave overwrites it instead of leaving it
+      // behind.
+      set({ pendingDraft: null, draftId: pending.draftId })
       if (data === null || data.draft === null) return
 
       try {
@@ -58,8 +65,11 @@ export function createDraftActions(
     },
 
     dismissDraft: async () => {
+      const pending = get().pendingDraft
+      if (pending === null) return
+
       set({ pendingDraft: null })
-      await window.api.recovery.discard({})
+      await window.api.recovery.discard({ draftId: pending.draftId })
     },
   }
 }

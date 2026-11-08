@@ -53,6 +53,7 @@ export interface TemplateEntry {
  * Without the content, which can be tens of megabytes: the prompt only needs the origin and date.
  */
 export interface DraftSummary {
+  readonly draftId: string
   readonly path: string | null
   readonly name: string
   readonly kind: DocumentKind

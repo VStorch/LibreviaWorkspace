@@ -8,12 +8,12 @@ import { IpcChannel } from '@shared/ipc-channels.js'
 import { isExcelPath, isOdtPackagePath, isWordPackagePath } from '@services/file/formats.js'
 import { adoptOriginal, OriginalFormat } from '../opened-original.js'
 import { authorizePath } from '../fs/paths.js'
-import { discardDraft, readDraft, readDraftSummary, writeDraft } from '../fs/recovery.js'
+import { discardDraft, listDraftSummaries, readDraft, writeDraft } from '../fs/recovery.js'
 import { handle } from './registry.js'
 
 export function registerRecoveryHandlers(): void {
   handle(IpcChannel.FileAutosave, async (payload) => ({
-    savedAt: await writeDraft({
+    savedAt: await writeDraft(payload.draftId, {
       path: payload.path,
       name: payload.name,
       kind: payload.kind,
@@ -21,18 +21,18 @@ export function registerRecoveryHandlers(): void {
     }),
   }))
 
-  handle(IpcChannel.RecoveryPeek, async () => ({ draft: await readDraftSummary() }))
+  handle(IpcChannel.RecoveryPeek, async () => ({ drafts: await listDraftSummaries() }))
 
-  handle(IpcChannel.RecoveryRestore, async () => {
-    const draft = await readDraft()
+  handle(IpcChannel.RecoveryRestore, async ({ draftId }) => {
+    const draft = await readDraft(draftId)
     if (draft === null) return { draft: null }
 
     if (draft.path !== null) await reattach(draft.path)
     return { draft }
   })
 
-  handle(IpcChannel.RecoveryDiscard, async () => {
-    await discardDraft()
+  handle(IpcChannel.RecoveryDiscard, async ({ draftId }) => {
+    await discardDraft(draftId)
     return { discarded: true as const }
   })
 }

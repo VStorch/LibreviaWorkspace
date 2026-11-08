@@ -39,6 +39,7 @@ import {
   MAX_AI_MODELS,
   MAX_AI_PROPOSALS,
   MAX_AI_PROVIDERS,
+  MAX_DRAFTS,
   MAX_FILE_NAME_LENGTH,
   MAX_ID_LENGTH,
   MAX_FONT_FAMILIES,
@@ -94,8 +95,12 @@ const recentFileSchema = z.object({
   openedAt: z.number().int(),
 })
 
+/** It names a file in the recovery folder: anything but a UUID could climb out of it. */
+export const draftIdSchema = z.uuid()
+
 /** The recovery prompt shows which file it came from and when. */
 const draftSummarySchema = z.object({
+  draftId: draftIdSchema,
   path: z.string().nullable(),
   name: z.string(),
   kind: documentKindSchema,
@@ -211,6 +216,7 @@ export const ipcContracts = {
     // A null `path` is work that was never saved, where recovery matters most, since there is no
     // file to go back to.
     request: z.object({
+      draftId: draftIdSchema,
       path: z.string().nullable(),
       name: z.string().min(1).max(MAX_FILE_NAME_LENGTH),
       kind: documentKindSchema,
@@ -220,16 +226,16 @@ export const ipcContracts = {
   },
   [IpcChannel.RecoveryPeek]: {
     request: emptyRequest,
-    response: z.object({ draft: draftSummarySchema.nullable() }),
+    response: z.object({ drafts: z.array(draftSummarySchema).max(MAX_DRAFTS) }),
   },
   [IpcChannel.RecoveryRestore]: {
-    request: emptyRequest,
+    request: z.object({ draftId: draftIdSchema }),
     response: z.object({
       draft: draftSummarySchema.extend({ content: z.string().max(MAX_TEXT_LENGTH) }).nullable(),
     }),
   },
   [IpcChannel.RecoveryDiscard]: {
-    request: emptyRequest,
+    request: z.object({ draftId: draftIdSchema }),
     response: z.object({ discarded: z.literal(true) }),
   },
   [IpcChannel.RecentList]: {

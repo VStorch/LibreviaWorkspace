@@ -96,6 +96,8 @@ export interface WorkspaceState {
   notice: LossInventory | null
   /** What the last save lost: `notice` warns what **will** be lost, and this what **was** lost. */
   savedLoss: readonly string[] | null
+  /** Names this tab's draft in the recovery folder; a new file in the same tab overwrites it. */
+  draftId: string
   /** While it awaits a decision, autosave does not write over it. */
   pendingDraft: DraftSummary | null
   /** Turned on by itself when there is **structural** loss; the user unlocks with one click. */

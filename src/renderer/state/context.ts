@@ -80,7 +80,7 @@ export function createWorkspaceContext(set: SetWorkspace, get: GetWorkspace): Wo
    */
   async function forgetDraft(): Promise<void> {
     set({ autosaveBroken: false })
-    await window.api.recovery.discard({}).catch(() => undefined)
+    await window.api.recovery.discard({ draftId: get().draftId }).catch(() => undefined)
   }
 
   async function ensureChangesHandled(): Promise<boolean> {

@@ -1,4 +1,4 @@
-import { readFile, stat } from 'node:fs/promises'
+import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
@@ -119,8 +119,8 @@ async function inReloadedWindow(session: Session, script: string): Promise<unkno
 /** Is the draft on disk? Checked by path, not through the API under test. */
 async function draftOnDisk(session: Session): Promise<boolean> {
   try {
-    await stat(join(session.userData, 'recovery', 'draft.json'))
-    return true
+    const names = await readdir(join(session.userData, 'recovery', 'drafts'))
+    return names.some((name) => name.endsWith('.json'))
   } catch {
     return false
   }
