@@ -12,11 +12,13 @@ import {
   newFromTemplate,
   openRecent,
   openViaDialog,
+  recoverAllDrafts,
   recoverDraft,
   saveAllTabs,
   useShell,
 } from './shell.js'
 import { activeWorkspaceStore, addTab, useTabs } from './tabs.js'
+import type { RecoveredDraft } from './types.js'
 import { createWorkspaceStore } from './workspace-store.js'
 
 const initialTabs = useTabs.getState()
@@ -30,6 +32,8 @@ const DRAFT: DraftSummary = {
 }
 
 const EMPTY = serializeDocument(createEmptyDocument())
+
+const OLDER: DraftSummary = { ...DRAFT, draftId: '0b8e7f2a-1c3d-4e5f-8a9b-0c1d2e3f4a5b', savedAt: 500 }
 
 const ok = <T>(data: T) => Promise.resolve({ ok: true as const, data })
 
@@ -52,7 +56,9 @@ function stubApi(drafts: readonly DraftSummary[] = []) {
     },
     recovery: {
       peek: vi.fn(() => ok({ drafts })),
-      restore: vi.fn(() => ok({ draft: null })),
+      restore: vi.fn((_request: { draftId: string }) =>
+        ok<{ draft: RecoveredDraft | null }>({ draft: null }),
+      ),
       discard: vi.fn(() => ok({ discarded: true })),
     },
     dialog: { confirmDiscard: vi.fn(() => ok({ choice: 'cancel' })) },
@@ -68,7 +74,7 @@ function openPaths(): (string | null)[] {
 afterEach(() => {
   vi.unstubAllGlobals()
   useTabs.setState(initialTabs, true)
-  useShell.setState({ pendingDraft: null, templateGallery: false })
+  useShell.setState({ pendingDraft: null, otherDrafts: 0, templateGallery: false })
 })
 
 describe('opening a file', () => {
@@ -352,6 +358,36 @@ describe('recovery', () => {
     expect(useShell.getState().pendingDraft?.path).toBe('/docs/a.txt')
     expect(activeWorkspaceStore().getState().file?.path).toBe('/docs/a.txt')
     expect(activeWorkspaceStore().getState().error?.message).toContain('a.txt')
+  })
+
+  it('counts the other drafts the banner can recover all at once', async () => {
+    stubApi([DRAFT, OLDER, { ...OLDER, draftId: '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d' }])
+
+    await checkRecovery()
+
+    expect(useShell.getState().otherDrafts).toBe(2)
+  })
+
+  it('recovers every offered draft, each in a tab, and leaves the one whose file is open', async () => {
+    const api = stubApi()
+    await openRecent('/docs/a.txt')
+    const onDisk = [
+      DRAFT,
+      OLDER,
+      { ...OLDER, draftId: '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d', path: '/docs/a.txt', name: 'a.txt' },
+    ]
+    api.recovery.peek.mockImplementation(() => ok({ drafts: onDisk }))
+    api.recovery.restore.mockImplementation(({ draftId }: { draftId: string }) => {
+      const summary = onDisk.find((draft) => draft.draftId === draftId)!
+      return ok({ draft: { ...summary, content: EMPTY } })
+    })
+
+    await recoverAllDrafts()
+
+    expect(api.recovery.restore).toHaveBeenCalledTimes(2)
+    expect(useTabs.getState().tabs).toHaveLength(3)
+    expect(useShell.getState().pendingDraft?.path).toBe('/docs/a.txt')
+    expect(useShell.getState().otherDrafts).toBe(0)
   })
 
   it('discards the offered draft', async () => {

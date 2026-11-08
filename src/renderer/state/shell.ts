@@ -24,9 +24,15 @@ interface ShellState {
   templateGallery: boolean
   /** The banner offers it until the user decides. */
   pendingDraft: DraftSummary | null
+  /** Left by the same crash, offered after `pendingDraft` or all at once. */
+  otherDrafts: number
 }
 
-export const useShell = create<ShellState>(() => ({ templateGallery: false, pendingDraft: null }))
+export const useShell = create<ShellState>(() => ({
+  templateGallery: false,
+  pendingDraft: null,
+  otherDrafts: 0,
+}))
 
 type NewKind = typeof DocumentKind.Document | typeof DocumentKind.Spreadsheet
 
@@ -170,12 +176,17 @@ export async function clearRecents(): Promise<void> {
 }
 
 /** The drafts of the tabs open now are theirs, not left by a crash. */
-export async function checkRecovery(): Promise<void> {
+async function offeredDrafts(): Promise<DraftSummary[] | null> {
   const result = await window.api.recovery.peek({})
-  if (!result.ok) return
+  if (!result.ok) return null
   const live = new Set(useTabs.getState().tabs.map((tab) => tab.store.getState().draftId))
-  const latest = result.data.drafts.find((draft) => !live.has(draft.draftId))
-  useShell.setState({ pendingDraft: latest ?? null })
+  return result.data.drafts.filter((draft) => !live.has(draft.draftId))
+}
+
+export async function checkRecovery(): Promise<void> {
+  const drafts = await offeredDrafts()
+  if (drafts === null) return
+  useShell.setState({ pendingDraft: drafts[0] ?? null, otherDrafts: Math.max(drafts.length - 1, 0) })
 }
 
 /** The file in a tab and its draft in another would each save over the other. */
@@ -187,16 +198,36 @@ function refuseOpenFile(pending: DraftSummary): boolean {
   return true
 }
 
-export async function recoverDraft(): Promise<void> {
-  const pending = useShell.getState().pendingDraft
-  if (pending === null || refuseOpenFile(pending) || !hasRoom('pristine')) return
+type Restored = 'restored' | 'refused' | 'full'
 
-  useShell.setState({ pendingDraft: null })
+async function restoreDraft(pending: DraftSummary): Promise<Restored> {
+  if (refuseOpenFile(pending)) return 'refused'
+  if (!hasRoom('pristine')) return 'full'
   const data = await call(() => window.api.recovery.restore({ draftId: pending.draftId }))
   if (data !== null && data.draft !== null) {
     const store = createWorkspaceStore()
     if (store.getState().restoreDraft(data.draft)) place(store, 'pristine')
     else reportFailure(store)
+  }
+  return 'restored'
+}
+
+export async function recoverDraft(): Promise<void> {
+  const pending = useShell.getState().pendingDraft
+  if (pending === null) return
+  // Hidden while it loads, so a second click does not restore it twice.
+  useShell.setState({ pendingDraft: null })
+  if ((await restoreDraft(pending)) === 'restored') await checkRecovery()
+  else useShell.setState({ pendingDraft: pending })
+}
+
+/** Newest first; a draft whose file is open stays on the banner, and a full tab bar stops the rest. */
+export async function recoverAllDrafts(): Promise<void> {
+  const drafts = await offeredDrafts()
+  if (drafts === null) return
+  useShell.setState({ pendingDraft: null, otherDrafts: 0 })
+  for (const draft of drafts) {
+    if ((await restoreDraft(draft)) === 'full') break
   }
   await checkRecovery()
 }
@@ -205,7 +236,7 @@ export async function dismissDraft(): Promise<void> {
   const pending = useShell.getState().pendingDraft
   if (pending === null) return
 
-  useShell.setState({ pendingDraft: null })
+  useShell.setState({ pendingDraft: null, otherDrafts: 0 })
   await window.api.recovery.discard({ draftId: pending.draftId })
   await checkRecovery()
 }

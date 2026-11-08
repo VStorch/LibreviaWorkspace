@@ -1,7 +1,7 @@
 import { DocumentKind } from '@shared/types.js'
 import { Language, type MessageKey, type Vars } from '@shared/i18n/index.js'
 import { useLanguage, useT } from '../i18n.js'
-import { dismissDraft, recoverDraft, useShell } from '../state/shell.js'
+import { dismissDraft, recoverAllDrafts, recoverDraft, useShell } from '../state/shell.js'
 
 /**
  * Ignoring the banner costs nothing: each tab autosaves under its own id, never over this draft. The
@@ -11,6 +11,7 @@ export function RecoveryBanner(): React.JSX.Element | null {
   const t = useT()
   const language = useLanguage()
   const draft = useShell((state) => state.pendingDraft)
+  const others = useShell((state) => state.otherDrafts)
 
   if (draft === null) return null
 
@@ -27,12 +28,18 @@ export function RecoveryBanner(): React.JSX.Element | null {
             name: draft.name,
             time: when(draft.savedAt, t, language),
           })}
+          {others > 0 && ` ${t('shell.recovery.others', { count: others })}`}
         </span>
       </div>
       <div className="banner__actions">
         <button type="button" className="banner__action" onClick={() => void recoverDraft()}>
           {t('shell.recovery.recover')}
         </button>
+        {others > 0 && (
+          <button type="button" className="banner__action" onClick={() => void recoverAllDrafts()}>
+            {t('shell.recovery.recoverAll')}
+          </button>
+        )}
         <button
           type="button"
           className="banner__action banner__action--quiet"

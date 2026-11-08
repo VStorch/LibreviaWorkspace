@@ -83,6 +83,11 @@ export const SHELL = {
   'shell.recovery.onDate': { pt: 'em {date}', en: 'on {date}' },
   'shell.recovery.recover': { pt: 'Recuperar', en: 'Recover' },
   'shell.recovery.discard': { pt: 'Descartar', en: 'Discard' },
+  'shell.recovery.recoverAll': { pt: 'Recuperar todos', en: 'Recover all' },
+  'shell.recovery.others': {
+    pt: { one: 'Há mais {count} rascunho.', other: 'Há mais {count} rascunhos.' },
+    en: { one: 'There is {count} more draft.', other: 'There are {count} more drafts.' },
+  },
 
   'shell.statusBar.zoomIn': { pt: 'Ampliar', en: 'Zoom in' },
   'shell.statusBar.zoomOut': { pt: 'Reduzir', en: 'Zoom out' },

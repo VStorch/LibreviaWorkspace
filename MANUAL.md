@@ -1091,6 +1091,8 @@ work back:
 - **Recover** brings the content back in a tab of its own, marked as *unsaved*, because that is
   what it is. Check it and save it wherever you want.
 - **Discard** deletes the draft.
+- **Recover all** appears when several tabs had unsaved work: each comes back in its own tab.
+  After Recover or Discard, the banner offers the next draft.
 
 While the banner is on screen, the draft **is not overwritten**. You can ignore it for a while,
 open another file, and the work stays kept.

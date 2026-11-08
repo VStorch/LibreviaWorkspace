@@ -122,6 +122,28 @@ test.describe('tabs', () => {
     await session.window.locator('.banner--recovery').getByRole('button', { name: 'Recuperar' }).click()
     await expect(editor()).toContainText('Texto da aba oculta')
   })
+
+  test('after a crash with two unsaved tabs, Recover all brings both back', async () => {
+    for (const text of ['Primeira aba', 'Segunda aba']) {
+      await menu(session, 'new-document')
+      await editor().click()
+      await session.window.keyboard.type(text)
+    }
+    await expect
+      .poll(async () => draftsOnDisk(session), { timeout: 20_000, message: 'the drafts were not written' })
+      .toMatch(/Primeira aba[\s\S]*Segunda aba|Segunda aba[\s\S]*Primeira aba/)
+
+    const { userData } = session
+    await session.crash()
+    session = await launch({ userData })
+
+    const banner = session.window.locator('.banner--recovery')
+    await expect(banner).toContainText('Há mais 1 rascunho.')
+    await banner.getByRole('button', { name: 'Recuperar todos' }).click()
+    await expect(tabs()).toHaveCount(2)
+    await expect(banner).toBeHidden()
+  })
+
   const activeTab = () => session.window.locator('.tabbar__tab--active .tabbar__label')
 
   test('the next and previous tab commands move between tabs', async () => {

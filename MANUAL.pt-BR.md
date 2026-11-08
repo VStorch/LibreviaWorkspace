@@ -1082,6 +1082,8 @@ uma faixa azul oferecendo o trabalho de volta:
 - **Recuperar** traz o conteúdo de volta numa aba própria, marcado como *não salvo*, porque é isso
   que ele é. Confira e salve onde quiser.
 - **Descartar** apaga o rascunho.
+- **Recuperar todos** aparece quando várias abas tinham trabalho não salvo: cada uma volta na
+  sua própria aba. Depois de Recuperar ou Descartar, a faixa oferece o rascunho seguinte.
 
 Enquanto a faixa estiver na tela, o rascunho **não é sobrescrito**. Você pode ignorá-la por um
 tempo, abrir outro arquivo, e o trabalho continua guardado.
