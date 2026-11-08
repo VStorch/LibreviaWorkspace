@@ -1,0 +1,805 @@
+[
+  {
+    "label": "Arquivo",
+    "type": "submenu",
+    "enabled": true,
+    "submenu": [
+      {
+        "label": "Novo documento",
+        "type": "normal",
+        "accelerator": "CmdOrCtrl+N",
+        "enabled": true
+      },
+      {
+        "label": "Nova planilha",
+        "type": "normal",
+        "accelerator": "CmdOrCtrl+Shift+N",
+        "enabled": true
+      },
+      {
+        "label": "Novo a partir de modelo…",
+        "type": "normal",
+        "enabled": true
+      },
+      {
+        "label": "",
+        "type": "separator",
+        "enabled": true
+      },
+      {
+        "label": "Abrir…",
+        "type": "normal",
+        "accelerator": "CmdOrCtrl+O",
+        "enabled": true
+      },
+      {
+        "label": "Abrir recente",
+        "type": "submenu",
+        "enabled": true,
+        "submenu": [
+          {
+            "label": "Nenhum arquivo recente",
+            "type": "normal",
+            "enabled": false
+          }
+        ]
+      },
+      {
+        "label": "",
+        "type": "separator",
+        "enabled": true
+      },
+      {
+        "label": "Salvar",
+        "type": "normal",
+        "accelerator": "CmdOrCtrl+S",
+        "enabled": true
+      },
+      {
+        "label": "Salvar como…",
+        "type": "normal",
+        "accelerator": "CmdOrCtrl+Shift+S",
+        "enabled": true
+      },
+      {
+        "label": "",
+        "type": "separator",
+        "enabled": true
+      },
+      {
+        "label": "Configuração de página…",
+        "type": "normal",
+        "enabled": true
+      },
+      {
+        "label": "Visualizar impressão",
+        "type": "normal",
+        "enabled": true
+      },
+      {
+        "label": "Exportar para PDF…",
+        "type": "normal",
+        "enabled": true
+      },
+      {
+        "label": "Exportar como",
+        "type": "submenu",
+        "enabled": true,
+        "submenu": [
+          {
+            "label": "Documento do Word (.docx)",
+            "type": "normal",
+            "enabled": true
+          },
+          {
+            "label": "Documento do OpenDocument (.odt)",
+            "type": "normal",
+            "enabled": true
+          },
+          {
+            "label": "Página da web (.html)",
+            "type": "normal",
+            "enabled": true
+          },
+          {
+            "label": "Texto em Markdown (.md)",
+            "type": "normal",
+            "enabled": true
+          }
+        ]
+      },
+      {
+        "label": "Propriedades…",
+        "type": "normal",
+        "enabled": true
+      },
+      {
+        "label": "Inspecionar documento…",
+        "type": "normal",
+        "enabled": true
+      },
+      {
+        "label": "Imprimir…",
+        "type": "normal",
+        "accelerator": "CmdOrCtrl+P",
+        "enabled": true
+      },
+      {
+        "label": "",
+        "type": "separator",
+        "enabled": true
+      },
+      {
+        "label": "Fechar arquivo",
+        "type": "normal",
+        "accelerator": "CmdOrCtrl+W",
+        "enabled": true
+      },
+      {
+        "label": "Sair",
+        "type": "normal",
+        "role": "quit",
+        "accelerator": "CommandOrControl+Q",
+        "enabled": true
+      }
+    ]
+  },
+  {
+    "label": "Editar",
+    "type": "submenu",
+    "enabled": true,
+    "submenu": [
+      {
+        "label": "Desfazer",
+        "type": "normal",
+        "accelerator": "CommandOrControl+Z",
+        "registerAccelerator": false,
+        "enabled": true
+      },
+      {
+        "label": "Refazer",
+        "type": "normal",
+        "accelerator": "Shift+CommandOrControl+Z",
+        "registerAccelerator": false,
+        "enabled": true
+      },
+      {
+        "label": "",
+        "type": "separator",
+        "enabled": true
+      },
+      {
+        "label": "Recortar",
+        "type": "normal",
+        "role": "cut",
+        "accelerator": "CommandOrControl+X",
+        "registerAccelerator": false,
+        "enabled": true
+      },
+      {
+        "label": "Copiar",
+        "type": "normal",
+        "role": "copy",
+        "accelerator": "CommandOrControl+C",
+        "registerAccelerator": false,
+        "enabled": true
+      },
+      {
+        "label": "Colar",
+        "type": "normal",
+        "role": "paste",
+        "accelerator": "CommandOrControl+V",
+        "registerAccelerator": false,
+        "enabled": true
+      },
+      {
+        "label": "Colar sem formatação",
+        "type": "normal",
+        "accelerator": "CmdOrCtrl+Shift+V",
+        "registerAccelerator": false,
+        "enabled": true
+      },
+      {
+        "label": "Selecionar tudo",
+        "type": "normal",
+        "role": "selectall",
+        "accelerator": "CommandOrControl+A",
+        "enabled": true
+      },
+      {
+        "label": "",
+        "type": "separator",
+        "enabled": true
+      },
+      {
+        "label": "Localizar e substituir…",
+        "type": "normal",
+        "accelerator": "CmdOrCtrl+F",
+        "enabled": true
+      }
+    ]
+  },
+  {
+    "label": "Formatar",
+    "type": "submenu",
+    "enabled": true,
+    "submenu": [
+      {
+        "label": "Parágrafo…",
+        "type": "normal",
+        "enabled": true
+      },
+      {
+        "label": "Imagem…",
+        "type": "normal",
+        "enabled": true
+      },
+      {
+        "label": "Colunas…",
+        "type": "normal",
+        "enabled": true
+      }
+    ]
+  },
+  {
+    "label": "Tabela",
+    "type": "submenu",
+    "enabled": true,
+    "submenu": [
+      {
+        "label": "Inserir tabela…",
+        "type": "normal",
+        "accelerator": "CmdOrCtrl+F12",
+        "enabled": true
+      },
+      {
+        "label": "",
+        "type": "separator",
+        "enabled": true
+      },
+      {
+        "label": "Inserir linha acima",
+        "type": "normal",
+        "enabled": true
+      },
+      {
+        "label": "Inserir linha abaixo",
+        "type": "normal",
+        "enabled": true
+      },
+      {
+        "label": "Inserir coluna à esquerda",
+        "type": "normal",
+        "enabled": true
+      },
+      {
+        "label": "Inserir coluna à direita",
+        "type": "normal",
+        "enabled": true
+      },
+      {
+        "label": "",
+        "type": "separator",
+        "enabled": true
+      },
+      {
+        "label": "Excluir linha",
+        "type": "normal",
+        "enabled": true
+      },
+      {
+        "label": "Excluir coluna",
+        "type": "normal",
+        "enabled": true
+      },
+      {
+        "label": "Excluir tabela",
+        "type": "normal",
+        "enabled": true
+      },
+      {
+        "label": "",
+        "type": "separator",
+        "enabled": true
+      },
+      {
+        "label": "Mesclar células",
+        "type": "normal",
+        "enabled": true
+      },
+      {
+        "label": "Dividir célula",
+        "type": "normal",
+        "enabled": true
+      },
+      {
+        "label": "",
+        "type": "separator",
+        "enabled": true
+      },
+      {
+        "label": "Linha de cabeçalho",
+        "type": "normal",
+        "enabled": true
+      },
+      {
+        "label": "Propriedades da tabela…",
+        "type": "normal",
+        "enabled": true
+      }
+    ]
+  },
+  {
+    "label": "Inserir",
+    "type": "submenu",
+    "enabled": true,
+    "submenu": [
+      {
+        "label": "Quebra de página",
+        "type": "normal",
+        "accelerator": "CmdOrCtrl+Enter",
+        "enabled": true
+      },
+      {
+        "label": "Quebra de seção",
+        "type": "submenu",
+        "enabled": true,
+        "submenu": [
+          {
+            "label": "Próxima página",
+            "type": "normal",
+            "enabled": true
+          },
+          {
+            "label": "Contínua",
+            "type": "normal",
+            "enabled": true
+          },
+          {
+            "label": "Página par",
+            "type": "normal",
+            "enabled": true
+          },
+          {
+            "label": "Página ímpar",
+            "type": "normal",
+            "enabled": true
+          },
+          {
+            "label": "",
+            "type": "separator",
+            "enabled": true
+          },
+          {
+            "label": "Quebra de coluna",
+            "type": "normal",
+            "enabled": true
+          },
+          {
+            "label": "Excluir quebra de seção",
+            "type": "normal",
+            "enabled": true
+          }
+        ]
+      },
+      {
+        "label": "Caractere especial…",
+        "type": "normal",
+        "enabled": true
+      },
+      {
+        "label": "Equação",
+        "type": "normal",
+        "accelerator": "Alt+=",
+        "enabled": true
+      },
+      {
+        "label": "Equação em destaque",
+        "type": "normal",
+        "enabled": true
+      },
+      {
+        "label": "Propriedade do documento…",
+        "type": "normal",
+        "enabled": true
+      },
+      {
+        "label": "",
+        "type": "separator",
+        "enabled": true
+      },
+      {
+        "label": "Marcador…",
+        "type": "normal",
+        "accelerator": "CmdOrCtrl+Shift+F5",
+        "enabled": true
+      },
+      {
+        "label": "Nota de rodapé",
+        "type": "normal",
+        "accelerator": "CmdOrCtrl+Alt+F",
+        "enabled": true
+      },
+      {
+        "label": "Nota de fim",
+        "type": "normal",
+        "accelerator": "CmdOrCtrl+Alt+D",
+        "enabled": true
+      },
+      {
+        "label": "Comentário",
+        "type": "normal",
+        "accelerator": "CmdOrCtrl+Alt+M",
+        "enabled": true
+      },
+      {
+        "label": "Próximo comentário",
+        "type": "normal",
+        "enabled": true
+      },
+      {
+        "label": "Comentário anterior",
+        "type": "normal",
+        "enabled": true
+      }
+    ]
+  },
+  {
+    "label": "Referências",
+    "type": "submenu",
+    "enabled": true,
+    "submenu": [
+      {
+        "label": "Inserir sumário",
+        "type": "normal",
+        "enabled": true
+      },
+      {
+        "label": "Atualizar sumário",
+        "type": "normal",
+        "enabled": true
+      },
+      {
+        "label": "",
+        "type": "separator",
+        "enabled": true
+      },
+      {
+        "label": "Inserir legenda…",
+        "type": "normal",
+        "enabled": true
+      },
+      {
+        "label": "Referência cruzada…",
+        "type": "normal",
+        "enabled": true
+      },
+      {
+        "label": "",
+        "type": "separator",
+        "enabled": true
+      },
+      {
+        "label": "Atualizar campos",
+        "type": "normal",
+        "accelerator": "F9",
+        "enabled": true
+      }
+    ]
+  },
+  {
+    "label": "Revisão",
+    "type": "submenu",
+    "enabled": true,
+    "submenu": [
+      {
+        "label": "Controlar alterações",
+        "type": "checkbox",
+        "accelerator": "CmdOrCtrl+Shift+E",
+        "checked": false,
+        "enabled": true,
+        "toolTip": "Marca o texto inserido e excluído com o seu nome. Mudanças de formatação não são controladas."
+      },
+      {
+        "label": "Mostrar",
+        "type": "submenu",
+        "enabled": true,
+        "submenu": [
+          {
+            "label": "Marcação completa",
+            "type": "radio",
+            "checked": true,
+            "enabled": true
+          },
+          {
+            "label": "Marcação simples",
+            "type": "radio",
+            "checked": false,
+            "enabled": true
+          },
+          {
+            "label": "Sem marcação",
+            "type": "radio",
+            "checked": false,
+            "enabled": true
+          },
+          {
+            "label": "Original",
+            "type": "radio",
+            "checked": false,
+            "enabled": true
+          }
+        ]
+      },
+      {
+        "label": "",
+        "type": "separator",
+        "enabled": true
+      },
+      {
+        "label": "Aceitar alteração",
+        "type": "normal",
+        "enabled": true
+      },
+      {
+        "label": "Rejeitar alteração",
+        "type": "normal",
+        "enabled": true
+      },
+      {
+        "label": "",
+        "type": "separator",
+        "enabled": true
+      },
+      {
+        "label": "Aceitar todas as alterações",
+        "type": "normal",
+        "enabled": true
+      },
+      {
+        "label": "Rejeitar todas as alterações",
+        "type": "normal",
+        "enabled": true
+      },
+      {
+        "label": "",
+        "type": "separator",
+        "enabled": true
+      },
+      {
+        "label": "Próxima alteração",
+        "type": "normal",
+        "enabled": true
+      },
+      {
+        "label": "Alteração anterior",
+        "type": "normal",
+        "enabled": true
+      }
+    ]
+  },
+  {
+    "label": "Exibir",
+    "type": "submenu",
+    "enabled": true,
+    "submenu": [
+      {
+        "label": "Mostrar barra de ferramentas",
+        "type": "checkbox",
+        "checked": true,
+        "enabled": true
+      },
+      {
+        "label": "Mostrar barra de status",
+        "type": "checkbox",
+        "checked": true,
+        "enabled": true
+      },
+      {
+        "label": "",
+        "type": "separator",
+        "enabled": true
+      },
+      {
+        "label": "Modo de leitura",
+        "type": "checkbox",
+        "accelerator": "CmdOrCtrl+F11",
+        "checked": false,
+        "enabled": true
+      },
+      {
+        "label": "",
+        "type": "separator",
+        "enabled": true
+      },
+      {
+        "label": "Marcas de formatação",
+        "type": "checkbox",
+        "accelerator": "CmdOrCtrl+F10",
+        "checked": false,
+        "enabled": true
+      },
+      {
+        "label": "Painel de navegação",
+        "type": "checkbox",
+        "accelerator": "CmdOrCtrl+F5",
+        "checked": false,
+        "enabled": true
+      },
+      {
+        "label": "Comentários",
+        "type": "checkbox",
+        "checked": true,
+        "enabled": true
+      },
+      {
+        "label": "",
+        "type": "separator",
+        "enabled": true
+      },
+      {
+        "label": "Tema",
+        "type": "submenu",
+        "enabled": true,
+        "submenu": [
+          {
+            "label": "Do sistema",
+            "type": "radio",
+            "checked": true,
+            "enabled": true
+          },
+          {
+            "label": "Claro",
+            "type": "radio",
+            "checked": false,
+            "enabled": true
+          },
+          {
+            "label": "Escuro",
+            "type": "radio",
+            "checked": false,
+            "enabled": true
+          }
+        ]
+      },
+      {
+        "label": "Idioma",
+        "type": "submenu",
+        "enabled": true,
+        "submenu": [
+          {
+            "label": "Português",
+            "type": "radio",
+            "checked": true,
+            "enabled": true
+          },
+          {
+            "label": "English",
+            "type": "radio",
+            "checked": false,
+            "enabled": true
+          }
+        ]
+      },
+      {
+        "label": "",
+        "type": "separator",
+        "enabled": true
+      },
+      {
+        "label": "Tamanho normal",
+        "type": "normal",
+        "accelerator": "CmdOrCtrl+0",
+        "enabled": true
+      },
+      {
+        "label": "Ampliar",
+        "type": "normal",
+        "accelerator": "CmdOrCtrl+numadd",
+        "enabled": true
+      },
+      {
+        "label": "Reduzir",
+        "type": "normal",
+        "accelerator": "CmdOrCtrl+-",
+        "enabled": true
+      },
+      {
+        "label": "Ajustar à largura",
+        "type": "checkbox",
+        "checked": false,
+        "enabled": true
+      },
+      {
+        "label": "",
+        "type": "separator",
+        "enabled": true
+      },
+      {
+        "label": "Tela cheia",
+        "type": "normal",
+        "role": "togglefullscreen",
+        "accelerator": "F11",
+        "enabled": true
+      }
+    ]
+  },
+  {
+    "label": "Ferramentas",
+    "type": "submenu",
+    "enabled": true,
+    "submenu": [
+      {
+        "label": "Verificação ortográfica",
+        "type": "checkbox",
+        "checked": true,
+        "enabled": true
+      },
+      {
+        "label": "Autocorreção tipográfica",
+        "type": "checkbox",
+        "checked": true,
+        "enabled": true
+      },
+      {
+        "label": "",
+        "type": "separator",
+        "enabled": true
+      },
+      {
+        "label": "Contar palavras…",
+        "type": "normal",
+        "accelerator": "CmdOrCtrl+Shift+G",
+        "enabled": true
+      },
+      {
+        "label": "Nome do autor…",
+        "type": "normal",
+        "enabled": true
+      },
+      {
+        "label": "",
+        "type": "separator",
+        "enabled": true
+      },
+      {
+        "label": "Assistente de IA…",
+        "type": "normal",
+        "accelerator": "CmdOrCtrl+Shift+Y",
+        "enabled": true
+      },
+      {
+        "label": "Assistentes de IA…",
+        "type": "normal",
+        "enabled": true
+      },
+      {
+        "label": "",
+        "type": "separator",
+        "enabled": true
+      },
+      {
+        "label": "Opções…",
+        "type": "normal",
+        "enabled": true
+      }
+    ]
+  },
+  {
+    "label": "Ajuda",
+    "type": "submenu",
+    "enabled": true,
+    "submenu": [
+      {
+        "label": "Sobre o Librevia",
+        "type": "normal",
+        "enabled": true
+      },
+      {
+        "label": "Abrir pasta de registros",
+        "type": "normal",
+        "enabled": true
+      }
+    ]
+  }
+]
