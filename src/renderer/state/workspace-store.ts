@@ -1,0 +1,96 @@
+import { createStore, type StoreApi } from 'zustand/vanilla'
+import { DEFAULT_PAGE_SETUP, createEmptyDocument } from '@services/document/model.js'
+import { createWorkspaceContext } from './context.js'
+import { createDraftActions } from './draft-actions.js'
+import { createFileActions } from './file-actions.js'
+import { createPrintActions } from './print-actions.js'
+import { createPrivacyActions } from './privacy-actions.js'
+import { createSheetActions } from './sheet-actions.js'
+import type { WorkspaceState } from './types.js'
+
+export type { DocumentSource, WorkspaceState } from './types.js'
+
+export type WorkspaceStore = StoreApi<WorkspaceState>
+
+/**
+ * Fields and one-line setters; anything with rules lives in the action groups, wired by
+ * `context.ts`. Each store has its own context, so each tab keeps its own document source.
+ */
+export function createWorkspaceStore(): WorkspaceStore {
+  return createStore<WorkspaceState>()((set, get, store) => {
+    const ctx = createWorkspaceContext(set, get)
+    const empty = createEmptyDocument()
+
+    return {
+      file: null,
+      page: DEFAULT_PAGE_SETUP,
+      initialDoc: empty.doc,
+      styles: empty.styles,
+      flattened: false,
+      beforeReferences: false,
+      sections: [],
+      beforeSections: false,
+      outsideBookmarks: [],
+      comments: [],
+      commentsOutside: [],
+      commentDraft: null,
+      beforeComments: false,
+      trackChanges: undefined,
+      beforeRevisions: false,
+      notes: undefined,
+      beforeNotes: false,
+      beforeMath: false,
+      beforeVerticalMerges: false,
+      properties: undefined,
+      workbook: null,
+      generation: 0,
+      isDirty: false,
+      textEdited: false,
+      stats: { characters: 0, words: 0 },
+      pageCount: 1,
+      recents: [],
+      error: null,
+      notice: null,
+      savedLoss: null,
+      pendingDraft: null,
+      readOnly: false,
+      templateGallery: false,
+      inspector: false,
+      autosaveBroken: false,
+      busy: false,
+
+      registerDocumentSource: (source) => ctx.setSource(source),
+      markTextEdited: () => {
+        if (!get().textEdited) set({ isDirty: true, textEdited: true })
+      },
+      setStats: (stats) => {
+        const current = get().stats
+        if (current.characters !== stats.characters || current.words !== stats.words) set({ stats })
+      },
+      setPageCount: (pages) => {
+        if (get().pageCount !== pages) set({ pageCount: pages })
+      },
+      setPage: (page) => set({ page, isDirty: true }),
+      setSections: (sections) => set({ sections, isDirty: true }),
+      setComments: (comments) => set({ comments, isDirty: true }),
+      setCommentDraft: (commentDraft) => {
+        if (get().commentDraft !== commentDraft) set({ commentDraft })
+      },
+      setStyles: (styles) => set({ styles, isDirty: true }),
+      toggleTrackChanges: () => set({ trackChanges: get().trackChanges !== true, isDirty: true }),
+      setProperties: (properties) => set({ properties, isDirty: true }),
+      dismissError: () => set({ error: null }),
+      dismissNotice: () => set({ notice: null, savedLoss: null }),
+      showError: (error) => set({ error }),
+      allowEditing: () => set({ readOnly: false }),
+      setTemplateGallery: (templateGallery) => set({ templateGallery }),
+      setInspector: (inspector) => set({ inspector }),
+
+      ...createFileActions(set, get, ctx),
+      ...createSheetActions(set, get, store.subscribe),
+      ...createDraftActions(set, get, ctx),
+      ...createPrintActions(set, get, ctx),
+      ...createPrivacyActions(set, get, ctx),
+    }
+  })
+}

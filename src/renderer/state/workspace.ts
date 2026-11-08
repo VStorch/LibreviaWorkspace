@@ -1,92 +1,50 @@
-import { create } from 'zustand'
-import { DEFAULT_PAGE_SETUP, createEmptyDocument } from '@services/document/model.js'
-import { createWorkspaceContext } from './context.js'
-import { createDraftActions } from './draft-actions.js'
-import { createFileActions } from './file-actions.js'
-import { createPrintActions } from './print-actions.js'
-import { createPrivacyActions } from './privacy-actions.js'
-import { createSheetActions } from './sheet-actions.js'
+import { useStore } from 'zustand'
+import { activeStoreOf, activeWorkspaceStore, useTabs } from './tabs.js'
+import type { WorkspaceStore } from './workspace-store.js'
 import type { WorkspaceState } from './types.js'
 
 export type { DocumentSource, WorkspaceState } from './types.js'
+export { createWorkspaceStore, type WorkspaceStore } from './workspace-store.js'
 
-/**
- * Fields and one-line setters; anything with rules lives in the action groups, wired by
- * `context.ts`.
- */
-export const useWorkspace = create<WorkspaceState>((set, get, store) => {
-  const ctx = createWorkspaceContext(set, get)
-  const empty = createEmptyDocument()
+type Listener = Parameters<WorkspaceStore['subscribe']>[0]
 
-  return {
-    file: null,
-    page: DEFAULT_PAGE_SETUP,
-    initialDoc: empty.doc,
-    styles: empty.styles,
-    flattened: false,
-    beforeReferences: false,
-    sections: [],
-    beforeSections: false,
-    outsideBookmarks: [],
-    comments: [],
-    commentsOutside: [],
-    commentDraft: null,
-    beforeComments: false,
-    trackChanges: undefined,
-    beforeRevisions: false,
-    notes: undefined,
-    beforeNotes: false,
-    beforeMath: false,
-    beforeVerticalMerges: false,
-    properties: undefined,
-    workbook: null,
-    generation: 0,
-    isDirty: false,
-    textEdited: false,
-    stats: { characters: 0, words: 0 },
-    pageCount: 1,
-    recents: [],
-    error: null,
-    notice: null,
-    savedLoss: null,
-    pendingDraft: null,
-    readOnly: false,
-    templateGallery: false,
-    inspector: false,
-    autosaveBroken: false,
-    busy: false,
+interface UseWorkspace extends WorkspaceStore {
+  (): WorkspaceState
+  <T>(selector: (state: WorkspaceState) => T): T
+}
 
-    registerDocumentSource: (source) => ctx.setSource(source),
-    markTextEdited: () => {
-      if (!get().textEdited) set({ isDirty: true, textEdited: true })
-    },
-    setStats: (stats) => {
-      const current = get().stats
-      if (current.characters !== stats.characters || current.words !== stats.words) set({ stats })
-    },
-    setPageCount: (pages) => {
-      if (get().pageCount !== pages) set({ pageCount: pages })
-    },
-    setPage: (page) => set({ page, isDirty: true }),
-    setSections: (sections) => set({ sections, isDirty: true }),
-    setComments: (comments) => set({ comments, isDirty: true }),
-    setCommentDraft: (commentDraft) => {
-      if (get().commentDraft !== commentDraft) set({ commentDraft })
-    },
-    setStyles: (styles) => set({ styles, isDirty: true }),
-    toggleTrackChanges: () => set({ trackChanges: get().trackChanges !== true, isDirty: true }),
-    setProperties: (properties) => set({ properties, isDirty: true }),
-    dismissError: () => set({ error: null }),
-    dismissNotice: () => set({ notice: null, savedLoss: null }),
-    showError: (error) => set({ error }),
-    allowEditing: () => set({ readOnly: false }),
-    setTemplateGallery: (templateGallery) => set({ templateGallery }),
-    setInspector: (inspector) => set({ inspector }),
+function useActiveWorkspace<T>(selector?: (state: WorkspaceState) => T): T | WorkspaceState {
+  const store = useTabs(activeStoreOf)
+  return useStore<WorkspaceStore, T | WorkspaceState>(store, selector ?? ((state) => state))
+}
 
-    ...createFileActions(set, get, ctx),
-    ...createSheetActions(set, get, store.subscribe),
-    ...createDraftActions(set, get, ctx),
-    ...createPrintActions(set, get, ctx),
-    ...createPrivacyActions(set, get, ctx),
+/** Follows the active tab: the listener moves with it and hears the switch as a change. */
+function subscribeToActive(listener: Listener): () => void {
+  let current = activeWorkspaceStore()
+  let detach = current.subscribe(listener)
+  const detachTabs = useTabs.subscribe((tabs) => {
+    const next = activeStoreOf(tabs)
+    if (next === current) return
+    const previous = current.getState()
+    detach()
+    current = next
+    detach = next.subscribe(listener)
+    listener(next.getState(), previous)
+  })
+  return () => {
+    detachTabs()
+    detach()
   }
-})
+}
+
+/** The active tab's workspace, with the same shape the single store had. */
+export const useWorkspace = Object.assign(useActiveWorkspace, {
+  getState: () => activeWorkspaceStore().getState(),
+  getInitialState: () => activeWorkspaceStore().getInitialState(),
+  setState: ((partial, replace) =>
+    activeWorkspaceStore().setState(
+      partial as WorkspaceState,
+      replace as true,
+    )) as WorkspaceStore['setState'],
+  subscribe: subscribeToActive,
+}) as UseWorkspace
