@@ -12,6 +12,7 @@ import Typography from '@tiptap/extension-typography'
 import Link from '@tiptap/extension-link'
 import Highlight from '@tiptap/extension-highlight'
 import TextAlign from '@tiptap/extension-text-align'
+import Strike from '@tiptap/extension-strike'
 import { TableKit } from '@tiptap/extension-table'
 import Superscript from '@tiptap/extension-superscript'
 import Subscript from '@tiptap/extension-subscript'
@@ -144,6 +145,10 @@ export function buildEditorExtensions(
  * Code excludes the other formatting, but not revisions: with Tiptap's `excludes: '_'`, code could
  * be neither marked deleted nor inserted.
  */
+/** Their keys belong to the menu (Track changes, Save as); alignment comes from `WordShortcuts`. */
+const MenuSafeTextAlign = TextAlign.extend({ addKeyboardShortcuts: () => ({}) })
+const MenuSafeStrike = Strike.extend({ addKeyboardShortcuts: () => ({}) })
+
 const TrackableCode = Code.extend({
   excludes:
     'link textStyle bold italic strike underline superscript subscript highlight charStyle caps smallCaps',
@@ -155,6 +160,7 @@ function contentExtensions(): Extensions {
     StarterKit.configure({
       link: false,
       code: false,
+      strike: false,
       undoRedo: { depth: 200 },
       // No empty paragraph after a heading: the corpus ends in `Heading1`, and saving without
       // editing would add a `<w:p/>`.
@@ -162,6 +168,7 @@ function contentExtensions(): Extensions {
     }),
 
     TrackableCode,
+    MenuSafeStrike,
 
     DocumentLink.configure({
       // Links open in the system browser, after main's scheme allowlist.
@@ -183,7 +190,7 @@ function contentExtensions(): Extensions {
     Subscript,
 
     Highlight.configure({ multicolor: true }),
-    TextAlign.configure({ types: ['heading', 'paragraph'] }),
+    MenuSafeTextAlign.configure({ types: ['heading', 'paragraph'] }),
 
     DocumentImage.configure({
       // Inline, as in the file: OOXML has no image outside a paragraph, and as a block the first
