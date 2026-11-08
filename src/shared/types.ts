@@ -133,6 +133,7 @@ export const MenuCommand = {
   ShowNoMarkup: 'show-no-markup',
   ShowOriginal: 'show-original',
   AuthorName: 'author-name',
+  Options: 'options',
   InsertTableOfContents: 'insert-table-of-contents',
   UpdateTableOfContents: 'update-table-of-contents',
   UpdateFields: 'update-fields',
@@ -250,6 +251,23 @@ export type Theme = (typeof Theme)[keyof typeof Theme]
 
 export type ResolvedTheme = 'light' | 'dark'
 
+/** Who the new files are written for; `ask` until the first save of a new file. */
+export const SaveFormat = {
+  Ask: 'ask',
+  Office: 'office',
+  LibreOffice: 'libreoffice',
+  Librevia: 'librevia',
+} as const
+
+export type SaveFormat = (typeof SaveFormat)[keyof typeof SaveFormat]
+
+export const SAVE_FORMATS = [
+  SaveFormat.Ask,
+  SaveFormat.Office,
+  SaveFormat.LibreOffice,
+  SaveFormat.Librevia,
+] as const
+
 /**
  * They live in main: spelling is a `session` setting, the language builds the native menu and the
  * theme needs `nativeTheme`.
@@ -286,6 +304,7 @@ export interface EditorPreferences {
    * `src/main/preferences.ts`.
    */
   readonly authorName: string
+  readonly saveFormat: SaveFormat
 }
 
 /**
@@ -314,6 +333,7 @@ export const DEFAULT_EDITOR_PREFERENCES: EditorPreferences = {
   navigationPane: false,
   commentsPane: true,
   authorName: '',
+  saveFormat: SaveFormat.Ask,
 }
 
 /** Only `webContents` can do these. */

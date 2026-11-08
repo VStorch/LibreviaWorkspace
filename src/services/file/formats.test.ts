@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { DocumentKind } from '@shared/types.js'
+import { DocumentKind, SaveFormat } from '@shared/types.js'
 import {
+  defaultFileName,
+  filtersStartingWith,
+  preferredExtension,
+  withExtension,
   buildWindowTitle,
   ensureSupportedExtension,
   extensionOf,
@@ -161,5 +165,69 @@ describe('buildWindowTitle', () => {
 
   it('uses its own label for a file that has no name yet', () => {
     expect(buildWindowTitle(null, false, 'Librevia')).toBe('Sem título — Librevia')
+  })
+})
+
+describe('preferred extension', () => {
+  it('writes for Word and Excel when the user follows Office or Google', () => {
+    expect(preferredExtension(DocumentKind.Document, SaveFormat.Office)).toBe('.docx')
+    expect(preferredExtension(DocumentKind.Spreadsheet, SaveFormat.Office)).toBe('.xlsx')
+  })
+
+  it('writes .odt for LibreOffice, and .xlsx for its spreadsheets, since .ods is not written yet', () => {
+    expect(preferredExtension(DocumentKind.Document, SaveFormat.LibreOffice)).toBe('.odt')
+    expect(preferredExtension(DocumentKind.Spreadsheet, SaveFormat.LibreOffice)).toBe('.xlsx')
+  })
+
+  it('keeps the own formats while the user has not chosen', () => {
+    expect(preferredExtension(DocumentKind.Document, SaveFormat.Ask)).toBe('.sdoc')
+    expect(preferredExtension(DocumentKind.Spreadsheet, SaveFormat.Librevia)).toBe('.ssheet')
+  })
+
+  it('names a new file with it', () => {
+    expect(defaultFileName(DocumentKind.Document, undefined, SaveFormat.Office)).toBe(
+      'Documento sem título.docx',
+    )
+  })
+})
+
+describe('withExtension', () => {
+  it('swaps the last extension only', () => {
+    expect(withExtension('relatorio.v2.sdoc', '.docx')).toBe('relatorio.v2.docx')
+  })
+
+  it('adds one to a name without it, and keeps a leading dot as part of the name', () => {
+    expect(withExtension('ata', '.odt')).toBe('ata.odt')
+    expect(withExtension('.config', '.odt')).toBe('.config.odt')
+  })
+})
+
+describe('ensureSupportedExtension with the suggested extension', () => {
+  it('completes a name typed without extension with the one the dialog suggested', () => {
+    expect(ensureSupportedExtension('/tmp/ata', DocumentKind.Document, '.docx')).toBe('/tmp/ata.docx')
+  })
+})
+
+describe('filtersStartingWith', () => {
+  const filters = [
+    { name: 'Librevia', extensions: ['sdoc'] },
+    { name: 'Word', extensions: ['docx'] },
+    { name: 'ODT', extensions: ['odt'] },
+  ]
+
+  it('puts first the filter of the suggested name, so Save as of an .odt starts on ODT', () => {
+    expect(filtersStartingWith(filters, 'ata.odt').map((filter) => filter.name)).toEqual([
+      'ODT',
+      'Librevia',
+      'Word',
+    ])
+  })
+
+  it('keeps the order when no filter matches', () => {
+    expect(filtersStartingWith(filters, 'ata').map((filter) => filter.name)).toEqual([
+      'Librevia',
+      'Word',
+      'ODT',
+    ])
   })
 })

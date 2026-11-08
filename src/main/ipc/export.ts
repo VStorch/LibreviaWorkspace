@@ -5,7 +5,7 @@ import { IpcChannel } from '@shared/ipc-channels.js'
 import { exportHtml } from '@services/document/export-html.js'
 import { exportMarkdown } from '@services/document/export-markdown.js'
 import { parseDocument } from '@services/document/serialize.js'
-import { fileNameFromPath, isOdtTemplatePath } from '@services/file/formats.js'
+import { fileNameFromPath, isOdtTemplatePath, withExtension } from '@services/file/formats.js'
 import { showExportSaveDialog } from '../dialogs.js'
 import { writeFileAtomic } from '../fs/atomic-write.js'
 import { authorizePath } from '../fs/paths.js'
@@ -19,11 +19,6 @@ import { windowOf } from './sender-window.js'
 
 /** Writes a **new** file: does not touch the open document's path or "modified" state. */
 
-export function exportName(suggestedName: string, extension: string): string {
-  const dot = suggestedName.lastIndexOf('.')
-  return `${dot > 0 ? suggestedName.slice(0, dot) : suggestedName}.${extension}`
-}
-
 /** `relatorio.md` → `relatorio_arquivos`. */
 export function assetFolderOf(path: string): string {
   return `${basename(path, extname(path))}_arquivos`
@@ -31,10 +26,10 @@ export function assetFolderOf(path: string): string {
 
 export function registerExportHandlers(): void {
   handle(IpcChannel.FileExport, async (payload, event) => {
-    const extension = { html: 'html', markdown: 'md', odt: 'odt' }[payload.format]
+    const extension = { html: '.html', markdown: '.md', odt: '.odt' }[payload.format]
     const chosen = await showExportSaveDialog(
       windowOf(event),
-      exportName(payload.suggestedName, extension),
+      withExtension(payload.suggestedName, extension),
       payload.format,
     )
     if (chosen === null) return { canceled: true as const }

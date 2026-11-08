@@ -459,6 +459,8 @@ function toolsMenu(preferences: EditorPreferences): MenuItemConstructorOptions {
       { type: 'separator' },
       commandItem('menu.tools.aiAssistant', MenuCommand.AiAssistant, acceleratorOf(SHORTCUTS.aiAssistant)),
       commandItem('menu.tools.aiProviders', MenuCommand.AiProviders),
+      { type: 'separator' },
+      commandItem('menu.tools.options', MenuCommand.Options),
     ],
   }
 }

@@ -1348,6 +1348,17 @@ button {
   min-width: 460px;
 }
 
+.options__group {
+  margin: 0 0 12px;
+  padding: 0;
+  border: 0;
+}
+
+.options__group legend {
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
 .popover__row {
   display: flex;
   gap: 12px;

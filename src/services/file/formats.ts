@@ -1,4 +1,4 @@
-import { DocumentKind } from '@shared/types.js'
+import { DocumentKind, SaveFormat } from '@shared/types.js'
 import { translate, Language } from '@shared/i18n/index.js'
 
 /** No `node:path`, because it also runs in the renderer: Windows and POSIX separators. */
@@ -118,19 +118,63 @@ export function kindFromPath(path: string): DocumentKind {
 }
 
 /** Writing text into a file named `.docx` would make Word refuse it. */
-export function ensureSupportedExtension(path: string, kind: DocumentKind = DocumentKind.Document): string {
+export function ensureSupportedExtension(
+  path: string,
+  kind: DocumentKind = DocumentKind.Document,
+  fallback: string = preferredExtension(kind, SaveFormat.Ask),
+): string {
   // `.dotm` is not a destination: it would go out without the macros its name promises.
   if (isSupportedExtension(path) && extensionOf(path) !== WORD_MACRO_TEMPLATE_EXTENSION) return path
-  // The default extension depends on what is being saved: a spreadsheet saved as `.sdoc` would open
-  // as an empty document next time.
-  const fallback = kind === DocumentKind.Spreadsheet ? SPREADSHEET_EXTENSION : DOCUMENT_EXTENSION
   return `${path}${fallback}`
 }
 
-export function defaultFileName(kind: DocumentKind, language: Language = Language.Portuguese): string {
+const DOCUMENT_EXTENSION_FOR: Record<SaveFormat, string> = {
+  [SaveFormat.Ask]: DOCUMENT_EXTENSION,
+  [SaveFormat.Office]: WORD_EXTENSION,
+  [SaveFormat.LibreOffice]: ODT_EXTENSION,
+  [SaveFormat.Librevia]: DOCUMENT_EXTENSION,
+}
+
+/** `.ods` is not written yet, so LibreOffice spreadsheets go out as `.xlsx`, which Calc opens. */
+const SPREADSHEET_EXTENSION_FOR: Record<SaveFormat, string> = {
+  [SaveFormat.Ask]: SPREADSHEET_EXTENSION,
+  [SaveFormat.Office]: EXCEL_EXTENSION,
+  [SaveFormat.LibreOffice]: EXCEL_EXTENSION,
+  [SaveFormat.Librevia]: SPREADSHEET_EXTENSION,
+}
+
+export function preferredExtension(kind: DocumentKind, format: SaveFormat): string {
   return kind === DocumentKind.Spreadsheet
-    ? `${translate(language, 'shell.file.untitledSpreadsheet')}${SPREADSHEET_EXTENSION}`
-    : `${translate(language, 'shell.file.untitledDocument')}${DOCUMENT_EXTENSION}`
+    ? SPREADSHEET_EXTENSION_FOR[format]
+    : DOCUMENT_EXTENSION_FOR[format]
+}
+
+/** Filter extensions come without the dot, as Electron takes them. */
+export function filtersStartingWith<T extends { readonly extensions: readonly string[] }>(
+  filters: readonly T[],
+  name: string,
+): T[] {
+  const extension = extensionOf(name).slice(1)
+  const matching = filters.filter((filter) => filter.extensions.includes(extension))
+  return [...matching, ...filters.filter((filter) => !matching.includes(filter))]
+}
+
+/** `extension` with its dot. */
+export function withExtension(name: string, extension: string): string {
+  const dot = name.lastIndexOf('.')
+  return `${dot > 0 ? name.slice(0, dot) : name}${extension}`
+}
+
+export function defaultFileName(
+  kind: DocumentKind,
+  language: Language = Language.Portuguese,
+  format: SaveFormat = SaveFormat.Ask,
+): string {
+  const name =
+    kind === DocumentKind.Spreadsheet
+      ? translate(language, 'shell.file.untitledSpreadsheet')
+      : translate(language, 'shell.file.untitledDocument')
+  return `${name}${preferredExtension(kind, format)}`
 }
 
 /** The `•` marks unsaved, as in code editors. */

@@ -154,6 +154,7 @@ function mergedPreferences(active: EditorPreferences, patch: EditorPreferencesPa
     navigationPane: patch.navigationPane ?? active.navigationPane,
     commentsPane: patch.commentsPane ?? active.commentsPane,
     authorName: patch.authorName ?? active.authorName,
+    saveFormat: patch.saveFormat ?? active.saveFormat,
   })
 }
 

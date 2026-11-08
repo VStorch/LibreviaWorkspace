@@ -91,6 +91,20 @@ And these Librevia **creates**. `.pdf` also opens for reading, as the table abov
 | `.pdf` | **File → Export to PDF…**, for documents and spreadsheets |
 | `.docx`, `.odt`, `.html`, `.md` | **File → Export as**, for documents only |
 
+<a id="format-of-new-files"></a>
+
+### The format of new files
+
+The first time you save a new file, Librevia asks which format to use from then on:
+
+| Choice | Documents | Spreadsheets | Who opens them |
+| --- | --- | --- | --- |
+| **Office and Google** | `.docx` | `.xlsx` | Word, Excel, Google Docs and Sheets, LibreOffice |
+| **LibreOffice** | `.odt` | `.xlsx` | LibreOffice and Word; Calc opens the `.xlsx` |
+| **Librevia** | `.sdoc` | `.ssheet` | only Librevia, which keeps everything in them |
+
+It asks only once. **Tools → Options…** changes the choice, and **Save as** still offers every format.
+
 <a id="libreoffice-documents-odt"></a>
 
 ### LibreOffice documents (`.odt`)
@@ -588,7 +602,7 @@ On each comment you can **Reply**, **Edit**, **Resolve** (it is marked as resolv
 the file), **Reopen** and **Delete**. **Insert → Next comment** and **Previous comment** move from
 one to the next.
 
-The name that appears on your comments and revisions is set in **Tools → Author name…**.
+The name that appears on your comments and revisions is set in **Tools → Author name…** or in **Tools → Options…**.
 
 Comments in a `.docx` come along and go back to the file, replies included.
 
@@ -1078,7 +1092,8 @@ In practice: font, alignment, borders, charts, pivot tables, comments and filter
 after you fix a comma. An `.odt` works the same way (see
 [LibreOffice documents](#libreoffice-documents-odt)).
 
-**New document as `.docx`.** In "Save as", choose "Word document". Since there is no source file,
+**New document as `.docx`.** Choose "Office and Google" on the first save (see
+[The format of new files](#format-of-new-files)), or "Word document" in "Save as". Since there is no source file,
 the application creates a minimal package, with styles, page and properties, but without your name
 inside, and writes the document into it. Each save starts from the same minimal package, not from
 the file saved last time. So saving ten times gives the same file as saving once.

@@ -5,6 +5,26 @@ export const SHELL = {
   'shell.file.untitledDocument': { pt: 'Documento sem título', en: 'Untitled document' },
   'shell.file.untitledSpreadsheet': { pt: 'Planilha sem título', en: 'Untitled spreadsheet' },
 
+  'shell.options.title': { pt: 'Opções', en: 'Options' },
+  'shell.options.files': { pt: 'Arquivos', en: 'Files' },
+  'shell.options.saveFormat': { pt: 'Formato dos arquivos novos', en: 'Format for new files' },
+  'shell.options.saveFormat.ask': { pt: 'Perguntar no primeiro salvamento', en: 'Ask on the first save' },
+  'shell.options.saveFormat.office': {
+    pt: 'Office e Google (.docx, .xlsx)',
+    en: 'Office and Google (.docx, .xlsx)',
+  },
+  'shell.options.saveFormat.libreOffice': {
+    pt: 'LibreOffice (.odt; planilhas em .xlsx)',
+    en: 'LibreOffice (.odt; spreadsheets as .xlsx)',
+  },
+  'shell.options.saveFormat.librevia': { pt: 'Librevia (.sdoc, .ssheet)', en: 'Librevia (.sdoc, .ssheet)' },
+  'shell.options.saveFormatHint': {
+    pt: 'Vale para o primeiro salvamento de um arquivo novo. “Salvar como” continua oferecendo todos os formatos.',
+    en: 'Applies to the first save of a new file. “Save as” still offers every format.',
+  },
+  'shell.options.appearance': { pt: 'Aparência', en: 'Appearance' },
+  'shell.options.editing': { pt: 'Edição', en: 'Editing' },
+
   'shell.banner.dismiss': { pt: 'Dispensar aviso', en: 'Dismiss notice' },
 
   'shell.banner.savedLoss': {

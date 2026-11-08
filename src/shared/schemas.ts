@@ -14,6 +14,8 @@ import {
   MCP_DOCUMENT_REFUSED,
   McpDocumentAsk,
   McpDocumentRefusal,
+  SAVE_FORMATS,
+  SaveFormat,
   Theme,
 } from './types.js'
 import {
@@ -348,6 +350,7 @@ export const editorPreferencesSchema = z.object({
   navigationPane: z.boolean().default(false),
   commentsPane: z.boolean().default(true),
   authorName: z.string().max(MAX_NAME_LENGTH).default(''),
+  saveFormat: z.enum(SAVE_FORMATS).default(SaveFormat.Ask),
 })
 
 /**
@@ -372,6 +375,7 @@ export const editorPreferencesPatchSchema = z.object({
   navigationPane: z.boolean().optional(),
   commentsPane: z.boolean().optional(),
   authorName: z.string().max(MAX_NAME_LENGTH).optional(),
+  saveFormat: z.enum(SAVE_FORMATS).optional(),
 })
 
 /**

@@ -91,6 +91,7 @@ export const MENU = {
   'menu.tools.authorName': { pt: 'Nome do autor…', en: 'Author name…' },
   'menu.tools.aiAssistant': { pt: 'Assistente de IA…', en: 'AI assistant…' },
   'menu.tools.aiProviders': { pt: 'Assistentes de IA…', en: 'AI assistants…' },
+  'menu.tools.options': { pt: 'Opções…', en: 'Options…' },
 
   'menu.help.about': { pt: 'Sobre o {app}', en: 'About {app}' },
   'menu.help.openLogs': { pt: 'Abrir pasta de registros', en: 'Open log folder' },

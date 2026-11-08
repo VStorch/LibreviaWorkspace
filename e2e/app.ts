@@ -6,7 +6,7 @@
  * - native dialogs replaced by fixed answers in main, because no test clicks a system window.
  */
 
-import { mkdtemp, rm } from 'node:fs/promises'
+import { access, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
@@ -27,8 +27,28 @@ export interface Session {
  */
 const packaged = process.env['LIBREVIA_E2E_BINARY']
 
-export async function launch(options: { userData?: string; file?: string } = {}): Promise<Session> {
+/**
+ * A fresh profile already answered the save format question: otherwise the first save of a new
+ * file would stop at a native box no test clicks. `askSaveFormat` keeps it unanswered.
+ */
+async function seedProfile(userData: string, askSaveFormat: boolean): Promise<void> {
+  const file = join(userData, 'preferences.json')
+  if (
+    askSaveFormat ||
+    (await access(file).then(
+      () => true,
+      () => false,
+    ))
+  )
+    return
+  await writeFile(file, JSON.stringify({ preferences: { saveFormat: 'librevia' } }))
+}
+
+export async function launch(
+  options: { userData?: string; file?: string; askSaveFormat?: boolean } = {},
+): Promise<Session> {
   const userData = options.userData ?? (await mkdtemp(join(tmpdir(), 'librevia-e2e-')))
+  await seedProfile(userData, options.askSaveFormat === true)
   const fileArgs = options.file === undefined ? [] : [options.file]
 
   const app = await electron.launch({

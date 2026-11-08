@@ -3,6 +3,7 @@ import { DocumentKind, EditCommand, MenuCommand } from '@shared/types.js'
 import { buildWindowTitle } from '@services/file/formats.js'
 import type { WorkbookModel } from '@services/spreadsheet/model.js'
 import { ErrorBanner } from '../components/ErrorBanner.js'
+import { OptionsDialog } from '../components/OptionsDialog.js'
 import { PrivacyInspector } from '../components/PrivacyInspector.js'
 import { InventoryBanner } from '../components/InventoryBanner.js'
 import { ReadOnlyBanner } from '../components/ReadOnlyBanner.js'
@@ -32,6 +33,7 @@ import { singleCell, type Range } from '@services/spreadsheet/edit.js'
 import { WorkbookPropertiesDialog } from '../spreadsheet/WorkbookPropertiesDialog.js'
 import { usePreferences, watchPreferences } from '../state/preferences.js'
 import { useReadingMode } from '../state/reading.js'
+import { setOptionsDialog, useOptionsDialog } from '../state/options-dialog.js'
 import { useTheme } from '../state/theme.js'
 import { runZoomCommand } from '../state/zoom.js'
 import { revisionViewOfCommand, setRevisionView, useRevisionView } from '../state/revision-view.js'
@@ -117,6 +119,7 @@ const MENU_ACTIONS: Partial<Record<MenuCommand, MenuAction>> = {
   [MenuCommand.ZoomOut]: () => runZoomCommand(MenuCommand.ZoomOut),
   [MenuCommand.ZoomReset]: () => runZoomCommand(MenuCommand.ZoomReset),
   [MenuCommand.ZoomFitWidth]: () => runZoomCommand(MenuCommand.ZoomFitWidth),
+  [MenuCommand.Options]: () => setOptionsDialog(true),
 }
 
 export function App(): React.JSX.Element {
@@ -129,6 +132,7 @@ export function App(): React.JSX.Element {
   const workbook = useWorkspace((state) => state.workbook)
   const reading = useReadingMode()
   const showStatusBar = usePreferences((state) => state.preferences.showStatusBar)
+  const options = useOptionsDialog((state) => state.open)
 
   useWorkspaceLifecycle()
   useWindowStateSync()
@@ -159,6 +163,7 @@ export function App(): React.JSX.Element {
       {hasFile && !reading && showStatusBar && <StatusBar />}
       {templateGallery && <TemplateGallery />}
       {inspector && <PrivacyInspector />}
+      {options && <OptionsDialog onClose={() => setOptionsDialog(false)} />}
     </div>
   )
 }

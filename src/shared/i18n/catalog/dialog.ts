@@ -40,6 +40,19 @@ export const DIALOG = {
   'dialog.export.backToText': { pt: 'Voltar ao texto', en: 'Back to text' },
   'dialog.image.title': { pt: 'Inserir imagem', en: 'Insert image' },
 
+  'dialog.saveFormat.title': { pt: 'Formato dos arquivos novos', en: 'Format for new files' },
+  'dialog.saveFormat.message': {
+    pt: 'Em que formato salvar os arquivos novos?',
+    en: 'Which format should new files be saved in?',
+  },
+  'dialog.saveFormat.detail': {
+    pt: 'Office e Google: .docx e .xlsx, que Word, Excel, Google Docs e Planilhas abrem.\nLibreOffice: .odt para documentos; planilhas em .xlsx, que o Calc abre.\nLibrevia: .sdoc e .ssheet, que guardam tudo, mas só o Librevia abre.\n\nVocê pode mudar isso em Ferramentas → Opções.',
+    en: 'Office and Google: .docx and .xlsx, which Word, Excel, Google Docs and Sheets open.\nLibreOffice: .odt for documents; spreadsheets as .xlsx, which Calc opens.\nLibrevia: .sdoc and .ssheet, which keep everything, but only Librevia opens.\n\nYou can change this in Tools → Options.',
+  },
+  'dialog.saveFormat.office': { pt: 'Office e Google', en: 'Office and Google' },
+  'dialog.saveFormat.libreOffice': { pt: 'LibreOffice', en: 'LibreOffice' },
+  'dialog.saveFormat.librevia': { pt: 'Librevia', en: 'Librevia' },
+
   'dialog.discard.title': { pt: 'Alterações não salvas', en: 'Unsaved changes' },
   'dialog.discard.message': {
     pt: 'Salvar as alterações em “{fileName}”?',

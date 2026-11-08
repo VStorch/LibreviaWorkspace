@@ -198,6 +198,8 @@ export const ipcContracts = {
       suggestedName: z.string().min(1).max(MAX_FILE_NAME_LENGTH),
       kind: documentKindSchema.default('document'),
       wordOnly: z.boolean().default(false),
+      // Never saved: the first save follows, or asks, the preferred format.
+      fresh: z.boolean().default(false),
     }),
     response: saveResultSchema,
   },

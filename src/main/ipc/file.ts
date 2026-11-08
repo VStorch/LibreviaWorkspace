@@ -1,6 +1,7 @@
 import { AppError, ErrorCode } from '@shared/errors.js'
 import { IpcChannel } from '@shared/ipc-channels.js'
-import type { LoadedFile, LossInventory } from '@shared/types.js'
+import type { BrowserWindow } from 'electron'
+import { SaveFormat, type DocumentKind, type LoadedFile, type LossInventory } from '@shared/types.js'
 import {
   ensureSupportedExtension,
   extensionOf,
@@ -13,9 +14,11 @@ import {
   isWordTemplatePath,
   kindFromPath,
   ODT_EXTENSION,
+  preferredExtension,
+  withExtension,
   WORD_EXTENSION,
 } from '@services/file/formats.js'
-import { showOpenFileDialog, showSaveFileDialog } from '../dialogs.js'
+import { chooseSaveFormat, showOpenFileDialog, showSaveFileDialog } from '../dialogs.js'
 import { openDocx, saveDocx } from '../docx/index.js'
 import { openOdt, saveOdt } from '../odt/index.js'
 import { odtGenerator } from '../odt/generator.js'
@@ -40,11 +43,36 @@ import {
 import { clearRecentFiles, isRemembered, listRecentFiles, rememberRecentFile } from '../fs/recent.js'
 import { readTextFile } from '../fs/read-text.js'
 import { refreshMenu } from '../menu.js'
+import { editorPreferences, updatePreferences } from '../preferences.js'
 import { t } from '../i18n.js'
-import { exportName } from './export.js'
 import { handle } from './registry.js'
 import { windowOf } from './sender-window.js'
 import { forgetExternalFileRequest, isExternalFileRequested } from '../external-files.js'
+
+interface SaveNameRequest {
+  readonly suggestedName: string
+  readonly kind: DocumentKind
+  readonly wordOnly: boolean
+  readonly fresh: boolean
+}
+
+/** `null` when the user cancels the format question. */
+async function suggestedSaveName(window: BrowserWindow, request: SaveNameRequest): Promise<string | null> {
+  if (request.wordOnly) return withExtension(request.suggestedName, WORD_EXTENSION)
+  if (!request.fresh) return request.suggestedName
+  const format = await resolvedSaveFormat(window)
+  return format === null
+    ? null
+    : withExtension(request.suggestedName, preferredExtension(request.kind, format))
+}
+
+async function resolvedSaveFormat(window: BrowserWindow): Promise<SaveFormat | null> {
+  const stored = editorPreferences().saveFormat
+  if (stored !== SaveFormat.Ask) return stored
+  const chosen = await chooseSaveFormat(window)
+  if (chosen !== null) updatePreferences({ saveFormat: chosen })
+  return chosen
+}
 
 interface LoadedContent {
   readonly content: string
@@ -203,15 +231,16 @@ export function registerFileHandlers(): void {
 
   handle(IpcChannel.FileChooseSavePath, async (payload, event) => {
     const { wordOnly } = payload
-    const chosen = await showSaveFileDialog(
-      windowOf(event),
-      wordOnly ? exportName(payload.suggestedName, WORD_EXTENSION.slice(1)) : payload.suggestedName,
-      payload.kind,
-      { wordOnly },
-    )
+    const window = windowOf(event)
+    const suggestedName = await suggestedSaveName(window, payload)
+    if (suggestedName === null) return { canceled: true as const }
+
+    const chosen = await showSaveFileDialog(window, suggestedName, payload.kind, { wordOnly })
     if (chosen === null) return { canceled: true as const }
 
-    const destination = wordOnly ? asWordPath(chosen) : ensureSupportedExtension(chosen, payload.kind)
+    const destination = wordOnly
+      ? asWordPath(chosen)
+      : ensureSupportedExtension(chosen, payload.kind, extensionOf(suggestedName))
     // Only authorizes: writing is another call, so the loss warning comes before writing.
     const path = authorizePath(destination)
     return { canceled: false as const, path, name: fileNameFromPath(path) }

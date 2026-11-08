@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import type { SaveDialogOptions } from 'electron'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -96,5 +97,83 @@ test.describe('new document in .docx', () => {
 
     // And the file really exists, with the body inside.
     expect(await entryOf(destinationFile, 'word/document.xml')).toContain('Primeira linha do corpo.')
+  })
+})
+
+test.describe('format of new files', () => {
+  let session: Session
+  let folder: string
+
+  test.beforeEach(async () => {
+    folder = await mkdtemp(join(tmpdir(), 'librevia-save-format-'))
+    session = await launch({ askSaveFormat: true })
+  })
+
+  test.afterEach(async () => {
+    await session.close()
+    await rm(folder, { recursive: true, force: true })
+  })
+
+  test('the first save asks once, and the answer names and filters the next new files', async () => {
+    await session.app.evaluate(({ dialog }, target) => {
+      const record = globalThis as unknown as {
+        questions: number
+        suggested: string[]
+        firstFilter: string[]
+      }
+      record.questions = 0
+      record.suggested = []
+      record.firstFilter = []
+      dialog.showMessageBox = async () => {
+        record.questions += 1
+        return { response: 0, checkboxChecked: false }
+      }
+      dialog.showSaveDialog = (async (...args: unknown[]) => {
+        const options = args.at(-1) as SaveDialogOptions
+        const name = (options.defaultPath ?? '').split('/').pop() ?? ''
+        record.suggested.push(name)
+        record.firstFilter.push(...(options.filters?.[0]?.extensions ?? []))
+        return { canceled: false, filePath: `${target}/${record.suggested.length}-${name}` }
+      }) as typeof dialog.showSaveDialog
+    }, folder)
+
+    await menu(session, 'new-document')
+    await session.window.keyboard.type('Primeiro')
+    await menu(session, 'save')
+    await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
+
+    await menu(session, 'new-spreadsheet')
+    await expect(session.window.locator('.statusbar__state')).toBeVisible()
+    await menu(session, 'save')
+    await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
+
+    const record = await session.app.evaluate(
+      () => globalThis as unknown as { questions: number; suggested: string[]; firstFilter: string[] },
+    )
+    expect(record.questions).toBe(1)
+    expect(record.suggested).toEqual(['Documento sem título.docx', 'Planilha sem título.xlsx'])
+    expect(record.firstFilter).toEqual(['docx', 'xlsx'])
+    expect(await entryOf(join(folder, '1-Documento sem título.docx'), 'word/document.xml')).toContain(
+      'Primeiro',
+    )
+  })
+
+  test('Tools → Options changes the format of the new files', async () => {
+    await menu(session, 'options')
+    const dialog = session.window.getByRole('dialog', { name: 'Opções' })
+    await dialog.getByLabel('Formato dos arquivos novos').selectOption('libreoffice')
+    await session.window.screenshot({ path: test.info().outputPath('options.png') })
+    await dialog.getByRole('button', { name: 'Aplicar' }).click()
+    await expect(dialog).toBeHidden()
+
+    const target = join(folder, 'ata.odt')
+    await stubDialogs(session.app, { save: target })
+    await menu(session, 'new-document')
+    await expect(session.window.locator('.statusbar__state')).toBeVisible()
+    await expect(session.window).toHaveTitle(/Documento sem título\.odt/)
+    await session.window.keyboard.type('Ata')
+    await menu(session, 'save')
+    await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
+    expect(await entryOf(target, 'content.xml')).toContain('Ata')
   })
 })

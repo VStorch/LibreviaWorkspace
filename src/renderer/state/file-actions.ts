@@ -96,7 +96,7 @@ function createOpenActions(set: SetWorkspace, get: GetWorkspace, ctx: WorkspaceC
       ctx.show({
         file: {
           path: null,
-          name: defaultFileName(DocumentKind.Document, currentPreferences().language),
+          name: untitledName(DocumentKind.Document),
           kind: DocumentKind.Document,
         },
         model: createEmptyDocument(),
@@ -109,7 +109,7 @@ function createOpenActions(set: SetWorkspace, get: GetWorkspace, ctx: WorkspaceC
       ctx.show({
         file: {
           path: null,
-          name: defaultFileName(DocumentKind.Spreadsheet, currentPreferences().language),
+          name: untitledName(DocumentKind.Spreadsheet),
           kind: DocumentKind.Spreadsheet,
         },
         model: createEmptyDocument(),
@@ -260,11 +260,21 @@ function createSaveActions(
   }
 }
 
+function untitledName(kind: DocumentKind): string {
+  const { language, saveFormat } = currentPreferences()
+  return defaultFileName(kind, language, saveFormat)
+}
+
 function chooseSavePath(
   file: OpenFile,
   wordOnly: boolean,
 ): ReturnType<typeof window.api.file.chooseSavePath> {
-  return window.api.file.chooseSavePath({ suggestedName: file.name, kind: file.kind, wordOnly })
+  return window.api.file.chooseSavePath({
+    suggestedName: file.name,
+    kind: file.kind,
+    wordOnly,
+    fresh: file.path === null,
+  })
 }
 
 /**

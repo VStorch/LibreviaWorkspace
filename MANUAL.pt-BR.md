@@ -91,6 +91,21 @@ E estes, o Librevia **cria**. O `.pdf` também abre para leitura, como mostra a 
 | `.pdf` | **Arquivo → Exportar para PDF…**, para documentos e planilhas |
 | `.docx`, `.odt`, `.html`, `.md` | **Arquivo → Exportar como**, só para documentos |
 
+<a id="format-of-new-files"></a>
+
+### O formato dos arquivos novos
+
+Na primeira vez que você salva um arquivo novo, o Librevia pergunta qual formato usar dali em diante:
+
+| Escolha | Documentos | Planilhas | Quem abre |
+| --- | --- | --- | --- |
+| **Office e Google** | `.docx` | `.xlsx` | Word, Excel, Google Docs e Planilhas, LibreOffice |
+| **LibreOffice** | `.odt` | `.xlsx` | LibreOffice e Word; o Calc abre o `.xlsx` |
+| **Librevia** | `.sdoc` | `.ssheet` | só o Librevia, que guarda tudo neles |
+
+A pergunta é feita uma vez só. **Ferramentas → Opções…** muda a escolha, e o **Salvar como** continua
+oferecendo todos os formatos.
+
 <a id="documentos-do-libreoffice-odt"></a>
 
 ### Documentos do LibreOffice (`.odt`)
@@ -586,7 +601,7 @@ Em cada comentário você pode **Responder**, **Editar**, **Resolver** (ele fica
 resolvido, mas continua no arquivo), **Reabrir** e **Excluir**. **Inserir → Próximo comentário** e
 **Comentário anterior** andam de um a outro.
 
-O nome que aparece nos seus comentários e revisões é definido em **Ferramentas → Nome do autor…**.
+O nome que aparece nos seus comentários e revisões é definido em **Ferramentas → Nome do autor…** ou em **Ferramentas → Opções…**.
 
 Comentários de um `.docx` vêm junto e voltam ao arquivo, inclusive as respostas.
 
@@ -1066,7 +1081,8 @@ Na prática: fonte, alinhamento, bordas, gráficos, tabelas dinâmicas, comentá
 continuam no arquivo depois que você corrige uma vírgula. Num `.odt` é igual (veja
 [Documentos do LibreOffice](#documentos-do-libreoffice-odt)).
 
-**Documento novo em `.docx`.** Em "Salvar como", escolha "Documento do Word". Como não há arquivo
+**Documento novo em `.docx`.** Escolha "Office e Google" no primeiro salvamento (veja
+[O formato dos arquivos novos](#format-of-new-files)), ou "Documento do Word" em "Salvar como". Como não há arquivo
 de origem, o aplicativo cria um pacote mínimo, com estilos, página e propriedades, mas sem o seu
 nome dentro, e grava o documento nele. Cada gravação parte do mesmo pacote mínimo, e não do arquivo
 gravado da última vez. Assim, salvar dez vezes dá o mesmo arquivo que salvar uma.

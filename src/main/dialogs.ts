@@ -1,5 +1,5 @@
 import { dialog, type BrowserWindow } from 'electron'
-import { DiscardChoice, DocumentKind, PlainTextChoice } from '@shared/types.js'
+import { DiscardChoice, DocumentKind, PlainTextChoice, SaveFormat } from '@shared/types.js'
 import {
   DOCUMENT_EXTENSION,
   EXCEL_EXTENSION,
@@ -12,6 +12,7 @@ import {
   WORD_EXTENSION,
   WORD_MACRO_TEMPLATE_EXTENSION,
   WORD_TEMPLATE_EXTENSION,
+  filtersStartingWith,
 } from '@services/file/formats.js'
 import { t } from './i18n.js'
 
@@ -39,6 +40,11 @@ function templateExtensions(): string[] {
 
 function wordDocFilter() {
   return { name: t('dialog.filter.wordDoc'), extensions: [bare(WORD_EXTENSION)] }
+}
+
+/** The system dialog starts on the first filter: the one of the suggested name. */
+function saveFiltersFor(kind: DocumentKind, suggestedName: string) {
+  return filtersStartingWith(getSaveFilters(kind), suggestedName)
 }
 
 function getSaveFilters(kind: DocumentKind) {
@@ -106,7 +112,7 @@ export async function showSaveFileDialog(
   const result = await dialog.showSaveDialog(window, {
     title: t('dialog.save.title'),
     defaultPath: suggestedName,
-    filters: wordOnly ? [wordDocFilter()] : getSaveFilters(kind),
+    filters: wordOnly ? [wordDocFilter()] : saveFiltersFor(kind, suggestedName),
     // The system dialog already warns about overwriting.
     properties: ['createDirectory', 'showOverwriteConfirmation'],
   })
@@ -129,6 +135,28 @@ export async function confirmDiscardChanges(window: BrowserWindow, fileName: str
   if (response === 0) return DiscardChoice.Save
   if (response === 1) return DiscardChoice.Discard
   return DiscardChoice.Cancel
+}
+
+const SAVE_FORMAT_BUTTONS = [SaveFormat.Office, SaveFormat.LibreOffice, SaveFormat.Librevia] as const
+
+/** Asked on the first save of a new file; `null` is Cancel, which saves nothing. */
+export async function chooseSaveFormat(window: BrowserWindow): Promise<SaveFormat | null> {
+  const { response } = await dialog.showMessageBox(window, {
+    type: 'question',
+    title: t('dialog.saveFormat.title'),
+    message: t('dialog.saveFormat.message'),
+    detail: t('dialog.saveFormat.detail'),
+    buttons: [
+      t('dialog.saveFormat.office'),
+      t('dialog.saveFormat.libreOffice'),
+      t('dialog.saveFormat.librevia'),
+      t('dialog.discard.cancel'),
+    ],
+    defaultId: 0,
+    cancelId: SAVE_FORMAT_BUTTONS.length,
+    noLink: true,
+  })
+  return SAVE_FORMAT_BUTTONS[response] ?? null
 }
 
 /** "Cancel" answers Esc and Enter: a link in a file opens a browser only on a deliberate choice. */
