@@ -124,7 +124,7 @@ test.describe('tabs', () => {
   })
   const activeTab = () => session.window.locator('.tabbar__tab--active .tabbar__label')
 
-  test('the tab commands move between tabs; Ctrl+PgUp/PgDn are left to the sheets of a spreadsheet', async () => {
+  test('the next and previous tab commands move between tabs', async () => {
     const { a, b } = await twoFiles(paragraph('Texto de A.'))
     await open(a)
     await open(b)
@@ -134,19 +134,6 @@ test.describe('tabs', () => {
     await expect(activeTab()).toHaveAccessibleName('a.docx')
     await menu(session, 'previous-tab')
     await expect(activeTab()).toHaveAccessibleName('b.docx')
-
-    await editor().click()
-    await session.window.keyboard.press('Control+PageUp')
-    await expect(activeTab()).toHaveAccessibleName('b.docx')
-
-    await menu(session, 'new-spreadsheet')
-    await session.window.locator('.tabs__add').click()
-    const sheet = () => session.window.locator('.workbook [role="tab"][aria-selected="true"]')
-    const second = await sheet().textContent()
-    await session.window.keyboard.press('Control+PageUp')
-    await expect(sheet()).not.toHaveText(second ?? '')
-    await expect(tabs()).toHaveCount(3)
-    await expect(session.window.locator('.workbook')).toBeVisible()
   })
 
   test('on a spreadsheet Ctrl+PgDn walks forward through the sheets, as Ctrl+PgUp walks back', async () => {
