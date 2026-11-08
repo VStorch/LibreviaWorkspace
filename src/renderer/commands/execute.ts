@@ -1,4 +1,5 @@
 import { runsWhileLocked, type CommandId } from '@shared/commands/registry.js'
+import { DocumentKind } from '@shared/types.js'
 import { activeWorkspaceStore, useTabs } from '../state/tabs.js'
 
 export interface CommandHandler {
@@ -45,8 +46,12 @@ function handlerFor(id: CommandId): Registered | undefined {
   return (handlers.get(id) ?? []).findLast(({ source }) => !isEditorSource(source) || source === activeEditor)
 }
 
+/** The lock belongs to the text: a spreadsheet's and a PDF's views keep their own rules. */
 function lockedOut(id: CommandId, { source }: Registered): boolean {
-  return isEditorSource(source) && activeWorkspaceStore().getState().readOnly && !runsWhileLocked(id)
+  const { readOnly, file } = activeWorkspaceStore().getState()
+  const kind = file?.kind
+  const locksText = readOnly && kind !== DocumentKind.Spreadsheet && kind !== DocumentKind.Pdf
+  return isEditorSource(source) && locksText && !runsWhileLocked(id)
 }
 
 export async function executeCommand(id: CommandId, arg?: string): Promise<void> {

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { MenuCommand } from '@shared/types.js'
+import { DocumentKind, MenuCommand } from '@shared/types.js'
 import { EDITOR_COMMANDS, type EditorCommand } from '../document/editor-commands.js'
 import { useTabs } from '../state/tabs.js'
 import { createWorkspaceStore, useWorkspace } from '../state/workspace.js'
@@ -20,7 +20,7 @@ describe('executeCommand', () => {
 
   beforeEach(() => {
     heard.length = 0
-    useWorkspace.setState({ readOnly: false })
+    useWorkspace.setState({ readOnly: false, file: null })
     cleanups.push(editorOf(initialTabs.activeId, heard))
   })
 
@@ -94,5 +94,19 @@ describe('executeCommand', () => {
     await executeCommand(MenuCommand.FindReplace)
 
     expect(heard).toEqual([MenuCommand.FindReplace])
+  })
+  it('leaves the lock to the text: a locked spreadsheet still opens its properties', async () => {
+    const run = vi.fn()
+    cleanups.push(
+      registerHandlers(editorSource(initialTabs.activeId), { [MenuCommand.DocumentProperties]: { run } }),
+    )
+    useWorkspace.setState({
+      readOnly: true,
+      file: { path: '/docs/contas.xlsx', name: 'contas.xlsx', kind: DocumentKind.Spreadsheet },
+    })
+
+    await executeCommand(MenuCommand.DocumentProperties)
+
+    expect(run).toHaveBeenCalledOnce()
   })
 })
