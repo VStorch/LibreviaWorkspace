@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { DocumentKind, type DraftSummary } from '@shared/types.js'
 import type { IpcResult } from '@shared/ipc.js'
 import { canPlaceTab, isHomeTab, MAX_OPEN_TABS } from '@services/tabs/tab-order.js'
+import { saveAllPlan, type DirtyTab } from '@services/tabs/quit.js'
 import { t } from '../i18n.js'
 import { callReporting, releaseFile } from './context.js'
 import { refreshRecents, setRecents } from './recents.js'
@@ -217,16 +218,30 @@ export async function closeAllTabs(): Promise<boolean> {
   return true
 }
 
-/** In tab order, each shown before its save; the first that fails or is canceled stops the rest. */
+/**
+ * In tab order; the first that fails or is canceled stops the rest, and its tab comes to the
+ * screen, where its banner says why.
+ */
 export async function saveAllTabs(): Promise<boolean> {
-  for (const tab of useTabs.getState().tabs) {
-    if (!tab.store.getState().isDirty) continue
-    activateTab(tab.id)
-    if (!(await tab.store.getState().save())) return false
+  const candidates = useTabs.getState().tabs.map(({ id, store }) => {
+    const { isDirty, file } = store.getState()
+    return { id, dirty: isDirty, hasPath: (file?.path ?? null) !== null }
+  })
+  for (const step of saveAllPlan(candidates)) {
+    const store = tabStore(step.id)
+    if (store === undefined) continue
+    if (step.showFirst) activateTab(step.id)
+    if (await store.getState().save()) continue
+    activateTab(step.id)
+    return false
   }
   return true
 }
 
-export function anyTabDirty(): boolean {
-  return useTabs.getState().tabs.some((tab) => tab.store.getState().isDirty)
+/** Every modified tab, in tab order, by the name its tab shows. */
+export function dirtyTabs(): DirtyTab[] {
+  return useTabs.getState().tabs.flatMap(({ id, store }) => {
+    const { isDirty, file } = store.getState()
+    return isDirty ? [{ id, label: file?.name ?? t('shell.file.untitled') }] : []
+  })
 }

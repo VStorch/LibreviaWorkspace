@@ -132,6 +132,29 @@ export async function confirmDiscardChanges(window: BrowserWindow, fileName: str
     noLink: true,
   })
 
+  return choiceOf(response)
+}
+
+/** On quitting with several modified tabs: one answer for all of them. */
+export async function confirmDiscardSeveral(
+  window: BrowserWindow,
+  fileNames: readonly string[],
+): Promise<DiscardChoice> {
+  const { response } = await dialog.showMessageBox(window, {
+    type: 'warning',
+    title: t('dialog.discard.title'),
+    message: t('dialog.discardSeveral.message', { count: fileNames.length }),
+    detail: `${fileNames.join('\n')}\n\n${t('dialog.discard.detail')}`,
+    buttons: [t('dialog.discardSeveral.saveAll'), t('dialog.discard.dontSave'), t('dialog.discard.cancel')],
+    defaultId: 0,
+    cancelId: 2,
+    noLink: true,
+  })
+
+  return choiceOf(response)
+}
+
+function choiceOf(response: number): DiscardChoice {
   if (response === 0) return DiscardChoice.Save
   if (response === 1) return DiscardChoice.Discard
   return DiscardChoice.Cancel

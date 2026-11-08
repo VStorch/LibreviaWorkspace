@@ -5,15 +5,14 @@ import { IpcChannel, type PushIpcChannel } from '@shared/ipc-channels.js'
 import { pushContracts, type MenuSnapshot, type PushPayload } from '@shared/ipc.js'
 import type { MenuCommandPayload } from '@shared/api.js'
 import { DiscardChoice, MenuCommand } from '@shared/types.js'
-import { confirmDiscardChanges } from './dialogs.js'
+import { quitQuestion, type DirtyTab, type QuitQuestion } from '@services/tabs/quit.js'
+import { confirmDiscardChanges, confirmDiscardSeveral } from './dialogs.js'
 import { installContextMenu } from './context-menu.js'
-import { t } from './i18n.js'
 import { SECURE_WEB_PREFERENCES } from './security-policy.js'
 import { applyNavigationPolicy } from './security.js'
 
 interface WindowState {
-  unsavedWork: boolean
-  fileLabel: string
+  dirty: readonly DirtyTab[]
   bypassGuard: boolean
   commands: MenuSnapshot
 }
@@ -26,8 +25,7 @@ function stateOf(window: BrowserWindow): WindowState {
   const existing = states.get(window)
   if (existing !== undefined) return existing
   const created: WindowState = {
-    unsavedWork: false,
-    fileLabel: t('shell.file.untitled'),
+    dirty: [],
     bypassGuard: false,
     commands: HOME_SNAPSHOT,
   }
@@ -43,13 +41,12 @@ export function devServerUrl(): string | null {
 /** Returns whether the menu has to be rebuilt. */
 export function updateWindowState(
   window: BrowserWindow,
-  shown: { title: string; isDirty: boolean; unsavedWork: boolean; commands: MenuSnapshot },
+  shown: { title: string; isDirty: boolean; dirty: readonly DirtyTab[]; commands: MenuSnapshot },
 ): boolean {
   const state = stateOf(window)
-  state.unsavedWork = shown.unsavedWork
-  state.fileLabel = shown.title
+  state.dirty = shown.dirty
   window.setTitle(`${shown.isDirty ? '• ' : ''}${shown.title} — ${APP_NAME}`)
-  window.setDocumentEdited(shown.unsavedWork)
+  window.setDocumentEdited(shown.dirty.length > 0)
 
   const menuChanged = JSON.stringify(shown.commands) !== JSON.stringify(state.commands)
   state.commands = shown.commands
@@ -86,15 +83,25 @@ export function broadcastPush<C extends PushIpcChannel>(channel: C, payload: Pus
   for (const window of BrowserWindow.getAllWindows()) sendPush(window.webContents, channel, payload)
 }
 
+function askBeforeClosing(
+  window: BrowserWindow,
+  question: Exclude<QuitQuestion, { kind: 'none' }>,
+): Promise<DiscardChoice> {
+  return question.kind === 'one'
+    ? confirmDiscardChanges(window, question.label)
+    : confirmDiscardSeveral(window, question.labels)
+}
+
 /** In main, so the prompt appears even if the renderer hangs. */
 function installCloseGuard(window: BrowserWindow): void {
   window.on('close', (event) => {
     const state = stateOf(window)
-    if (state.bypassGuard || !state.unsavedWork) return
+    const question = quitQuestion(state.dirty)
+    if (state.bypassGuard || question.kind === 'none') return
 
     event.preventDefault()
 
-    void confirmDiscardChanges(window, state.fileLabel).then((choice) => {
+    void askBeforeClosing(window, question).then((choice) => {
       if (choice === DiscardChoice.Cancel) return
 
       if (choice === DiscardChoice.Discard) {
@@ -102,7 +109,8 @@ function installCloseGuard(window: BrowserWindow): void {
         return
       }
 
-      // Only the renderer knows the content: it saves and closes through `closeWithoutGuard`.
+      // Only the renderer knows the content: it saves every tab and closes through
+      // `closeWithoutGuard`; one cancel keeps the window.
       sendMenuCommand(window, { command: MenuCommand.SaveAndExit })
     })
   })

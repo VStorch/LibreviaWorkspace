@@ -8,6 +8,7 @@ import {
   dismissDraft,
   newDocument,
   openRecent,
+  saveAllTabs,
   useShell,
 } from './shell.js'
 import { activeWorkspaceStore, addTab, useTabs } from './tabs.js'
@@ -175,6 +176,42 @@ describe('saving as', () => {
     expect(save).not.toHaveBeenCalled()
     expect(b.getState().file?.path).toBe('/docs/b.txt')
     expect(b.getState().error?.message).toContain('a.txt')
+  })
+})
+
+describe('saving every tab before quitting', () => {
+  it('saves the modified tabs in order without showing those that have a path', async () => {
+    const api = stubApi()
+    const save = vi.fn(({ path }: { path: string }) => ok({ name: path.split('/').pop() }))
+    Object.assign(api.file, { save })
+    await openRecent('/docs/a.txt')
+    await openRecent('/docs/b.txt')
+    await openRecent('/docs/c.txt')
+    const [a, , c] = useTabs.getState().tabs
+    a!.store.setState({ isDirty: true })
+    c!.store.setState({ isDirty: true })
+    useTabs.setState({ activeId: useTabs.getState().tabs[1]!.id })
+
+    expect(await saveAllTabs()).toBe(true)
+
+    expect(save.mock.calls.map(([request]) => request.path)).toEqual(['/docs/a.txt', '/docs/c.txt'])
+    expect(activeWorkspaceStore().getState().file?.path).toBe('/docs/b.txt')
+  })
+
+  it('stops at the first save that fails and shows its tab', async () => {
+    const api = stubApi()
+    const save = vi.fn(() =>
+      Promise.resolve({ ok: false as const, error: { code: 'INTERNAL', message: 'x' } }),
+    )
+    Object.assign(api.file, { save })
+    await openRecent('/docs/a.txt')
+    await openRecent('/docs/b.txt')
+    for (const tab of useTabs.getState().tabs) tab.store.setState({ isDirty: true })
+
+    expect(await saveAllTabs()).toBe(false)
+
+    expect(save).toHaveBeenCalledTimes(1)
+    expect(activeWorkspaceStore().getState().file?.path).toBe('/docs/a.txt')
   })
 })
 

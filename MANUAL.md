@@ -113,6 +113,9 @@ spreadsheet or PDF. Menus and toolbar act on the file on screen.
 - A blank document you did not touch gives its place to the next file you open, as in Word. **New
   document** always opens a new tab.
 - Hidden tabs keep their drafts too, every eight seconds.
+- Quitting with unsaved changes asks first. With several modified files, one question lists their
+  names: **Save all** saves them in tab order and shows each file never saved before asking where
+  to put it; **Don’t save** quits; **Cancel**, or canceling any save, keeps everything open.
 
 When you come back to a document, the cursor is at the start and **Undo** does not reach what you
 did before switching. Spreadsheets keep their undo.

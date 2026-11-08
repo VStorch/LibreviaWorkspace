@@ -199,6 +199,59 @@ test.describe('tabs', () => {
     await menu(session, 'previous-tab')
     await expect.poll(checked).toBe(true)
   })
+  async function twoModifiedTabs(): Promise<void> {
+    const { a, b } = await twoFiles(paragraph('Texto de A.'))
+    for (const path of [a, b]) {
+      await open(path)
+      await editor().click()
+      await session.window.keyboard.type('Editado. ')
+    }
+    // Main hears the tab list with the title: once the dot is there, it knows both.
+    await expect
+      .poll(() => session.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.getTitle()))
+      .toMatch(/^•/)
+  }
+
+  const closeWindow = () =>
+    session.app.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0]?.close()
+    })
+
+  test('quitting with two modified tabs asks once, naming both; Cancel keeps them', async () => {
+    await twoModifiedTabs()
+    await session.app.evaluate(({ dialog }) => {
+      const asked: string[] = []
+      Object.assign(globalThis, { asked })
+      dialog.showMessageBox = (async (...args: unknown[]) => {
+        const options = args.at(-1) as Electron.MessageBoxOptions
+        asked.push(`${options.message}\n${options.detail ?? ''}\n${options.buttons?.join('|') ?? ''}`)
+        return { response: 2, checkboxChecked: false }
+      }) as typeof dialog.showMessageBox
+    })
+
+    await closeWindow()
+
+    const asked = () => session.app.evaluate(() => (globalThis as unknown as { asked: string[] }).asked)
+    await expect.poll(async () => (await asked()).length).toBe(1)
+    const [question] = await asked()
+    expect(question).toContain('2 arquivos')
+    expect(question).toContain('a.docx\nb.docx')
+    expect(question).toContain('Salvar todos|Não salvar|Cancelar')
+    await expect(tabs()).toHaveCount(2)
+    await expect(editor()).toContainText('Editado.')
+  })
+
+  test('quitting with two modified tabs and choosing Don’t save closes the window', async () => {
+    await twoModifiedTabs()
+    await stubDialogs(session.app, { messageBox: 1 })
+    const closed = session.app.waitForEvent('close')
+
+    await closeWindow()
+
+    await closed
+    await rm(session.userData, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
+    session = await launch()
+  })
 })
 
 async function draftsOnDisk(session: Session): Promise<string> {

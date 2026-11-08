@@ -30,6 +30,7 @@ import {
   privacyReportSchema,
 } from './schemas.js'
 import { PRIVACY_CATEGORIES } from '@services/file/privacy.js'
+import { MAX_OPEN_TABS } from '@services/tabs/tab-order.js'
 import { PDF_VIEWER_ORIGIN } from './constants.js'
 import { ACP_AGENT_IDS } from '@services/ai/acp-agents.js'
 import { AiProviderKind } from '@services/ai/provider.js'
@@ -322,8 +323,15 @@ export const ipcContracts = {
       title: z.string().max(300),
       /** The tab on screen: the dot in the title. */
       isDirty: z.boolean(),
-      /** Any tab, hidden ones included: what the close guard asks about. */
-      unsavedWork: z.boolean(),
+      /** Every modified tab, hidden ones included, in tab order: what the close guard asks about. */
+      dirty: z
+        .array(
+          z.object({
+            id: z.string().min(1).max(MAX_ID_LENGTH),
+            label: z.string().min(1).max(MAX_FILE_NAME_LENGTH),
+          }),
+        )
+        .max(MAX_OPEN_TABS),
       commands: menuSnapshotSchema,
     }),
     response: z.object({ applied: z.literal(true) }),

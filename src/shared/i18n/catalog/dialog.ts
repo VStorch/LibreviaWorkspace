@@ -65,6 +65,11 @@ export const DIALOG = {
   'dialog.discard.save': { pt: 'Salvar', en: 'Save' },
   'dialog.discard.dontSave': { pt: 'Não salvar', en: 'Don’t save' },
   'dialog.discard.cancel': { pt: 'Cancelar', en: 'Cancel' },
+  'dialog.discardSeveral.message': {
+    pt: 'Salvar as alterações em {count} arquivos?',
+    en: 'Save changes to {count} files?',
+  },
+  'dialog.discardSeveral.saveAll': { pt: 'Salvar todos', en: 'Save all' },
 
   'dialog.externalLink.title': { pt: 'Abrir link', en: 'Open link' },
   'dialog.externalLink.message': {

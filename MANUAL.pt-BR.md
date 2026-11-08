@@ -114,6 +114,10 @@ PDF. Menus e barra de ferramentas agem no arquivo que está na tela.
 - Um documento em branco que você não mexeu dá lugar ao próximo arquivo aberto, como no Word.
   **Novo documento** sempre abre uma aba nova.
 - As abas escondidas também guardam rascunho, a cada oito segundos.
+- Sair com alterações não salvas pergunta antes. Com vários arquivos alterados, uma só pergunta
+  lista os nomes: **Salvar todos** salva na ordem das abas e mostra cada arquivo nunca salvo antes
+  de perguntar onde guardá-lo; **Não salvar** sai; **Cancelar**, ou cancelar qualquer gravação,
+  mantém tudo aberto.
 
 Ao voltar a um documento, o cursor fica no início e **Desfazer** não alcança o que você fez antes
 de trocar de aba. As planilhas mantêm o desfazer.

@@ -3,7 +3,7 @@ import type { MenuSnapshot } from '@shared/ipc.js'
 import { DocumentKind, MenuCommand } from '@shared/types.js'
 import { buildWindowTitle } from '@services/file/formats.js'
 import { REVISION_VIEW_COMMANDS } from '../state/revision-view.js'
-import { anyTabDirty } from '../state/shell.js'
+import { dirtyTabs } from '../state/shell.js'
 import { useTabs } from '../state/tabs.js'
 import type { WorkspaceState } from '../state/types.js'
 import { useWorkspace } from '../state/workspace.js'
@@ -37,7 +37,7 @@ export function useWindowStateSync(): void {
       const untitled = t('shell.file.untitled')
       const title = state.file?.name ?? untitled
       const { isDirty } = state
-      const payload = { title, isDirty, unsavedWork: anyTabDirty(), commands: menuSnapshot(state) }
+      const payload = { title, isDirty, dirty: dirtyTabs(), commands: menuSnapshot(state) }
       const key = JSON.stringify(payload)
       if (key === last) return
 
