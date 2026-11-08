@@ -351,6 +351,25 @@ test('Ctrl+= and Ctrl++ zoom the PDF in, with focus on it or on the search bar',
   await expect(zoom).toHaveText('125%')
 })
 
+test('Ctrl+wheel over the PDF zooms in and out', async () => {
+  await openPdf(file)
+  const frame = await viewerFrame()
+  const zoom = session.window.locator('.statusbar__zoom-level')
+  await menu(session, 'zoom-reset')
+  await expect(zoom).toHaveText('100%')
+  const page = await pageText().boundingBox()
+  await session.window.mouse.move(page!.x + page!.width / 2, page!.y + page!.height / 2)
+
+  await session.window.keyboard.down('Control')
+  await session.window.mouse.wheel(0, -100)
+  await expect(zoom).toHaveText('110%')
+  await expect.poll(async () => Math.abs((await pageWidth(frame)) - 816 * 1.1)).toBeLessThanOrEqual(1)
+  await session.window.mouse.wheel(0, 100)
+  await session.window.mouse.wheel(0, 100)
+  await session.window.keyboard.up('Control')
+  await expect(zoom).toHaveText('90%')
+})
+
 test('finds text in the PDF, steps through the matches and clears the highlights on close', async () => {
   const report = join(folder, 'busca.pdf')
   await writeFile(report, pdfOf(['Receita anual', 'Despesa anual', 'Saldo anual']))

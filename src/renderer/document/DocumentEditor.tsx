@@ -15,7 +15,7 @@ import { useLeaveReadingOnEscape, useReadingMode } from '../state/reading.js'
 import { useRevisionView } from '../state/revision-view.js'
 import { t as translateNow, useT } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
-import { setFittedZoom, useEffectiveZoom } from '../state/zoom.js'
+import { setFittedZoom, useCtrlWheelZoom, useEffectiveZoom } from '../state/zoom.js'
 import { DocumentToolbar } from './toolbar/DocumentToolbar.js'
 import { NavigationPane } from './NavigationPane.js'
 import { COMMENTS_PANE_WIDTH_PX } from './CommentsPane.js'
@@ -82,7 +82,7 @@ export function DocumentEditor(): React.JSX.Element {
   })
   const floatsByPage = useFloatsByPage(editor, layout, contentRevision)
   const sheetEditing = useSheetEditing(editor, readOnly)
-  useFittedZoom(scrollRef, editor, geometry.stackWidthPx)
+  useScrollZoom(scrollRef, editor, geometry.stackWidthPx)
 
   // The second pass of page fields (`settlePageFields`).
   useEffect(() => {
@@ -411,6 +411,15 @@ function useContextMenuTarget(): [ContextMenuTarget | null, (target: ContextMenu
     [],
   )
   return [contextTarget, setContextTarget]
+}
+
+function useScrollZoom(
+  scrollRef: { readonly current: HTMLDivElement | null },
+  editor: Editor | null,
+  stackWidthPx: number,
+): void {
+  useFittedZoom(scrollRef, editor, stackWidthPx)
+  useCtrlWheelZoom(scrollRef, editor !== null)
 }
 
 /** Always measured: zooming in from fit needs the visible value. */

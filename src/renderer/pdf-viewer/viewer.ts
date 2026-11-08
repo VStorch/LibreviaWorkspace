@@ -1,6 +1,6 @@
 import { getDocument, PasswordResponses, type PDFDocumentLoadingTask } from 'pdfjs-dist'
 import { EventBus, PDFFindController, PDFLinkService, PDFViewer } from 'pdfjs-dist/web/pdf_viewer.mjs'
-import { clampZoom } from '@services/document/zoom.js'
+import { clampZoom, createWheelZoom } from '@services/document/zoom.js'
 import { PDF_VIEWER_ORIGIN } from '@shared/constants.js'
 import { PAGE_WIDTH, type ViewerCommand } from '@shared/pdf-viewer-protocol.js'
 import { isPdfZoomInKey } from '@shared/shortcuts.js'
@@ -39,7 +39,7 @@ export function createViewer(container: HTMLDivElement): (command: ViewerCommand
   reportToApp(eventBus)
   eventBus.on('pagesinit', () => applyZoom(viewer, zoom))
   sendLinksToApp(container)
-  sendZoomKeysToApp()
+  sendZoomInputToApp()
 
   return (command) => {
     switch (command.type) {
@@ -159,10 +159,21 @@ function sendLinksToApp(container: HTMLElement): void {
 }
 
 /** The zoom is the app's, shared with the editor: the frame only asks for a step. */
-function sendZoomKeysToApp(): void {
+function sendZoomInputToApp(): void {
   window.addEventListener('keydown', (event) => {
     if (!isPdfZoomInKey(event)) return
     event.preventDefault()
     tellApp({ type: 'zoom-in' })
   })
+  const wheel = createWheelZoom()
+  window.addEventListener(
+    'wheel',
+    (event) => {
+      if (!event.ctrlKey) return
+      event.preventDefault()
+      const step = wheel(event.deltaY, event.timeStamp)
+      if (step !== null) tellApp({ type: step === 'in' ? 'zoom-in' : 'zoom-out' })
+    },
+    { passive: false },
+  )
 }

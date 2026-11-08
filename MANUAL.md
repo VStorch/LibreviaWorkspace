@@ -247,6 +247,7 @@ They are Word's shortcuts, with few exceptions, explained at the end of the tabl
 | `Ctrl+F11` | reading mode (`Esc` leaves) |
 | `Ctrl+Shift+E` | turn track changes on and off |
 | `Ctrl` + numeric keypad `+` / `Ctrl+-` | zoom in and out |
+| `Ctrl` + mouse wheel | zoom in and out, one step per notch |
 | `Ctrl+0` | back to actual size |
 
 > ℹ️ **The exceptions to Word, and why.**

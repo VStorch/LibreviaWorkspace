@@ -28,3 +28,23 @@ export function fitWidthZoom(availablePx: number, pageWidthPx: number, marginPx 
   if (pageWidthPx <= 0 || availablePx <= 0) return 100
   return clampZoom(Math.floor(((availablePx - 2 * marginPx) / pageWidthPx) * 100))
 }
+
+export type ZoomStep = 'in' | 'out'
+
+/** A mouse notch scrolls 100 px or more; a smooth wheel or a touchpad sends deltas of a few pixels. */
+const WHEEL_STEP_PX = 50
+const WHEEL_PAUSE_MS = 300
+
+/** Ctrl+wheel: the deltas of one gesture add up to steps of the ladder. */
+export function createWheelZoom(): (deltaY: number, timeMs: number) => ZoomStep | null {
+  let pending = 0
+  let last = -Infinity
+  return (deltaY, timeMs) => {
+    if (timeMs - last > WHEEL_PAUSE_MS || Math.sign(deltaY) !== Math.sign(pending)) pending = 0
+    last = timeMs
+    pending += deltaY
+    if (Math.abs(pending) < WHEEL_STEP_PX) return null
+    pending = 0
+    return deltaY < 0 ? 'in' : 'out'
+  }
+}

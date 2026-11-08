@@ -247,6 +247,7 @@ São os atalhos do Word, com poucas exceções, explicadas no fim da tabela.
 | `Ctrl+F11` | modo de leitura (`Esc` sai) |
 | `Ctrl+Shift+E` | ligar e desligar o controle de alterações |
 | `Ctrl` + `+` do teclado numérico / `Ctrl+-` | ampliar e reduzir |
+| `Ctrl` + roda do mouse | ampliar e reduzir, um passo por clique da roda |
 | `Ctrl+0` | voltar ao tamanho normal |
 
 > ℹ️ **As exceções ao Word, e por quê.**

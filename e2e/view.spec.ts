@@ -177,6 +177,25 @@ test.describe('View menu', () => {
     await expect(session.window.locator('.pages--reading')).toHaveCount(0)
     await expect(session.window.locator('.paper')).not.toHaveCount(0)
   })
+
+  test('Ctrl+wheel zooms the sheets one step per notch, even two notches in a row', async () => {
+    const zoom = session.window.locator('.statusbar__zoom-level')
+    await menu(session, 'zoom-reset')
+    await expect(zoom).toHaveText('100%')
+    const paper = await session.window.locator('.paper').first().boundingBox()
+    await session.window.mouse.move(paper!.x + paper!.width / 2, paper!.y + 100)
+
+    await session.window.keyboard.down('Control')
+    await session.window.mouse.wheel(0, -100)
+    await session.window.mouse.wheel(0, -100)
+    await expect(zoom).toHaveText('125%')
+    await session.window.mouse.wheel(0, 100)
+    await session.window.keyboard.up('Control')
+    await expect(zoom).toHaveText('110%')
+
+    await session.window.mouse.wheel(0, -100)
+    await expect(zoom).toHaveText('110%')
+  })
 })
 
 /**

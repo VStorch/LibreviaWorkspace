@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clampZoom, fitWidthZoom, zoomIn, zoomOut } from './zoom.js'
+import { clampZoom, createWheelZoom, fitWidthZoom, zoomIn, zoomOut } from './zoom.js'
 
 describe('screen zoom', () => {
   it('zooms in and out by steps, within the limits', () => {
@@ -23,5 +23,27 @@ describe('screen zoom', () => {
   it('an invalid value goes back to 100 %', () => {
     expect(clampZoom(Number.NaN)).toBe(100)
     expect(clampZoom(1000)).toBe(200)
+  })
+
+  it('Ctrl+wheel takes one step per notch of the mouse wheel', () => {
+    const wheel = createWheelZoom()
+    expect(wheel(-100, 0)).toBe('in')
+    expect(wheel(-100, 16)).toBe('in')
+    expect(wheel(120, 32)).toBe('out')
+  })
+
+  it('small deltas, from a smooth wheel or a touchpad, add up before taking a step', () => {
+    const wheel = createWheelZoom()
+    const steps = Array.from({ length: 10 }, (_, index) => wheel(-12, index * 16))
+    expect(steps.filter((step) => step === 'in')).toHaveLength(2)
+    expect(steps).not.toContain('out')
+  })
+
+  it('a pause or a change of direction drops what was left over', () => {
+    const wheel = createWheelZoom()
+    expect(wheel(-40, 0)).toBeNull()
+    expect(wheel(-40, 1000)).toBeNull()
+    expect(wheel(30, 1016)).toBeNull()
+    expect(wheel(30, 1032)).toBe('out')
   })
 })

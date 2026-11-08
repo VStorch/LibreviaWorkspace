@@ -150,6 +150,9 @@ function hearViewer(
     case 'zoom-in':
       void runZoomCommand(MenuCommand.ZoomIn)
       return
+    case 'zoom-out':
+      void runZoomCommand(MenuCommand.ZoomOut)
+      return
     case 'found':
       usePdfViewer.setState({ found: { current: event.current, total: event.total } })
       return

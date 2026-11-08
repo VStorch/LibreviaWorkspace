@@ -43,6 +43,7 @@ export const viewerEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('page'), page: pageSchema }),
   z.object({ type: z.literal('zoom'), zoom: zoomSchema }),
   z.object({ type: z.literal('zoom-in') }),
+  z.object({ type: z.literal('zoom-out') }),
   z.object({ type: z.literal('found'), current: countSchema, total: countSchema }),
   /** `retry`: the last password was wrong. */
   z.object({ type: z.literal('password'), retry: z.boolean() }),
