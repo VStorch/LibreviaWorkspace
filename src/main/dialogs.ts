@@ -14,6 +14,7 @@ import {
   WORD_TEMPLATE_EXTENSION,
   filtersStartingWith,
 } from '@services/file/formats.js'
+import { MAX_OPEN_TABS } from '@services/tabs/tab-order.js'
 import { t } from './i18n.js'
 
 const bare = (extension: string) => extension.replace('.', '')
@@ -71,13 +72,14 @@ function getImageFilters() {
 }
 
 /** `null` when canceled. */
-export async function showOpenFileDialog(window: BrowserWindow): Promise<string | null> {
+/** Empty when canceled; no more than a tab bar holds. */
+export async function showOpenFileDialog(window: BrowserWindow): Promise<string[]> {
   const result = await dialog.showOpenDialog(window, {
     title: t('dialog.open.title'),
-    properties: ['openFile'],
+    properties: ['openFile', 'multiSelections'],
     filters: getFilters(),
   })
-  return result.canceled ? null : (result.filePaths[0] ?? null)
+  return result.canceled ? [] : result.filePaths.slice(0, MAX_OPEN_TABS)
 }
 
 export async function showTemplatePickerDialog(

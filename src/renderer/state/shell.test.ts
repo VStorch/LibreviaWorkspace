@@ -213,16 +213,43 @@ describe('the original main keeps for each file', () => {
 
   it('is not read again when the dialog picks a file already open: its tab is shown', async () => {
     const api = stubApi()
-    const open = vi.fn(() => ok({ canceled: false, alreadyOpen: '/docs/a.txt' }))
-    Object.assign(api.file, { open })
+    Object.assign(api.file, { open: vi.fn(() => ok({ canceled: false, paths: ['/docs/a.txt'] })) })
     await openRecent('/docs/a.txt')
     await openRecent('/docs/b.txt')
+    api.file.openRecent.mockClear()
 
     await openViaDialog()
 
-    expect(open).toHaveBeenCalledWith({ openPaths: ['/docs/a.txt', '/docs/b.txt'] })
+    expect(api.file.openRecent).not.toHaveBeenCalled()
     expect(openPaths()).toEqual(['/docs/a.txt', '/docs/b.txt'])
     expect(activeWorkspaceStore().getState().file?.path).toBe('/docs/a.txt')
+  })
+
+  it('opens every file picked, each in a tab, in the order picked', async () => {
+    const api = stubApi()
+    Object.assign(api.file, {
+      open: vi.fn(() => ok({ canceled: false, paths: ['/docs/a.txt', '/docs/b.txt'] })),
+    })
+
+    expect(await openViaDialog()).toBe(true)
+
+    expect(openPaths()).toEqual(['/docs/a.txt', '/docs/b.txt'])
+  })
+
+  it('opens a picked template as a new document, even while a tab edits the template', async () => {
+    const api = stubApi()
+    api.file.openRecent.mockImplementationOnce(({ path }: { path: string }) =>
+      ok({ file: { path, name: 'carta.dotx', content: EMPTY } }),
+    )
+    await openRecent('/models/carta.dotx')
+    api.file.openRecent.mockImplementation(({ path }: { path: string }) =>
+      ok({ file: { path, name: 'Carta.docx', content: EMPTY, template: true } }),
+    )
+    Object.assign(api.file, { open: vi.fn(() => ok({ canceled: false, paths: ['/models/carta.dotx'] })) })
+
+    await openViaDialog()
+
+    expect(useTabs.getState().tabs).toHaveLength(2)
   })
 })
 

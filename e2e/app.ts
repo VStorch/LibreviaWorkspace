@@ -87,12 +87,12 @@ export async function launch(
 /** Replaces native dialogs with fixed answers, in main, where `dialog` lives. */
 export async function stubDialogs(
   app: ElectronApplication,
-  answers: { open?: string; save?: string; messageBox?: number },
+  answers: { open?: string | string[]; save?: string; messageBox?: number },
 ): Promise<void> {
   await app.evaluate(async ({ dialog }, fixed) => {
     const { open, save, messageBox } = fixed
     if (open !== undefined) {
-      dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [open] })
+      dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [open].flat() })
     }
     if (save !== undefined) {
       dialog.showSaveDialog = async () => ({ canceled: false, filePath: save })

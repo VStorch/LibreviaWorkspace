@@ -108,6 +108,8 @@ PDF. Menus e barra de ferramentas agem no arquivo que está na tela.
   arquivo na pergunta, os que vêm depois dele continuam abertos.
 - **+**, no fim da barra, ou **Arquivo → Início** (`Ctrl+T`) mostra a aba Início, de onde se cria ou
   abre outro arquivo.
+- Em **Arquivo → Abrir**, dá para escolher vários arquivos de uma vez, com `Ctrl` ou `Shift`: cada
+  um abre na sua aba, na ordem escolhida.
 - Abrir um arquivo que já está aberto mostra a aba dele, em vez de uma segunda cópia.
 - Ficam abertos até 16 arquivos ao mesmo tempo. Feche um para abrir outro.
 - A aba **Início** tem os arquivos recentes e os botões de criar e abrir. O primeiro arquivo que

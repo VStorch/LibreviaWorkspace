@@ -108,6 +108,8 @@ spreadsheet or PDF. Menus and toolbar act on the file on screen.
   question, the ones after it stay open.
 - **+**, at the end of the bar, or **File → Home** (`Ctrl+T`) shows the Home tab, where you create
   or open another file.
+- In **File → Open**, you can pick several files at once, with `Ctrl` or `Shift`: each opens in its
+  own tab, in the order picked.
 - Opening a file that is already open shows its tab, instead of a second copy.
 - Up to 16 files stay open at once. Close one to open another.
 - The **Home** tab has the recent files and the buttons to create and open. The first file you open

@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { DocumentKind, type DraftSummary } from '@shared/types.js'
 import type { IpcResult } from '@shared/ipc.js'
+import { isOdtTemplatePath, isWordTemplatePath } from '@services/file/formats.js'
 import { canPlaceTab, isHomeTab, MAX_OPEN_TABS } from '@services/tabs/tab-order.js'
 import { saveAllPlan, type DirtyTab } from '@services/tabs/quit.js'
 import { t } from '../i18n.js'
@@ -126,33 +127,40 @@ export function newSpreadsheet(): void {
   startNew(DocumentKind.Spreadsheet)
 }
 
-function openFilePaths(): string[] {
-  return useTabs.getState().tabs.flatMap((tab) => tab.store.getState().file?.path ?? [])
-}
-
-/** Main does not read again a file already open: that tab's package would change under it. */
+/** One by one, in the order picked; a full tab bar stops the rest. */
 export async function openViaDialog(): Promise<boolean> {
-  return openFile(async () => {
-    const data = await call(() => window.api.file.open({ openPaths: openFilePaths() }))
-    if (data === null || data.canceled) return null
-    if ('alreadyOpen' in data) {
-      showOpenTab(data.alreadyOpen)
-      return null
-    }
-    return data.file
-  })
+  const data = await call(() => window.api.file.open({}))
+  if (data === null || data.canceled) return false
+  let opened = false
+  for (const path of data.paths) {
+    if (!hasRoom('pristine')) break
+    opened = (await openPicked(path)) || opened
+  }
+  return opened
 }
 
-/** Also the files main receives from the file manager. */
+/** A template opens a new document, even when a tab edits the template itself. */
+function openPicked(path: string): Promise<boolean> {
+  return isWordTemplatePath(path) || isOdtTemplatePath(path)
+    ? openFile(() => readPicked(path))
+    : openRecent(path)
+}
+
+async function readPicked(path: string): Promise<OpenedFile | null> {
+  const data = await call(() => window.api.file.openRecent({ path }))
+  return data === null ? null : data.file
+}
+
+/**
+ * Also the files main receives from the file manager or the open dialog. A file already open is not
+ * read again: that tab's package would change under it.
+ */
 export async function openRecent(path: string): Promise<boolean> {
   if (showOpenTab(path)) return true
   return openFile(async () => {
-    const data = await call(() => window.api.file.openRecent({ path }))
-    if (data === null) {
-      await refreshRecents()
-      return null
-    }
-    return data.file
+    const opened = await readPicked(path)
+    if (opened === null) await refreshRecents()
+    return opened
   })
 }
 

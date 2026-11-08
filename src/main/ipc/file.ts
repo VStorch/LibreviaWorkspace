@@ -34,7 +34,6 @@ import {
   assertViewablePdf,
   authorizePath,
   normalizePath,
-  pathKey,
 } from '../fs/paths.js'
 import { clearRecentFiles, isRemembered, listRecentFiles, rememberRecentFile } from '../fs/recent.js'
 import { readTextFile } from '../fs/read-text.js'
@@ -43,7 +42,7 @@ import { editorPreferences, updatePreferences } from '../preferences.js'
 import { t } from '../i18n.js'
 import { handle } from './registry.js'
 import { windowOf } from './sender-window.js'
-import { forgetExternalFileRequest, isExternalFileRequested } from '../external-files.js'
+import { allowExternalFile, forgetExternalFileRequest, isExternalFileRequested } from '../external-files.js'
 
 interface SaveNameRequest {
   readonly suggestedName: string
@@ -186,17 +185,10 @@ function startingPackage(saved: SavedPackage, format: OriginalFormat): SavedOrig
 }
 
 export function registerFileHandlers(): void {
-  handle(IpcChannel.FileOpen, async (payload, event) => {
-    const path = await showOpenFileDialog(windowOf(event))
-    if (path === null) return { canceled: true as const }
-    // Reading it again would replace the package that tab's blocks were read from. A template is
-    // not read into its tab: it opens a new document.
-    const template = isWordTemplatePath(path) || isOdtTemplatePath(path)
-    const alreadyOpen = template
-      ? undefined
-      : payload.openPaths.find((open) => pathKey(open) === pathKey(path))
-    if (alreadyOpen !== undefined) return { canceled: false as const, alreadyOpen }
-    return { canceled: false as const, file: await loadFile(path) }
+  handle(IpcChannel.FileOpen, async (_payload, event) => {
+    const [first, ...rest] = (await showOpenFileDialog(windowOf(event))).map(allowExternalFile)
+    if (first === undefined) return { canceled: true as const }
+    return { canceled: false as const, paths: [first, ...rest] }
   })
 
   handle(IpcChannel.FileOpenRecent, async (payload) => {

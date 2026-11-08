@@ -19,10 +19,15 @@ export function fileFromArguments(args: readonly string[], cwd: string): string 
 }
 
 export function requestExternalFile(path: string): void {
+  pending.push(allowExternalFile(path))
+  flush()
+}
+
+/** A path picked in the open dialog: the renderer may open it once, as a file manager request. */
+export function allowExternalFile(path: string): string {
   const normalized = normalizePath(path)
   requested.add(normalized)
-  pending.push(normalized)
-  flush()
+  return normalized
 }
 
 export function isExternalFileRequested(path: string): boolean {

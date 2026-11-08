@@ -59,6 +59,18 @@ test.describe('tabs', () => {
     await expect(editor()).toContainText('Texto de B.')
   })
 
+  test('picking two files in the open dialog opens both, each in its tab', async () => {
+    const { a, b } = await twoFiles(paragraph('Texto de A.'))
+
+    await stubDialogs(session.app, { open: [a, b] })
+    await menu(session, 'open')
+
+    await expect(tabs()).toHaveCount(2)
+    await expect(editor()).toContainText('Texto de B.')
+    await tabNamed('a.docx').click()
+    await expect(editor()).toContainText('Texto de A.')
+  })
+
   test('saving A after opening B keeps what A did not edit byte for byte', async () => {
     const { a, b } = await twoFiles(UNTOUCHED + paragraph('Parágrafo a editar.'))
 

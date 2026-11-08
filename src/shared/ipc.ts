@@ -169,11 +169,15 @@ const saveResultSchema = z.discriminatedUnion('canceled', [
 
 export const ipcContracts = {
   [IpcChannel.FileOpen]: {
-    // Only compared with the path picked, never read: a file already open is not read again.
-    request: z.object({ openPaths: z.array(z.string().min(1).max(MAX_PATH_LENGTH)).max(MAX_OPEN_TABS) }),
-    response: z.union([
-      openResultSchema,
-      z.object({ canceled: z.literal(false), alreadyOpen: z.string().min(1).max(MAX_PATH_LENGTH) }),
+    // Only the paths picked, which main lets the renderer open one by one: a file already open is
+    // not read again.
+    request: z.object({}),
+    response: z.discriminatedUnion('canceled', [
+      z.object({ canceled: z.literal(true) }),
+      z.object({
+        canceled: z.literal(false),
+        paths: z.array(z.string().min(1).max(MAX_PATH_LENGTH)).min(1).max(MAX_OPEN_TABS),
+      }),
     ]),
   },
   [IpcChannel.FileOpenRecent]: {
