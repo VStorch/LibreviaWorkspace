@@ -14,7 +14,7 @@ import { currentPreferences } from './preferences.js'
 import { t } from '../i18n.js'
 import { refuseViewOnly } from './view-only.js'
 import { refreshRecents } from './recents.js'
-import { isOpenInAnotherTab } from './path-holder.js'
+import { isOpenInAnotherTab, isSamePath } from './path-holder.js'
 import {
   toSerialized,
   workbookOf,
@@ -76,8 +76,8 @@ function createTabLifecycle(
     confirmClose: () => ctx.ensureChangesHandled(),
 
     release: async () => {
-      const path = get().file?.path ?? null
-      if (path !== null) releaseFile(path)
+      const kept = keptOriginalOf(get().file)
+      if (kept !== null) releaseFile(kept, get())
       await ctx.forgetDraft()
     },
 
@@ -86,6 +86,11 @@ function createTabLifecycle(
       if (source !== null) set({ initialDoc: source.readDoc() })
     },
   }
+}
+
+/** A document created from a template saves from the template's package. */
+function keptOriginalOf(file: OpenFile | null): string | null {
+  return file?.origin ?? file?.path ?? null
 }
 
 /** Two tabs on one file would each save over the other. */
@@ -180,16 +185,14 @@ function createSaveActions(
       if (answer === 'cancel') return false
       if (answer === 'chooseAnother') return get().saveAs()
 
+      const origin = keptOriginalOf(file)
       const data = await ctx.call(() =>
-        window.api.file.save({
-          path: chosen.path,
-          content: encodeFor(chosen.path),
-          // A document created from a template saves from its package.
-          origin: file.origin ?? file.path,
-        }),
+        window.api.file.save({ path: chosen.path, content: encodeFor(chosen.path), origin }),
       )
       if (data === null) return false
 
+      // Main keeps the origin's package too: another tab made from the same template may need it.
+      if (origin !== null && !isSamePath(origin, chosen.path)) releaseFile(origin, get())
       await afterSave({ path: chosen.path, name: data.name, kind: file.kind }, data.inventory)
       return true
     },

@@ -11,7 +11,7 @@ import {
   placeTab,
   type TabOrder,
 } from '@services/tabs/tab-order.js'
-import { setPathHolder } from './path-holder.js'
+import { PLATFORM, setOtherFiles } from './path-holder.js'
 import { createWorkspaceStore, type WorkspaceStore } from './workspace-store.js'
 
 export interface TabEntry {
@@ -31,8 +31,6 @@ export const useTabs = create<TabsState>(() => ({ tabs: [HOME], activeId: HOME_T
 
 let lastTabNumber = 0
 
-const PLATFORM = typeof navigator !== 'undefined' && /Windows/.test(navigator.userAgent) ? 'win32' : 'other'
-
 function tabPaths(tabs: readonly TabEntry[]): { id: string; path: string | null }[] {
   return tabs.map((tab) => ({ id: tab.id, path: tab.store.getState().file?.path ?? null }))
 }
@@ -42,10 +40,13 @@ export function findTabWithPath(path: string): string | null {
   return findOpenTab(tabPaths(useTabs.getState().tabs), path, PLATFORM)
 }
 
-setPathHolder((path, asker) => {
-  const others = useTabs.getState().tabs.filter((tab) => tab.store.getState() !== asker)
-  return findOpenTab(tabPaths(others), path, PLATFORM) !== null
-})
+setOtherFiles((asker) =>
+  useTabs
+    .getState()
+    .tabs.map((tab) => tab.store.getState())
+    .filter((state) => state !== asker)
+    .flatMap((state) => (state.file === null ? [] : [state.file])),
+)
 
 export function tabOrderOf({ tabs, activeId }: TabsState): TabOrder {
   return { ids: tabs.map((tab) => tab.id), activeId }

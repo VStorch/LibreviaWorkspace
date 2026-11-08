@@ -239,6 +239,10 @@ export const SHELL = {
     pt: 'Não há nada aberto para imprimir. Abra ou crie um documento ou uma planilha primeiro.',
     en: 'Nothing is open to print. Open or create a document or spreadsheet first.',
   },
+  'shell.recovery.fileOpen': {
+    pt: '“{name}” está aberto em uma aba. Feche-a para recuperar o rascunho.',
+    en: '“{name}” is open in a tab. Close it to recover the draft.',
+  },
   'shell.saveAs.openInAnotherTab': {
     pt: '“{name}” está aberto em outra aba. Feche aquela aba ou salve com outro nome.',
     en: '“{name}” is open in another tab. Close that tab or save under another name.',

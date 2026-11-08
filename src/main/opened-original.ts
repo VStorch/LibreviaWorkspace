@@ -77,7 +77,8 @@ export interface SavedOriginal {
 /**
  * Called **after** the save reached the disk, so a failure does not leave the original pointing to
  * a path the document does not have. Applies to any destination: a `.docx` or `.odt` saved as
- * `.sdoc` keeps the same `oid`s.
+ * `.sdoc` keeps the same `oid`s. The origin's stays: two documents made from one template share it,
+ * and only the renderer knows when the last one lets go.
  */
 export function followOriginal(
   origin: string | null,
@@ -88,6 +89,5 @@ export function followOriginal(
     saved === null
       ? openedFor(origin)
       : { bytes: saved.original, format: saved.format, created: saved.created === true }
-  if (origin !== null) releaseOriginal(origin)
   if (kept !== null) rememberOriginal(destination, kept.bytes, kept.format, kept.created)
 }

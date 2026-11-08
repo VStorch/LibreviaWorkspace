@@ -96,7 +96,7 @@ async function openFile(load: () => Promise<OpenedFile | null>): Promise<boolean
 
   const store = createWorkspaceStore()
   if (!store.getState().loadFile(opened)) {
-    releaseFile(opened.path)
+    releaseFile(opened.path, store.getState())
     reportFailure(store)
     return false
   }
@@ -120,10 +120,20 @@ export function newSpreadsheet(): void {
   startNew(DocumentKind.Spreadsheet)
 }
 
+function openFilePaths(): string[] {
+  return useTabs.getState().tabs.flatMap((tab) => tab.store.getState().file?.path ?? [])
+}
+
+/** Main does not read again a file already open: that tab's package would change under it. */
 export async function openViaDialog(): Promise<boolean> {
   return openFile(async () => {
-    const data = await call(() => window.api.file.open({}))
-    return data === null || data.canceled ? null : data.file
+    const data = await call(() => window.api.file.open({ openPaths: openFilePaths() }))
+    if (data === null || data.canceled) return null
+    if ('alreadyOpen' in data) {
+      showOpenTab(data.alreadyOpen)
+      return null
+    }
+    return data.file
   })
 }
 
@@ -159,26 +169,36 @@ export async function clearRecents(): Promise<void> {
   if (data !== null) setRecents(data.files)
 }
 
+/** The drafts of the tabs open now are theirs, not left by a crash. */
 export async function checkRecovery(): Promise<void> {
   const result = await window.api.recovery.peek({})
-  const latest = result.ok ? result.data.drafts[0] : undefined
-  if (latest !== undefined) useShell.setState({ pendingDraft: latest })
+  if (!result.ok) return
+  const live = new Set(useTabs.getState().tabs.map((tab) => tab.store.getState().draftId))
+  const latest = result.data.drafts.find((draft) => !live.has(draft.draftId))
+  useShell.setState({ pendingDraft: latest ?? null })
+}
+
+/** The file in a tab and its draft in another would each save over the other. */
+function refuseOpenFile(pending: DraftSummary): boolean {
+  if (pending.path === null || !showOpenTab(pending.path)) return false
+  activeWorkspaceStore()
+    .getState()
+    .showError({ code: 'INTERNAL', message: t('shell.recovery.fileOpen', { name: pending.name }) })
+  return true
 }
 
 export async function recoverDraft(): Promise<void> {
   const pending = useShell.getState().pendingDraft
-  if (pending === null || !hasRoom('pristine')) return
+  if (pending === null || refuseOpenFile(pending) || !hasRoom('pristine')) return
 
   useShell.setState({ pendingDraft: null })
   const data = await call(() => window.api.recovery.restore({ draftId: pending.draftId }))
-  if (data === null || data.draft === null) return
-
-  const store = createWorkspaceStore()
-  if (!store.getState().restoreDraft(data.draft)) {
-    reportFailure(store)
-    return
+  if (data !== null && data.draft !== null) {
+    const store = createWorkspaceStore()
+    if (store.getState().restoreDraft(data.draft)) place(store, 'pristine')
+    else reportFailure(store)
   }
-  place(store, 'pristine')
+  await checkRecovery()
 }
 
 export async function dismissDraft(): Promise<void> {
@@ -187,6 +207,7 @@ export async function dismissDraft(): Promise<void> {
 
   useShell.setState({ pendingDraft: null })
   await window.api.recovery.discard({ draftId: pending.draftId })
+  await checkRecovery()
 }
 
 /** `false` when the user kept the tab. */

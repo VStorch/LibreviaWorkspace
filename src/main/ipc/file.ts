@@ -34,6 +34,7 @@ import {
   assertViewablePdf,
   authorizePath,
   normalizePath,
+  pathKey,
 } from '../fs/paths.js'
 import { clearRecentFiles, isRemembered, listRecentFiles, rememberRecentFile } from '../fs/recent.js'
 import { readTextFile } from '../fs/read-text.js'
@@ -185,9 +186,16 @@ function startingPackage(saved: SavedPackage, format: OriginalFormat): SavedOrig
 }
 
 export function registerFileHandlers(): void {
-  handle(IpcChannel.FileOpen, async (_payload, event) => {
+  handle(IpcChannel.FileOpen, async (payload, event) => {
     const path = await showOpenFileDialog(windowOf(event))
     if (path === null) return { canceled: true as const }
+    // Reading it again would replace the package that tab's blocks were read from. A template is
+    // not read into its tab: it opens a new document.
+    const template = isWordTemplatePath(path) || isOdtTemplatePath(path)
+    const alreadyOpen = template
+      ? undefined
+      : payload.openPaths.find((open) => pathKey(open) === pathKey(path))
+    if (alreadyOpen !== undefined) return { canceled: false as const, alreadyOpen }
     return { canceled: false as const, file: await loadFile(path) }
   })
 

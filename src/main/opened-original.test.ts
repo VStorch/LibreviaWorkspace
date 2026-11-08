@@ -51,14 +51,15 @@ describe('originals by path', () => {
     expect(originalOf(sheet, OriginalFormat.Xlsx)).not.toBeNull()
   })
 
-  it('moves the original to the destination of a save as', () => {
+  it("copies the original to the destination of a save as, keeping the origin's", () => {
     rememberOriginal(first, Buffer.from('first'), OriginalFormat.Docx)
     rememberOriginal(sheet, Buffer.from('sheet'), OriginalFormat.Xlsx)
     const destination = '/home/ana/copia.xlsx'
 
     followOriginal(sheet, destination, null)
 
-    expect(originalOf(sheet, OriginalFormat.Xlsx)).toBeNull()
+    // Another tab made from the same template may still need it: the renderer releases it.
+    expect(originalOf(sheet, OriginalFormat.Xlsx)).not.toBeNull()
     expect(originalOf(destination, OriginalFormat.Xlsx)?.toString()).toBe('sheet')
     expect(originalOf(first, OriginalFormat.Docx)).not.toBeNull()
   })
@@ -73,7 +74,7 @@ describe('originals by path', () => {
       created: true,
     })
 
-    expect(originalOf(first, OriginalFormat.Docx)).toBeNull()
+    expect(originalOf(first, OriginalFormat.Docx)?.toString()).toBe('first')
     expect(originalOf(destination, OriginalFormat.Odt)?.toString()).toBe('minimal')
     expect(isCreatedOriginal(destination)).toBe(true)
   })

@@ -9,6 +9,7 @@ import { marksOfJson, resolveSections } from '@services/document/sections.js'
 import type { WorkbookModel } from '@services/spreadsheet/model.js'
 import { serializeWorkbook } from '@services/spreadsheet/serialize.js'
 import { t } from '../i18n.js'
+import { isNeededByAnotherTab, isSamePath } from './path-holder.js'
 import type { DocumentSource, LoadedFile, OpenFile, WorkspaceState } from './types.js'
 
 export type SetWorkspace = StoreApi<WorkspaceState>['setState']
@@ -33,14 +34,12 @@ export function toSerialized(cause: unknown): SerializedError {
   return { code: 'INTERNAL', message: t('shell.error.unexpected') }
 }
 
-/** Main keeps the opened package of every file on screen; one that leaves it would only cost memory. */
-export function releaseFile(path: string): void {
-  void window.api.file.release({ path })
-}
-
-/** Ignoring case, as Windows does: keeping an original too long costs memory, dropping it costs the save. */
-function mayBeSameFile(a: string, b: string | null | undefined): boolean {
-  return typeof b === 'string' && a.toLowerCase() === b.toLowerCase()
+/**
+ * Main keeps the opened package of every file on screen; one that leaves it would only cost memory.
+ * `asker` is the state of the tab letting go, read at the call.
+ */
+export function releaseFile(path: string, asker: WorkspaceState): void {
+  if (!isNeededByAnotherTab(path, asker)) void window.api.file.release({ path })
 }
 
 /** Busy while it runs, and a failure goes to the banner of the store given. */
@@ -106,7 +105,7 @@ export function createWorkspaceContext(set: SetWorkspace, get: GetWorkspace): Wo
     void forgetDraft()
 
     const previous = get().file?.path ?? null
-    if (previous !== null && !mayBeSameFile(previous, file?.path)) releaseFile(previous)
+    if (previous !== null && !isSamePath(previous, file?.path)) releaseFile(previous, get())
     set((state) => loadedState(file, model, workbook, state.generation))
   }
 

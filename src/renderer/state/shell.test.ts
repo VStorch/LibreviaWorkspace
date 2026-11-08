@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DocumentKind, type DraftSummary } from '@shared/types.js'
+import { createEmptyDocument } from '@services/document/model.js'
+import { serializeDocument } from '@services/document/serialize.js'
 import { HOME_TAB_ID, MAX_OPEN_TABS } from '@services/tabs/tab-order.js'
 import {
   checkRecovery,
@@ -7,7 +9,10 @@ import {
   closeTab,
   dismissDraft,
   newDocument,
+  newFromTemplate,
   openRecent,
+  openViaDialog,
+  recoverDraft,
   saveAllTabs,
   useShell,
 } from './shell.js'
@@ -24,6 +29,8 @@ const DRAFT: DraftSummary = {
   savedAt: 1000,
 }
 
+const EMPTY = serializeDocument(createEmptyDocument())
+
 const ok = <T>(data: T) => Promise.resolve({ ok: true as const, data })
 
 function stubApi(drafts: readonly DraftSummary[] = []) {
@@ -33,10 +40,19 @@ function stubApi(drafts: readonly DraftSummary[] = []) {
         ok({ file: { path, name: path.split('/').pop() ?? path, content: 'text' } }),
       ),
       release: vi.fn(() => ok({ released: true })),
+      open: vi.fn(),
+      chooseSavePath: vi.fn(),
+      save: vi.fn(),
     },
     recent: { list: vi.fn(() => ok({ files: [] })) },
+    template: {
+      open: vi.fn(() =>
+        ok({ file: { path: '/models/carta.dotx', name: 'Carta.docx', content: EMPTY, template: true } }),
+      ),
+    },
     recovery: {
       peek: vi.fn(() => ok({ drafts })),
+      restore: vi.fn(() => ok({ draft: null })),
       discard: vi.fn(() => ok({ discarded: true })),
     },
     dialog: { confirmDiscard: vi.fn(() => ok({ choice: 'cancel' })) },
@@ -159,6 +175,51 @@ describe('closing a tab', () => {
   })
 })
 
+describe('the original main keeps for each file', () => {
+  const template = { source: 'builtin' as const, id: 'carta' }
+
+  it('stays while another tab made from the same template still needs it', async () => {
+    const api = stubApi()
+    await newFromTemplate(template)
+    await newFromTemplate(template)
+    const [first, second] = useTabs.getState().tabs
+
+    await closeTab(first!.id)
+    expect(api.file.release).not.toHaveBeenCalledWith({ path: '/models/carta.dotx' })
+
+    await closeTab(second!.id)
+    expect(api.file.release).toHaveBeenCalledWith({ path: '/models/carta.dotx' })
+  })
+
+  it('leaves with the template a document saved as elsewhere no longer needs', async () => {
+    const api = stubApi()
+    Object.assign(api.file, {
+      chooseSavePath: vi.fn(() => ok({ canceled: false, path: '/docs/carta.docx', name: 'carta.docx' })),
+      save: vi.fn(() => ok({ name: 'carta.docx' })),
+    })
+    await newFromTemplate(template)
+
+    expect(await activeWorkspaceStore().getState().saveAs()).toBe(true)
+
+    expect(api.file.save).toHaveBeenCalledWith(expect.objectContaining({ origin: '/models/carta.dotx' }))
+    expect(api.file.release).toHaveBeenCalledWith({ path: '/models/carta.dotx' })
+  })
+
+  it('is not read again when the dialog picks a file already open: its tab is shown', async () => {
+    const api = stubApi()
+    const open = vi.fn(() => ok({ canceled: false, alreadyOpen: '/docs/a.txt' }))
+    Object.assign(api.file, { open })
+    await openRecent('/docs/a.txt')
+    await openRecent('/docs/b.txt')
+
+    await openViaDialog()
+
+    expect(open).toHaveBeenCalledWith({ openPaths: ['/docs/a.txt', '/docs/b.txt'] })
+    expect(openPaths()).toEqual(['/docs/a.txt', '/docs/b.txt'])
+    expect(activeWorkspaceStore().getState().file?.path).toBe('/docs/a.txt')
+  })
+})
+
 describe('saving as', () => {
   it('refuses a path open in another tab, which would save over it', async () => {
     const api = stubApi()
@@ -255,6 +316,42 @@ describe('recovery', () => {
     await checkRecovery()
 
     expect(useShell.getState().pendingDraft).toBeNull()
+  })
+
+  it('does not offer the draft of a tab open now', async () => {
+    const older = { ...DRAFT, draftId: '0b8e7f2a-1c3d-4e5f-8a9b-0c1d2e3f4a5b', savedAt: 500 }
+    stubApi([DRAFT, older])
+    newDocument()
+    activeWorkspaceStore().setState({ draftId: DRAFT.draftId })
+
+    await checkRecovery()
+
+    expect(useShell.getState().pendingDraft).toEqual(older)
+  })
+
+  it('offers the next draft after one is recovered or discarded', async () => {
+    const older = { ...DRAFT, draftId: '0b8e7f2a-1c3d-4e5f-8a9b-0c1d2e3f4a5b', savedAt: 500 }
+    const api = stubApi([older])
+    useShell.setState({ pendingDraft: DRAFT })
+
+    await dismissDraft()
+
+    expect(api.recovery.peek).toHaveBeenCalled()
+    expect(useShell.getState().pendingDraft).toEqual(older)
+  })
+
+  it('does not recover the draft of a file open in a tab, which would hold it twice', async () => {
+    const api = stubApi()
+    await openRecent('/docs/a.txt')
+    newDocument()
+    useShell.setState({ pendingDraft: { ...DRAFT, path: '/docs/a.txt', name: 'a.txt' } })
+
+    await recoverDraft()
+
+    expect(api.recovery.restore).not.toHaveBeenCalled()
+    expect(useShell.getState().pendingDraft?.path).toBe('/docs/a.txt')
+    expect(activeWorkspaceStore().getState().file?.path).toBe('/docs/a.txt')
+    expect(activeWorkspaceStore().getState().error?.message).toContain('a.txt')
   })
 
   it('discards the offered draft', async () => {
