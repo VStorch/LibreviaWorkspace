@@ -3,6 +3,7 @@ import { stat } from 'node:fs/promises'
 import { isAbsolute, resolve } from 'node:path'
 import { AppError, ErrorCode, fromFileSystemError } from '@shared/errors.js'
 import { isPdfPath, isSupportedExtension } from '@services/file/formats.js'
+import { comparablePath } from '@services/tabs/tab-order.js'
 import { t } from '../i18n.js'
 import { editorPreferences } from '../preferences.js'
 
@@ -19,10 +20,9 @@ export function normalizePath(path: string): string {
   return resolve(path)
 }
 
-/** Windows compares names without case: `Relatorio.docx` and `relatorio.docx` are one file there. */
+/** By the same rule as the renderer's tabs, so both agree on which paths are one file. */
 export function pathKey(path: string, platform: NodeJS.Platform = process.platform): string {
-  const normalized = normalizePath(path)
-  return platform === 'win32' ? normalized.toLowerCase() : normalized
+  return comparablePath(normalizePath(path), platform)
 }
 
 export function authorizePath(path: string): string {

@@ -2,6 +2,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { comparablePath } from '@services/tabs/tab-order.js'
 import {
   MAX_FILE_BYTES,
   assertPathAuthorized,
@@ -165,6 +166,12 @@ describe('pathKey', () => {
     )
     expect(pathKey('/home/ana/Relatorio.docx', 'linux')).not.toBe(
       pathKey('/home/ana/relatorio.docx', 'linux'),
+    )
+  })
+
+  it('gives the key the renderer compares tabs by', () => {
+    expect(pathKey('/home/ana//docs/./a.docx', 'linux')).toBe(
+      comparablePath('/home/ana/docs/a.docx', 'linux'),
     )
   })
 })
