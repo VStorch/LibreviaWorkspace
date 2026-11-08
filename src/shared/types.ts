@@ -77,6 +77,10 @@ export const MenuCommand = {
   Save: 'save',
   SaveAs: 'save-as',
   CloseFile: 'close-file',
+  CloseAllTabs: 'close-all-tabs',
+  ShowHome: 'show-home',
+  NextTab: 'next-tab',
+  PreviousTab: 'previous-tab',
   /** The sheet keeps its own history; elsewhere the focused field or editor undoes. */
   Undo: 'undo',
   Redo: 'redo',

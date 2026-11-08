@@ -2,7 +2,7 @@ import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
-import { launch, menu, stubDialogs, type Session } from './app.js'
+import { clickMenuItem, launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithNamedStyles, entryOf } from './fixtures.js'
 
 const UNTOUCHED =
@@ -121,6 +121,83 @@ test.describe('tabs', () => {
 
     await session.window.locator('.banner--recovery').getByRole('button', { name: 'Recuperar' }).click()
     await expect(editor()).toContainText('Texto da aba oculta')
+  })
+  const activeTab = () => session.window.locator('.tabbar__tab--active .tabbar__label')
+
+  test('the tab commands and Ctrl+PgUp/PgDn move between tabs; on a spreadsheet those keys move between sheets', async () => {
+    const { a, b } = await twoFiles(paragraph('Texto de A.'))
+    await open(a)
+    await open(b)
+
+    // Native accelerators do not hear synthetic keys: Ctrl+Tab is the menu command.
+    await menu(session, 'next-tab')
+    await expect(activeTab()).toHaveAccessibleName('a.docx')
+    await menu(session, 'previous-tab')
+    await expect(activeTab()).toHaveAccessibleName('b.docx')
+
+    await editor().click()
+    await session.window.keyboard.press('Control+PageUp')
+    await expect(activeTab()).toHaveAccessibleName('a.docx')
+    await expect(editor()).toContainText('Texto de A.')
+    await session.window.keyboard.press('Control+PageDown')
+    await expect(activeTab()).toHaveAccessibleName('b.docx')
+
+    await menu(session, 'new-spreadsheet')
+    await session.window.locator('.tabs__add').click()
+    const sheet = () => session.window.locator('.workbook [role="tab"][aria-selected="true"]')
+    const second = await sheet().textContent()
+    await session.window.keyboard.press('Control+PageUp')
+    await expect(sheet()).not.toHaveText(second ?? '')
+    await expect(tabs()).toHaveCount(3)
+    await expect(session.window.locator('.workbook')).toBeVisible()
+  })
+
+  test('closing all tabs asks about a modified one, and keeping it stops there', async () => {
+    const { a } = await twoFiles(paragraph('Texto de A.'))
+    await open(a)
+    await menu(session, 'new-document')
+    await editor().click()
+    await session.window.keyboard.type('Texto sem salvar')
+
+    await stubDialogs(session.app, { messageBox: 2 })
+    await menu(session, 'close-all-tabs')
+    await expect(tabs()).toHaveCount(1)
+    await expect(editor()).toContainText('Texto sem salvar')
+
+    await stubDialogs(session.app, { messageBox: 1 })
+    await menu(session, 'close-all-tabs')
+    await expect(session.window.locator('.home')).toBeVisible()
+    await expect(tabs()).toHaveCount(1)
+  })
+
+  test('File → Home shows the Home tab beside the open file', async () => {
+    const { a } = await twoFiles(paragraph('Texto de A.'))
+    await open(a)
+
+    await clickMenuItem(session, 'Arquivo', 'Início')
+
+    await expect(session.window.locator('.home')).toBeVisible()
+    await expect(tabs()).toHaveCount(2)
+  })
+
+  test('the track changes check mark follows the tab on screen', async () => {
+    const checked = () =>
+      session.app.evaluate(({ Menu }) => {
+        const review = Menu.getApplicationMenu()?.items.find((item) => item.label === 'Revisão')
+        return review?.submenu?.items[0]?.checked ?? false
+      })
+
+    await menu(session, 'new-document')
+    await editor().click()
+    await menu(session, 'toggle-track-changes')
+    await expect.poll(checked).toBe(true)
+
+    await menu(session, 'new-document')
+    await expect(tabs()).toHaveCount(2)
+    await expect.poll(checked).toBe(false)
+
+    await menu(session, 'previous-tab')
+    await expect.poll(checked).toBe(true)
   })
 })
 

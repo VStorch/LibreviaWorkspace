@@ -32,6 +32,18 @@ export const COMMANDS = {
   [MenuCommand.Save]: { id: MenuCommand.Save, labelKey: 'menu.file.save', shortcut: 'save' },
   [MenuCommand.SaveAs]: { id: MenuCommand.SaveAs, labelKey: 'menu.file.saveAs', shortcut: 'saveAs' },
   [MenuCommand.CloseFile]: { id: MenuCommand.CloseFile, labelKey: 'menu.file.close', shortcut: 'closeFile' },
+  [MenuCommand.CloseAllTabs]: {
+    id: MenuCommand.CloseAllTabs,
+    labelKey: 'menu.file.closeAll',
+    shortcut: 'closeAllTabs',
+  },
+  [MenuCommand.ShowHome]: { id: MenuCommand.ShowHome, labelKey: 'menu.file.home' },
+  [MenuCommand.NextTab]: { id: MenuCommand.NextTab, labelKey: 'menu.view.nextTab', shortcut: 'nextTab' },
+  [MenuCommand.PreviousTab]: {
+    id: MenuCommand.PreviousTab,
+    labelKey: 'menu.view.previousTab',
+    shortcut: 'previousTab',
+  },
   [MenuCommand.Undo]: { id: MenuCommand.Undo, labelKey: 'menu.edit.undo', registerAccelerator: false },
   [MenuCommand.Redo]: { id: MenuCommand.Redo, labelKey: 'menu.edit.redo', registerAccelerator: false },
   [MenuCommand.FindReplace]: {

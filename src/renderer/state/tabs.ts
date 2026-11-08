@@ -4,7 +4,9 @@ import {
   activateTab as activateInOrder,
   closeTab as closeInOrder,
   HOME_TAB_ID,
+  nextTab,
   openTab,
+  previousTab,
   placeTab,
   type TabOrder,
 } from '@services/tabs/tab-order.js'
@@ -42,6 +44,14 @@ function applyOrder(order: TabOrder, added?: TabEntry): void {
 
 export function activateTab(id: string): void {
   applyOrder(activateInOrder(tabOrderOf(useTabs.getState()), id))
+}
+
+export function activateNextTab(): void {
+  applyOrder(nextTab(tabOrderOf(useTabs.getState())))
+}
+
+export function activatePreviousTab(): void {
+  applyOrder(previousTab(tabOrderOf(useTabs.getState())))
 }
 
 export function showHome(): void {

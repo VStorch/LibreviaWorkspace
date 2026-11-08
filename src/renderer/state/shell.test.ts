@@ -1,7 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DocumentKind, type DraftSummary } from '@shared/types.js'
 import { HOME_TAB_ID, MAX_OPEN_TABS } from '@services/tabs/tab-order.js'
-import { checkRecovery, closeTab, dismissDraft, newDocument, openRecent, useShell } from './shell.js'
+import {
+  checkRecovery,
+  closeAllTabs,
+  closeTab,
+  dismissDraft,
+  newDocument,
+  openRecent,
+  useShell,
+} from './shell.js'
 import { activeWorkspaceStore, addTab, useTabs } from './tabs.js'
 import { createWorkspaceStore } from './workspace-store.js'
 
@@ -147,6 +155,31 @@ describe('closing a tab', () => {
 
     expect(openPaths()).toEqual(['/docs/a.txt', '/docs/b.txt'])
     expect(useTabs.getState().activeId).toBe(first!.id)
+  })
+})
+
+describe('closing all tabs', () => {
+  it('closes every tab and leaves Home', async () => {
+    stubApi()
+    await openRecent('/docs/a.txt')
+    await openRecent('/docs/b.txt')
+
+    expect(await closeAllTabs()).toBe(true)
+
+    expect(useTabs.getState().tabs.map((tab) => tab.id)).toEqual([HOME_TAB_ID])
+  })
+
+  it('stops at the first modified tab the user keeps', async () => {
+    const api = stubApi()
+    await openRecent('/docs/a.txt')
+    await openRecent('/docs/b.txt')
+    await openRecent('/docs/c.txt')
+    useTabs.getState().tabs[1]!.store.setState({ isDirty: true })
+
+    expect(await closeAllTabs()).toBe(false)
+
+    expect(openPaths()).toEqual(['/docs/b.txt', '/docs/c.txt'])
+    expect(api.dialog.confirmDiscard).toHaveBeenCalledTimes(1)
   })
 })
 

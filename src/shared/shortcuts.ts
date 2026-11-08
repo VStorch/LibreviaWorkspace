@@ -85,6 +85,11 @@ export const SHORTCUTS = {
   saveAs: { owner: ShortcutOwner.Menu, key: { mod: true, shift: true, key: 'S' }, does: 'Salvar como…' },
   print: { owner: ShortcutOwner.Menu, key: { mod: true, key: 'P' }, does: 'Imprimir…' },
   closeFile: { owner: ShortcutOwner.Menu, key: { mod: true, key: 'W' }, does: 'Fechar arquivo' },
+  closeAllTabs: {
+    owner: ShortcutOwner.Menu,
+    key: { mod: true, shift: true, key: 'W' },
+    does: 'Fechar todas as abas',
+  },
 
   // ## Menu → Edit
   /**
@@ -142,6 +147,17 @@ export const SHORTCUTS = {
   },
 
   // ## Menu → View
+  nextTab: { owner: ShortcutOwner.Menu, key: { mod: true, key: 'Tab' }, does: 'Próxima aba' },
+  previousTab: {
+    owner: ShortcutOwner.Menu,
+    key: { mod: true, shift: true, key: 'Tab' },
+    does: 'Aba anterior',
+  },
+  /**
+   * Heard by the page, not by the menu: on a spreadsheet the same keys switch sheets, as in Excel.
+   */
+  nextTabByPage: { owner: ShortcutOwner.Menu, key: { mod: true, key: 'PageDown' }, does: 'Próxima aba' },
+  previousTabByPage: { owner: ShortcutOwner.Menu, key: { mod: true, key: 'PageUp' }, does: 'Aba anterior' },
   /**
    * `Ctrl+F11`, next to `Ctrl+F10` for formatting marks: both toggle a way of viewing the document,
    * and sitting side by side makes the second easy to remember. `F11` alone is the system's full
@@ -414,7 +430,7 @@ export interface PressedKey {
   readonly altKey: boolean
 }
 
-/** For a key heard outside the editor keymap, as in the spreadsheet; letters only. */
+/** For a key heard outside the editor keymap, as in the spreadsheet: a letter or a named key. */
 export function isShortcutPressed(
   shortcut: Shortcut,
   pressed: PressedKey & { readonly shiftKey: boolean },

@@ -56,6 +56,11 @@
         ]
       },
       {
+        "label": "Início",
+        "type": "normal",
+        "enabled": true
+      },
+      {
         "label": "",
         "type": "separator",
         "enabled": true
@@ -144,6 +149,12 @@
         "label": "Fechar arquivo",
         "type": "normal",
         "accelerator": "CmdOrCtrl+W",
+        "enabled": true
+      },
+      {
+        "label": "Fechar todas as abas",
+        "type": "normal",
+        "accelerator": "CmdOrCtrl+Shift+W",
         "enabled": true
       },
       {
@@ -719,6 +730,23 @@
         "label": "Ajustar à largura",
         "type": "checkbox",
         "checked": false,
+        "enabled": true
+      },
+      {
+        "label": "",
+        "type": "separator",
+        "enabled": true
+      },
+      {
+        "label": "Próxima aba",
+        "type": "normal",
+        "accelerator": "CmdOrCtrl+Tab",
+        "enabled": true
+      },
+      {
+        "label": "Aba anterior",
+        "type": "normal",
+        "accelerator": "CmdOrCtrl+Shift+Tab",
         "enabled": true
       },
       {

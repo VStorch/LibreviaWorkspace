@@ -4,39 +4,33 @@ import { APP_NAME } from '@shared/constants.js'
 import { LANGUAGES, LANGUAGE_NAMES, type MessageKey } from '@shared/i18n/index.js'
 import { SHORTCUTS, acceleratorOf } from '@shared/shortcuts.js'
 import { TABLE_ACTIONS } from '@shared/table-actions.js'
-import { MenuCommand, RevisionView, Theme, type EditorPreferences } from '@shared/types.js'
+import type { MenuSnapshot } from '@shared/ipc.js'
+import { MenuCommand, Theme, type EditorPreferences } from '@shared/types.js'
 import { showAboutDialog } from './dialogs.js'
 import { listRecentFiles } from './fs/recent.js'
 import { t } from './i18n.js'
 import { logFolder } from './log.js'
 import { openFolder } from './open-folder.js'
 import { editorPreferences, updatePreferences } from './preferences.js'
-import { devServerUrl, sendMenuCommand } from './window.js'
+import { devServerUrl, menuSnapshotOf, sendMenuCommand } from './window.js'
 
 const isMac = process.platform === 'darwin'
 
-let trackChangesOn = false
+/** A command's item as the active tab shows it. */
+type ItemOf = (command: MenuCommand) => MenuItemConstructorOptions
 
-export function setTrackChangesChecked(on: boolean): void {
-  if (on === trackChangesOn) return
-  trackChangesOn = on
-  void refreshMenu()
+function itemsFor(snapshot: MenuSnapshot): ItemOf {
+  return (command) => {
+    const item = commandItem(command)
+    return snapshot.disabled.includes(command) ? { ...item, enabled: false } : item
+  }
 }
 
-let revisionView: RevisionView = RevisionView.All
-
-export function setRevisionViewChecked(view: RevisionView): void {
-  if (view === revisionView) return
-  revisionView = view
-  void refreshMenu()
-}
-
-function revisionViewItem(view: RevisionView, command: MenuCommand): MenuItemConstructorOptions {
+function radioItem(command: MenuCommand, snapshot: MenuSnapshot): MenuItemConstructorOptions {
   return {
-    label: t(COMMANDS[command].labelKey),
+    ...itemsFor(snapshot)(command),
     type: 'radio',
-    checked: revisionView === view,
-    click: () => dispatch(command),
+    checked: snapshot.checked.includes(command),
   }
 }
 
@@ -50,7 +44,7 @@ function dispatch(command: MenuCommand, path?: string): void {
   sendMenuCommand(window, path === undefined ? { command } : { command, path })
 }
 
-async function buildRecentSubmenu(): Promise<MenuItemConstructorOptions[]> {
+async function buildRecentSubmenu(item: ItemOf): Promise<MenuItemConstructorOptions[]> {
   const recent = await listRecentFiles()
   if (recent.length === 0) {
     return [{ label: t('menu.file.noRecent'), enabled: false }]
@@ -64,7 +58,7 @@ async function buildRecentSubmenu(): Promise<MenuItemConstructorOptions[]> {
       click: () => dispatch(MenuCommand.OpenRecent, file.path),
     })),
     { type: 'separator' },
-    commandItem(MenuCommand.ClearRecent),
+    item(MenuCommand.ClearRecent),
   ]
 }
 
@@ -132,11 +126,11 @@ function preferenceToggle(
  * The zoom belongs to the sheet; the step belongs to the renderer, which knows what "fit width" is
  * worth.
  */
-function zoomItems(preferences: EditorPreferences): MenuItemConstructorOptions[] {
+function zoomItems(preferences: EditorPreferences, item: ItemOf): MenuItemConstructorOptions[] {
   return [
-    commandItem(MenuCommand.ZoomReset),
-    commandItem(MenuCommand.ZoomIn),
-    commandItem(MenuCommand.ZoomOut),
+    item(MenuCommand.ZoomReset),
+    item(MenuCommand.ZoomIn),
+    item(MenuCommand.ZoomOut),
     {
       label: t(COMMANDS[MenuCommand.ZoomFitWidth].labelKey),
       type: 'checkbox',
@@ -147,7 +141,7 @@ function zoomItems(preferences: EditorPreferences): MenuItemConstructorOptions[]
 }
 
 /** Items are not greyed out outside a table: main does not know where the cursor is. */
-function buildTableSubmenu(): MenuItemConstructorOptions[] {
+function buildTableSubmenu(item: ItemOf): MenuItemConstructorOptions[] {
   const items: MenuItemConstructorOptions[] = []
   let group = TABLE_ACTIONS[0]?.group
 
@@ -155,27 +149,28 @@ function buildTableSubmenu(): MenuItemConstructorOptions[] {
     if (action.group !== group) items.push({ type: 'separator' })
     group = action.group
 
-    items.push(commandItem(action.id))
+    items.push(item(action.id))
   }
 
   return items
 }
 
-/** Only items that work. */
-async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
+/** Only items that work; the state is the focused window's active tab. */
+async function buildTemplate(snapshot: MenuSnapshot): Promise<MenuItemConstructorOptions[]> {
   const preferences = editorPreferences()
+  const item = itemsFor(snapshot)
 
   return [
     ...macAppMenu(),
-    fileMenu(await buildRecentSubmenu()),
-    editMenu(),
-    formatMenu(),
-    { label: t('menu.table'), submenu: buildTableSubmenu() },
-    insertMenu(),
-    referencesMenu(),
-    reviewMenu(),
-    { label: t('menu.view'), submenu: viewSubmenu(preferences) },
-    toolsMenu(preferences),
+    fileMenu(await buildRecentSubmenu(item), item),
+    editMenu(item),
+    formatMenu(item),
+    { label: t('menu.table'), submenu: buildTableSubmenu(item) },
+    insertMenu(item),
+    referencesMenu(item),
+    reviewMenu(snapshot),
+    { label: t('menu.view'), submenu: viewSubmenu(preferences, item) },
+    toolsMenu(preferences, item),
     helpMenu(),
   ]
 }
@@ -199,7 +194,7 @@ function macAppMenu(): MenuItemConstructorOptions[] {
     : []
 }
 
-function viewSubmenu(preferences: EditorPreferences): MenuItemConstructorOptions[] {
+function viewSubmenu(preferences: EditorPreferences, item: ItemOf): MenuItemConstructorOptions[] {
   const items: MenuItemConstructorOptions[] = [
     preferenceToggle('view.showToolbar', 'showToolbar', preferences),
     preferenceToggle('view.showStatusBar', 'showStatusBar', preferences),
@@ -242,7 +237,10 @@ function viewSubmenu(preferences: EditorPreferences): MenuItemConstructorOptions
       })),
     },
     { type: 'separator' },
-    ...zoomItems(preferences),
+    ...zoomItems(preferences, item),
+    { type: 'separator' },
+    item(MenuCommand.NextTab),
+    item(MenuCommand.PreviousTab),
     { type: 'separator' },
     {
       role: 'togglefullscreen',
@@ -261,128 +259,131 @@ function viewSubmenu(preferences: EditorPreferences): MenuItemConstructorOptions
   return items
 }
 
-function fileMenu(recent: MenuItemConstructorOptions[]): MenuItemConstructorOptions {
+function fileMenu(recent: MenuItemConstructorOptions[], item: ItemOf): MenuItemConstructorOptions {
   return {
     label: t('menu.file'),
     submenu: [
-      commandItem(MenuCommand.NewDocument),
-      commandItem(MenuCommand.NewSpreadsheet),
-      commandItem(MenuCommand.NewFromTemplate),
+      item(MenuCommand.NewDocument),
+      item(MenuCommand.NewSpreadsheet),
+      item(MenuCommand.NewFromTemplate),
       { type: 'separator' },
-      commandItem(MenuCommand.Open),
+      item(MenuCommand.Open),
       { label: t('menu.file.openRecent'), submenu: recent },
+      item(MenuCommand.ShowHome),
       { type: 'separator' },
-      commandItem(MenuCommand.Save),
-      commandItem(MenuCommand.SaveAs),
+      item(MenuCommand.Save),
+      item(MenuCommand.SaveAs),
       { type: 'separator' },
-      commandItem(MenuCommand.PageSetup),
-      commandItem(MenuCommand.PrintPreview),
-      commandItem(MenuCommand.ExportPdf),
+      item(MenuCommand.PageSetup),
+      item(MenuCommand.PrintPreview),
+      item(MenuCommand.ExportPdf),
       {
         label: t('menu.file.exportAs'),
         submenu: [
-          commandItem(MenuCommand.ExportWord),
-          commandItem(MenuCommand.ExportOdt),
-          commandItem(MenuCommand.ExportHtml),
-          commandItem(MenuCommand.ExportMarkdown),
+          item(MenuCommand.ExportWord),
+          item(MenuCommand.ExportOdt),
+          item(MenuCommand.ExportHtml),
+          item(MenuCommand.ExportMarkdown),
         ],
       },
-      commandItem(MenuCommand.DocumentProperties),
-      commandItem(MenuCommand.InspectDocument),
-      commandItem(MenuCommand.Print),
+      item(MenuCommand.DocumentProperties),
+      item(MenuCommand.InspectDocument),
+      item(MenuCommand.Print),
       { type: 'separator' },
-      commandItem(MenuCommand.CloseFile),
+      item(MenuCommand.CloseFile),
+      item(MenuCommand.CloseAllTabs),
       { role: 'quit', label: t('menu.file.quit') },
     ],
   }
 }
 
-function editMenu(): MenuItemConstructorOptions {
+function editMenu(item: ItemOf): MenuItemConstructorOptions {
   return {
     label: t('menu.edit'),
     submenu: [
-      commandItem(MenuCommand.Undo),
-      commandItem(MenuCommand.Redo),
+      item(MenuCommand.Undo),
+      item(MenuCommand.Redo),
       { type: 'separator' },
       { role: 'cut', label: t('menu.edit.cut') },
       { role: 'copy', label: t('menu.edit.copy') },
       { role: 'paste', label: t('menu.edit.paste') },
-      commandItem(MenuCommand.PasteWithoutFormat),
+      item(MenuCommand.PasteWithoutFormat),
       { role: 'selectAll', label: t('menu.edit.selectAll') },
       { type: 'separator' },
-      commandItem(MenuCommand.FindReplace),
+      item(MenuCommand.FindReplace),
     ],
   }
 }
 
-function formatMenu(): MenuItemConstructorOptions {
+function formatMenu(item: ItemOf): MenuItemConstructorOptions {
   return {
     label: t('menu.format'),
     submenu: [
-      commandItem(MenuCommand.ParagraphSetup),
-      commandItem(MenuCommand.ImageProperties),
-      commandItem(MenuCommand.FormatColumns),
+      item(MenuCommand.ParagraphSetup),
+      item(MenuCommand.ImageProperties),
+      item(MenuCommand.FormatColumns),
     ],
   }
 }
 
-function insertMenu(): MenuItemConstructorOptions {
+function insertMenu(item: ItemOf): MenuItemConstructorOptions {
   return {
     label: t('menu.insert'),
     submenu: [
-      commandItem(MenuCommand.InsertPageBreak),
+      item(MenuCommand.InsertPageBreak),
       {
         // A section break is invisible in the text, so it can also be deleted from the menu.
         label: t('menu.insert.sectionBreak'),
         submenu: [
-          commandItem(MenuCommand.InsertSectionNextPage),
-          commandItem(MenuCommand.InsertSectionContinuous),
-          commandItem(MenuCommand.InsertSectionEvenPage),
-          commandItem(MenuCommand.InsertSectionOddPage),
+          item(MenuCommand.InsertSectionNextPage),
+          item(MenuCommand.InsertSectionContinuous),
+          item(MenuCommand.InsertSectionEvenPage),
+          item(MenuCommand.InsertSectionOddPage),
           { type: 'separator' },
-          commandItem(MenuCommand.InsertColumnBreak),
-          commandItem(MenuCommand.DeleteSectionBreak),
+          item(MenuCommand.InsertColumnBreak),
+          item(MenuCommand.DeleteSectionBreak),
         ],
       },
-      commandItem(MenuCommand.SpecialCharacter),
-      commandItem(MenuCommand.InsertEquation),
-      commandItem(MenuCommand.InsertDisplayEquation),
-      commandItem(MenuCommand.InsertPropertyField),
+      item(MenuCommand.SpecialCharacter),
+      item(MenuCommand.InsertEquation),
+      item(MenuCommand.InsertDisplayEquation),
+      item(MenuCommand.InsertPropertyField),
       { type: 'separator' },
-      commandItem(MenuCommand.InsertBookmark),
-      commandItem(MenuCommand.InsertFootnote),
-      commandItem(MenuCommand.InsertEndnote),
-      commandItem(MenuCommand.InsertComment),
-      commandItem(MenuCommand.NextComment),
-      commandItem(MenuCommand.PreviousComment),
+      item(MenuCommand.InsertBookmark),
+      item(MenuCommand.InsertFootnote),
+      item(MenuCommand.InsertEndnote),
+      item(MenuCommand.InsertComment),
+      item(MenuCommand.NextComment),
+      item(MenuCommand.PreviousComment),
     ],
   }
 }
 
-function referencesMenu(): MenuItemConstructorOptions {
+function referencesMenu(item: ItemOf): MenuItemConstructorOptions {
   return {
     // The bookmark lives under "Insert", as in Word.
     label: t('menu.references'),
     submenu: [
-      commandItem(MenuCommand.InsertTableOfContents),
-      commandItem(MenuCommand.UpdateTableOfContents),
+      item(MenuCommand.InsertTableOfContents),
+      item(MenuCommand.UpdateTableOfContents),
       { type: 'separator' },
-      commandItem(MenuCommand.InsertCaption),
-      commandItem(MenuCommand.InsertCrossReference),
+      item(MenuCommand.InsertCaption),
+      item(MenuCommand.InsertCrossReference),
       { type: 'separator' },
-      commandItem(MenuCommand.UpdateFields),
+      item(MenuCommand.UpdateFields),
     ],
   }
 }
 
-function reviewMenu(): MenuItemConstructorOptions {
+function reviewMenu(snapshot: MenuSnapshot): MenuItemConstructorOptions {
+  const item = itemsFor(snapshot)
   return {
     label: t('menu.review'),
     submenu: [
       {
-        ...commandItem(MenuCommand.ToggleTrackChanges),
+        ...item(MenuCommand.ToggleTrackChanges),
         type: 'checkbox',
-        checked: trackChangesOn,
+        checked: snapshot.checked.includes(MenuCommand.ToggleTrackChanges),
         toolTip: t('revisions.trackHint'),
         click: () => {
           dispatch(MenuCommand.ToggleTrackChanges)
@@ -393,39 +394,39 @@ function reviewMenu(): MenuItemConstructorOptions {
       {
         label: t('revisions.show'),
         submenu: [
-          revisionViewItem(RevisionView.All, MenuCommand.ShowAllMarkup),
-          revisionViewItem(RevisionView.Simple, MenuCommand.ShowSimpleMarkup),
-          revisionViewItem(RevisionView.None, MenuCommand.ShowNoMarkup),
-          revisionViewItem(RevisionView.Original, MenuCommand.ShowOriginal),
+          radioItem(MenuCommand.ShowAllMarkup, snapshot),
+          radioItem(MenuCommand.ShowSimpleMarkup, snapshot),
+          radioItem(MenuCommand.ShowNoMarkup, snapshot),
+          radioItem(MenuCommand.ShowOriginal, snapshot),
         ],
       },
       { type: 'separator' },
-      commandItem(MenuCommand.AcceptChange),
-      commandItem(MenuCommand.RejectChange),
+      item(MenuCommand.AcceptChange),
+      item(MenuCommand.RejectChange),
       { type: 'separator' },
-      commandItem(MenuCommand.AcceptAllChanges),
-      commandItem(MenuCommand.RejectAllChanges),
+      item(MenuCommand.AcceptAllChanges),
+      item(MenuCommand.RejectAllChanges),
       { type: 'separator' },
-      commandItem(MenuCommand.NextChange),
-      commandItem(MenuCommand.PreviousChange),
+      item(MenuCommand.NextChange),
+      item(MenuCommand.PreviousChange),
     ],
   }
 }
 
-function toolsMenu(preferences: EditorPreferences): MenuItemConstructorOptions {
+function toolsMenu(preferences: EditorPreferences, item: ItemOf): MenuItemConstructorOptions {
   return {
     label: t('menu.tools'),
     submenu: [
       preferenceToggle('menu.tools.spellcheck', 'spellcheck', preferences),
       preferenceToggle('menu.tools.typography', 'typography', preferences),
       { type: 'separator' },
-      commandItem(MenuCommand.WordCount),
-      commandItem(MenuCommand.AuthorName),
+      item(MenuCommand.WordCount),
+      item(MenuCommand.AuthorName),
       { type: 'separator' },
-      commandItem(MenuCommand.AiAssistant),
-      commandItem(MenuCommand.AiProviders),
+      item(MenuCommand.AiAssistant),
+      item(MenuCommand.AiProviders),
       { type: 'separator' },
-      commandItem(MenuCommand.Options),
+      item(MenuCommand.Options),
     ],
   }
 }
@@ -452,5 +453,5 @@ async function openLogFolder(): Promise<void> {
 }
 
 export async function refreshMenu(): Promise<void> {
-  Menu.setApplicationMenu(Menu.buildFromTemplate(await buildTemplate()))
+  Menu.setApplicationMenu(Menu.buildFromTemplate(await buildTemplate(menuSnapshotOf(focusedWindow()))))
 }

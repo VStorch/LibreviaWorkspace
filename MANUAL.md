@@ -99,12 +99,17 @@ Each open file has a tab at the top of the window, with an icon for its kind: do
 spreadsheet or PDF. Menus and toolbar act on the file on screen.
 
 - Click a tab to show its file. A dot after the name means unsaved changes.
+- `Ctrl+Tab` and `Ctrl+PgDn` show the next tab; `Ctrl+Shift+Tab` and `Ctrl+PgUp`, the previous one.
+  On a spreadsheet, `Ctrl+PgDn` and `Ctrl+PgUp` move between the spreadsheet's own tabs at the
+  bottom, as in Excel; `Ctrl+Tab` still switches files.
 - **×**, a middle click on the tab, or **File → Close file** closes it. With unsaved changes, the
   application asks first.
+- **File → Close all tabs** (`Ctrl+Shift+W`) closes them one by one. If you keep a file at the
+  question, the ones after it stay open.
 - Opening a file that is already open shows its tab, instead of a second copy.
 - Up to 16 files stay open at once. Close one to open another.
 - The **Home** tab has the recent files and the buttons to create and open. The first file you open
-  from it takes its place; **+** brings it back. Closing the last file leaves Home alone.
+  from it takes its place; **+** or **File → Home** brings it back. Closing the last file leaves Home alone.
 - A blank document you did not touch gives its place to the next file you open, as in Word. **New
   document** always opens a new tab.
 - Hidden tabs keep their drafts too, every eight seconds.
@@ -240,6 +245,9 @@ They are Word's shortcuts, with few exceptions, explained at the end of the tabl
 | `Ctrl+S` | save |
 | `Ctrl+Shift+S` | save as |
 | `Ctrl+W` | close the file |
+| `Ctrl+Shift+W` | close all tabs |
+| `Ctrl+Tab`, `Ctrl+PgDn` | next tab (on a spreadsheet, `Ctrl+PgDn` goes to its next tab at the bottom) |
+| `Ctrl+Shift+Tab`, `Ctrl+PgUp` | previous tab (on a spreadsheet, `Ctrl+PgUp` goes to its previous tab at the bottom) |
 | `Ctrl+P` | print |
 | `Ctrl+F` | find and replace |
 | `Ctrl+Shift+V` | paste without formatting |

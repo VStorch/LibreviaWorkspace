@@ -34,6 +34,8 @@ export const MENU = {
   'menu.file.inspect': { pt: 'Inspecionar documento…', en: 'Inspect document…' },
   'menu.file.print': { pt: 'Imprimir…', en: 'Print…' },
   'menu.file.close': { pt: 'Fechar arquivo', en: 'Close file' },
+  'menu.file.closeAll': { pt: 'Fechar todas as abas', en: 'Close all tabs' },
+  'menu.file.home': { pt: 'Início', en: 'Home' },
   'menu.file.quit': { pt: 'Sair', en: 'Quit' },
 
   'menu.edit.undo': { pt: 'Desfazer', en: 'Undo' },
@@ -74,6 +76,8 @@ export const MENU = {
   'menu.references.caption': { pt: 'Inserir legenda…', en: 'Insert caption…' },
   'menu.references.crossReference': { pt: 'Referência cruzada…', en: 'Cross-reference…' },
 
+  'menu.view.nextTab': { pt: 'Próxima aba', en: 'Next tab' },
+  'menu.view.previousTab': { pt: 'Aba anterior', en: 'Previous tab' },
   'menu.view.formattingMarks': { pt: 'Marcas de formatação', en: 'Formatting marks' },
   'menu.view.navigationPane': { pt: 'Painel de navegação', en: 'Navigation pane' },
   'menu.view.commentsPane': { pt: 'Comentários', en: 'Comments' },

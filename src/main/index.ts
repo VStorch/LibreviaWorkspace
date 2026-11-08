@@ -124,6 +124,10 @@ async function onReady(): Promise<void> {
     void refreshMenu()
   })
   await refreshMenu()
+  // One application menu: it shows the active tab of the window in front.
+  app.on('browser-window-focus', () => {
+    void refreshMenu()
+  })
 
   createMainWindow()
 

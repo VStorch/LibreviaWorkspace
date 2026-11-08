@@ -33,7 +33,7 @@ import { PRIVACY_CATEGORIES } from '@services/file/privacy.js'
 import { PDF_VIEWER_ORIGIN } from './constants.js'
 import { ACP_AGENT_IDS } from '@services/ai/acp-agents.js'
 import { AiProviderKind } from '@services/ai/provider.js'
-import { DictionaryScope, EditCommand, MenuCommand, RevisionView } from './types.js'
+import { DictionaryScope, DocumentKind, EditCommand, MenuCommand } from './types.js'
 import type { SerializedError } from './errors.js'
 import {
   MAX_AI_MODELS,
@@ -48,6 +48,22 @@ import {
   MAX_PATH_LENGTH,
   MAX_USER_TEMPLATES,
 } from './limits.js'
+
+const commandListSchema = z.array(z.enum(MenuCommand)).max(Object.keys(MenuCommand).length)
+
+/**
+ * What the menu shows for the active tab. Coarse on purpose: rebuilding the menu on Linux flickers
+ * and closes an open menu, so nothing here follows the selection.
+ */
+export const menuSnapshotSchema = z.object({
+  /** `null` on Home. */
+  activeKind: z.enum(DocumentKind).nullable(),
+  editable: z.boolean(),
+  checked: commandListSchema,
+  disabled: commandListSchema,
+})
+
+export type MenuSnapshot = z.infer<typeof menuSnapshotSchema>
 
 /**
  * The boundary is **language-neutral**: only serializable data crosses it, never Node objects,
@@ -308,10 +324,7 @@ export const ipcContracts = {
       isDirty: z.boolean(),
       /** Any tab, hidden ones included: what the close guard asks about. */
       unsavedWork: z.boolean(),
-      /** For the check mark in the Review menu. */
-      trackChanges: z.boolean(),
-      /** For the checked item in Review → Show. */
-      revisionView: z.enum(RevisionView),
+      commands: menuSnapshotSchema,
     }),
     response: z.object({ applied: z.literal(true) }),
   },

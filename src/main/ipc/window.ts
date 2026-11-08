@@ -6,7 +6,7 @@ import { listInstalledFontFamilies } from '../system-fonts.js'
 import { closeWithoutGuard, updateWindowState } from '../window.js'
 import { handle } from './registry.js'
 import { windowOf } from './sender-window.js'
-import { setRevisionViewChecked, setTrackChangesChecked } from '../menu.js'
+import { refreshMenu } from '../menu.js'
 import { externalFilesReady } from '../external-files.js'
 import { MAX_FONT_FAMILIES, MAX_FONT_FAMILY_LENGTH } from '@shared/limits.js'
 
@@ -44,9 +44,7 @@ export function registerWindowHandlers(): void {
   }))
 
   handle(IpcChannel.WindowSetState, (payload, event) => {
-    updateWindowState(windowOf(event), payload)
-    setTrackChangesChecked(payload.trackChanges)
-    setRevisionViewChecked(payload.revisionView)
+    if (updateWindowState(windowOf(event), payload)) void refreshMenu()
     return { applied: true as const }
   })
 

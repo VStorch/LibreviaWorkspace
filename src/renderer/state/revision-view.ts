@@ -1,14 +1,22 @@
 import { MenuCommand, RevisionView } from '@shared/types.js'
-import type { CommandHandler, CommandHandlers } from '../commands/execute.js'
+import type { CommandHandlers } from '../commands/execute.js'
 import { activeWorkspaceStore } from './tabs.js'
 
-const viewCommand = (view: RevisionView): CommandHandler => ({
-  run: () => activeWorkspaceStore().getState().setRevisionView(view),
-})
+export const REVISION_VIEW_COMMANDS = {
+  [RevisionView.All]: MenuCommand.ShowAllMarkup,
+  [RevisionView.Simple]: MenuCommand.ShowSimpleMarkup,
+  [RevisionView.None]: MenuCommand.ShowNoMarkup,
+  [RevisionView.Original]: MenuCommand.ShowOriginal,
+} as const satisfies Record<RevisionView, MenuCommand>
 
-export const REVISION_VIEW_HANDLERS: CommandHandlers = {
-  [MenuCommand.ShowAllMarkup]: viewCommand(RevisionView.All),
-  [MenuCommand.ShowSimpleMarkup]: viewCommand(RevisionView.Simple),
-  [MenuCommand.ShowNoMarkup]: viewCommand(RevisionView.None),
-  [MenuCommand.ShowOriginal]: viewCommand(RevisionView.Original),
-}
+export const REVISION_VIEW_HANDLERS: CommandHandlers = Object.fromEntries(
+  Object.entries(REVISION_VIEW_COMMANDS).map(([view, command]) => [
+    command,
+    {
+      run: () =>
+        activeWorkspaceStore()
+          .getState()
+          .setRevisionView(view as RevisionView),
+    },
+  ]),
+)

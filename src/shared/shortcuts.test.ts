@@ -61,6 +61,9 @@ describe('shortcut table', () => {
     expect(acceleratorOf(SHORTCUTS.saveAs)).toBe('CmdOrCtrl+Shift+S')
     expect(acceleratorOf(SHORTCUTS.print)).toBe('CmdOrCtrl+P')
     expect(acceleratorOf(SHORTCUTS.closeFile)).toBe('CmdOrCtrl+W')
+    expect(acceleratorOf(SHORTCUTS.closeAllTabs)).toBe('CmdOrCtrl+Shift+W')
+    expect(acceleratorOf(SHORTCUTS.nextTab)).toBe('CmdOrCtrl+Tab')
+    expect(acceleratorOf(SHORTCUTS.previousTab)).toBe('CmdOrCtrl+Shift+Tab')
     expect(acceleratorOf(SHORTCUTS.pasteWithoutFormat)).toBe('CmdOrCtrl+Shift+V')
     expect(acceleratorOf(SHORTCUTS.findReplace)).toBe('CmdOrCtrl+F')
     expect(acceleratorOf(SHORTCUTS.insertPageBreak)).toBe('CmdOrCtrl+Enter')
@@ -131,5 +134,13 @@ describe('isPdfZoomInKey', () => {
       false,
     )
     expect(isShortcutPressed(SHORTCUTS.pasteWithoutFormat, { ...pressed, altKey: true })).toBe(false)
+  })
+
+  it('recognizes a named key, as the tab keys the page hears', () => {
+    const pressed = { key: 'PageDown', code: 'PageDown', ctrlKey: true, metaKey: false, altKey: false }
+
+    expect(isShortcutPressed(SHORTCUTS.nextTabByPage, { ...pressed, shiftKey: false })).toBe(true)
+    // `Ctrl+Shift+PgDn` selects sheets in Excel: not ours.
+    expect(isShortcutPressed(SHORTCUTS.nextTabByPage, { ...pressed, shiftKey: true })).toBe(false)
   })
 })

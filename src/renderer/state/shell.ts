@@ -213,6 +213,14 @@ export function closeActiveTab(): Promise<boolean> {
   return closeTab(useTabs.getState().activeId)
 }
 
+/** In tab order; the first tab the user keeps stops the rest. */
+export async function closeAllTabs(): Promise<boolean> {
+  for (const { id } of useTabs.getState().tabs) {
+    if (!(await closeTab(id))) return false
+  }
+  return true
+}
+
 /** In tab order, each shown before its save; the first that fails or is canceled stops the rest. */
 export async function saveAllTabs(): Promise<boolean> {
   for (const tab of useTabs.getState().tabs) {

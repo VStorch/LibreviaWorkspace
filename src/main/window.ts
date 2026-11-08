@@ -2,7 +2,7 @@ import { join } from 'node:path'
 import { BrowserWindow, type WebContents } from 'electron'
 import { APP_NAME, WINDOW_DEFAULTS } from '@shared/constants.js'
 import { IpcChannel, type PushIpcChannel } from '@shared/ipc-channels.js'
-import { pushContracts, type PushPayload } from '@shared/ipc.js'
+import { pushContracts, type MenuSnapshot, type PushPayload } from '@shared/ipc.js'
 import type { MenuCommandPayload } from '@shared/api.js'
 import { DiscardChoice, MenuCommand } from '@shared/types.js'
 import { confirmDiscardChanges } from './dialogs.js'
@@ -15,14 +15,22 @@ interface WindowState {
   unsavedWork: boolean
   fileLabel: string
   bypassGuard: boolean
+  commands: MenuSnapshot
 }
+
+const HOME_SNAPSHOT: MenuSnapshot = { activeKind: null, editable: false, checked: [], disabled: [] }
 
 const states = new WeakMap<BrowserWindow, WindowState>()
 
 function stateOf(window: BrowserWindow): WindowState {
   const existing = states.get(window)
   if (existing !== undefined) return existing
-  const created: WindowState = { unsavedWork: false, fileLabel: t('shell.file.untitled'), bypassGuard: false }
+  const created: WindowState = {
+    unsavedWork: false,
+    fileLabel: t('shell.file.untitled'),
+    bypassGuard: false,
+    commands: HOME_SNAPSHOT,
+  }
   states.set(window, created)
   return created
 }
@@ -32,15 +40,24 @@ export function devServerUrl(): string | null {
   return process.env['ELECTRON_RENDERER_URL'] ?? null
 }
 
+/** Returns whether the menu has to be rebuilt. */
 export function updateWindowState(
   window: BrowserWindow,
-  shown: { title: string; isDirty: boolean; unsavedWork: boolean },
-): void {
+  shown: { title: string; isDirty: boolean; unsavedWork: boolean; commands: MenuSnapshot },
+): boolean {
   const state = stateOf(window)
   state.unsavedWork = shown.unsavedWork
   state.fileLabel = shown.title
   window.setTitle(`${shown.isDirty ? '• ' : ''}${shown.title} — ${APP_NAME}`)
   window.setDocumentEdited(shown.unsavedWork)
+
+  const menuChanged = JSON.stringify(shown.commands) !== JSON.stringify(state.commands)
+  state.commands = shown.commands
+  return menuChanged
+}
+
+export function menuSnapshotOf(window: BrowserWindow | null): MenuSnapshot {
+  return window === null ? HOME_SNAPSHOT : stateOf(window).commands
 }
 
 /** The renderer has already decided what to do. */

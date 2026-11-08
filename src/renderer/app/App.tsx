@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { DocumentKind, EditCommand, MenuCommand } from '@shared/types.js'
-import { buildWindowTitle } from '@services/file/formats.js'
 import type { WorkbookModel } from '@services/spreadsheet/model.js'
 import { ErrorBanner } from '../components/ErrorBanner.js'
 import { OptionsDialog } from '../components/OptionsDialog.js'
@@ -34,14 +33,21 @@ import { setOptionsDialog, useOptionsDialog } from '../state/options-dialog.js'
 import { useTheme } from '../state/theme.js'
 import { runZoomCommand } from '../state/zoom.js'
 import { REVISION_VIEW_HANDLERS } from '../state/revision-view.js'
-import { activeWorkspaceStore, autosaveAllTabs, useTabs } from '../state/tabs.js'
+import {
+  activateNextTab,
+  activatePreviousTab,
+  activeWorkspaceStore,
+  autosaveAllTabs,
+  showHome,
+  useTabs,
+} from '../state/tabs.js'
 import { useWorkspace } from '../state/workspace.js'
 import { refreshRecents } from '../state/recents.js'
 import {
-  anyTabDirty,
   checkRecovery,
   clearRecents,
   closeActiveTab,
+  closeAllTabs,
   newDocument,
   newSpreadsheet,
   openRecent,
@@ -51,7 +57,8 @@ import {
   useShell,
 } from '../state/shell.js'
 import { TabBar } from '../components/TabBar.js'
-import { t } from '../i18n.js'
+import { useWindowStateSync } from './window-state.js'
+import { useTabKeys } from './tab-keys.js'
 
 /** The most work a crash can cost; less would weigh on large documents. */
 const AUTOSAVE_INTERVAL_MS = 8_000
@@ -104,6 +111,10 @@ const MENU_ACTIONS: Partial<Record<MenuCommand, MenuAction>> = {
   [MenuCommand.Save]: (workspace) => workspace.save(),
   [MenuCommand.SaveAs]: (workspace) => workspace.saveAs(),
   [MenuCommand.CloseFile]: () => closeActiveTab(),
+  [MenuCommand.CloseAllTabs]: () => closeAllTabs(),
+  [MenuCommand.ShowHome]: () => showHome(),
+  [MenuCommand.NextTab]: () => activateNextTab(),
+  [MenuCommand.PreviousTab]: () => activatePreviousTab(),
   // Only closes if every save succeeds.
   [MenuCommand.SaveAndExit]: async () => {
     if (await saveAllTabs()) await window.api.window.close({})
@@ -152,6 +163,7 @@ export function App(): React.JSX.Element {
 
   useWorkspaceLifecycle()
   useWindowStateSync()
+  useTabKeys()
 
   // Blue for documents, green for spreadsheets: see `--accent` in the CSS.
   return (
@@ -223,39 +235,6 @@ function useWorkspaceLifecycle(): void {
       unsubscribe()
       unregisterRevisions()
       unregisterShell()
-    }
-  }, [])
-}
-
-/** The window title and the state main's menu shows. */
-function useWindowStateSync(): void {
-  useEffect(() => {
-    // Only when the title or the unsaved flags change, not on every key press.
-    let last = ''
-
-    const sync = (): void => {
-      const state = useWorkspace.getState()
-      const untitled = t('shell.file.untitled')
-      const title = state.file?.name ?? untitled
-      // It belongs to the document: off with a spreadsheet open.
-      const trackChanges = state.workbook === null && state.trackChanges === true
-      const { revisionView } = state
-      const { isDirty } = state
-      const unsavedWork = anyTabDirty()
-      const key = JSON.stringify([title, isDirty, unsavedWork, trackChanges, revisionView])
-      if (key === last) return
-
-      last = key
-      void window.api.window.setState({ title, isDirty, unsavedWork, trackChanges, revisionView })
-      document.title = buildWindowTitle(state.file?.name ?? null, isDirty, 'Librevia', untitled)
-    }
-
-    sync()
-    const unsubscribe = useWorkspace.subscribe(sync)
-    const unsubscribeTabs = useTabs.subscribe(sync)
-    return () => {
-      unsubscribeTabs()
-      unsubscribe()
     }
   }, [])
 }

@@ -99,12 +99,17 @@ Cada arquivo aberto tem uma aba no alto da janela, com um ícone do tipo: docume
 PDF. Menus e barra de ferramentas agem no arquivo que está na tela.
 
 - Clique numa aba para mostrar o arquivo dela. Um ponto depois do nome indica alterações não salvas.
+- `Ctrl+Tab` e `Ctrl+PgDn` mostram a próxima aba; `Ctrl+Shift+Tab` e `Ctrl+PgUp`, a anterior. Numa
+  planilha, `Ctrl+PgDn` e `Ctrl+PgUp` andam pelas abas da própria planilha, embaixo, como no Excel;
+  `Ctrl+Tab` continua trocando de arquivo.
 - **×**, um clique com o botão do meio na aba ou **Arquivo → Fechar arquivo** fecha a aba. Com
   alterações não salvas, o aplicativo pergunta antes.
+- **Arquivo → Fechar todas as abas** (`Ctrl+Shift+W`) fecha uma por uma. Se você mantiver um
+  arquivo na pergunta, os que vêm depois dele continuam abertos.
 - Abrir um arquivo que já está aberto mostra a aba dele, em vez de uma segunda cópia.
 - Ficam abertos até 16 arquivos ao mesmo tempo. Feche um para abrir outro.
 - A aba **Início** tem os arquivos recentes e os botões de criar e abrir. O primeiro arquivo que
-  você abre a partir dela fica no lugar dela; **+** a traz de volta. Fechar o último arquivo deixa
+  você abre a partir dela fica no lugar dela; **+** ou **Arquivo → Início** a traz de volta. Fechar o último arquivo deixa
   só o Início.
 - Um documento em branco que você não mexeu dá lugar ao próximo arquivo aberto, como no Word.
   **Novo documento** sempre abre uma aba nova.
@@ -242,6 +247,9 @@ São os atalhos do Word, com poucas exceções, explicadas no fim da tabela.
 | `Ctrl+S` | salvar |
 | `Ctrl+Shift+S` | salvar como |
 | `Ctrl+W` | fechar o arquivo |
+| `Ctrl+Shift+W` | fechar todas as abas |
+| `Ctrl+Tab`, `Ctrl+PgDn` | próxima aba (numa planilha, `Ctrl+PgDn` vai para a próxima aba de baixo) |
+| `Ctrl+Shift+Tab`, `Ctrl+PgUp` | aba anterior (numa planilha, `Ctrl+PgUp` vai para a aba de baixo anterior) |
 | `Ctrl+P` | imprimir |
 | `Ctrl+F` | localizar e substituir |
 | `Ctrl+Shift+V` | colar sem formatação |
