@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createElement } from 'react'
 import { renderToString } from 'react-dom/server'
-import { useTabs } from './tabs.js'
+import { DocumentKind } from '@shared/types.js'
+import { autosaveAllTabs, useTabs } from './tabs.js'
 import { createWorkspaceStore, useWorkspace, type WorkspaceStore } from './workspace.js'
 
 const initialTabs = useTabs.getState()
@@ -27,6 +28,7 @@ function selectedDuringRender<T>(selector: Parameters<typeof useWorkspace<T>>[0]
 }
 
 afterEach(() => {
+  vi.unstubAllGlobals()
   vi.restoreAllMocks()
   useTabs.setState(initialTabs, true)
 })
@@ -80,5 +82,51 @@ describe('useWorkspace', () => {
     expect(useWorkspace.getState().pageCount).toBe(7)
     expect(second.getState().pageCount).toBe(1)
     useWorkspace.setState({ pageCount: 1 })
+  })
+})
+
+const RECENT = { path: '/docs/a.docx', name: 'a.docx', kind: DocumentKind.Document, openedAt: 1 }
+
+describe('work started in a tab', () => {
+  it('lands in the tab that started it after a switch', async () => {
+    let finish: (value: unknown) => void = () => undefined
+    const list = vi.fn(() => new Promise((resolve) => (finish = resolve)))
+    vi.stubGlobal('window', { api: { recent: { list } } })
+    const first = initialTabs.tabs[0]!.store
+    const second = openSecondTab()
+
+    const pending = useWorkspace.getState().refreshRecents()
+    activate('tab-2')
+    finish({ ok: true, data: { files: [RECENT] } })
+    await pending
+
+    expect(first.getState().recents).toEqual([RECENT])
+    expect(first.getState().busy).toBe(false)
+    expect(second.getState().recents).toEqual([])
+    expect(second.getState().busy).toBe(false)
+  })
+
+  it('autosaves every changed tab under its own draft id', async () => {
+    const autosave = vi.fn(async (_request: { draftId: string }) => ({ ok: true, data: { savedAt: 1 } }))
+    vi.stubGlobal('window', { api: { file: { autosave } } })
+    const first = createWorkspaceStore()
+    const second = createWorkspaceStore()
+    const clean = createWorkspaceStore()
+    useTabs.setState({
+      tabs: [
+        { id: 'tab-a', store: first },
+        { id: 'tab-b', store: second },
+        { id: 'tab-c', store: clean },
+      ],
+      activeId: 'tab-a',
+    })
+    for (const store of [first, second]) {
+      store.setState({ file: { path: null, name: 'a.sdoc', kind: DocumentKind.Document }, isDirty: true })
+    }
+
+    await autosaveAllTabs()
+
+    const ids = autosave.mock.calls.map(([request]) => request.draftId)
+    expect(ids).toEqual([first.getState().draftId, second.getState().draftId])
   })
 })

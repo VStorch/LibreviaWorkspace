@@ -33,6 +33,7 @@ import { setOptionsDialog, useOptionsDialog } from '../state/options-dialog.js'
 import { useTheme } from '../state/theme.js'
 import { runZoomCommand } from '../state/zoom.js'
 import { REVISION_VIEW_HANDLERS, useRevisionView } from '../state/revision-view.js'
+import { activeWorkspaceStore, autosaveAllTabs } from '../state/tabs.js'
 import { useWorkspace } from '../state/workspace.js'
 import { t } from '../i18n.js'
 
@@ -113,7 +114,7 @@ function shellHandlers(): CommandHandlers {
       id,
       {
         run: async (arg?: string) => {
-          await action(useWorkspace.getState(), arg)
+          await action(activeWorkspaceStore().getState(), arg)
         },
       },
     ]),
@@ -186,7 +187,7 @@ function useWorkspaceLifecycle(): void {
   useEffect(() => {
     // By timer, not by key press: autosave serializes the whole document.
     const timer = setInterval(() => {
-      void useWorkspace.getState().autosave()
+      void autosaveAllTabs()
     }, AUTOSAVE_INTERVAL_MS)
     return () => clearInterval(timer)
   }, [])

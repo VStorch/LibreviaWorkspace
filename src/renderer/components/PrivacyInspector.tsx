@@ -4,6 +4,7 @@ import type { MessageKey } from '@shared/i18n/index.js'
 import { DocumentKind } from '@shared/types.js'
 import { useT } from '../i18n.js'
 import { anonymousName, inspectionNeedsSave } from '../state/privacy-actions.js'
+import { activeWorkspaceStore } from '../state/tabs.js'
 import { useWorkspace } from '../state/workspace.js'
 
 type Phase =
@@ -29,16 +30,17 @@ const MAX_LISTED = 8
  */
 export function PrivacyInspector(): React.JSX.Element {
   const t = useT()
+  const [store] = useState(activeWorkspaceStore)
   const [phase, setPhase] = useState<Phase>(() =>
-    inspectionNeedsSave(useWorkspace.getState()) ? { step: 'save' } : { step: 'loading' },
+    inspectionNeedsSave(store.getState()) ? { step: 'save' } : { step: 'loading' },
   )
-  const close = (): void => useWorkspace.getState().setInspector(false)
+  const close = (): void => store.getState().setInspector(false)
   const isPdf = useWorkspace((state) => state.file?.kind === DocumentKind.Pdf)
 
   useEffect(() => {
     if (phase.step !== 'loading') return
     let current = true
-    void useWorkspace
+    void store
       .getState()
       .inspectPersonalData()
       .then((report) => {
@@ -52,7 +54,7 @@ export function PrivacyInspector(): React.JSX.Element {
   }, [phase.step])
 
   async function saveFirst(): Promise<void> {
-    if (await useWorkspace.getState().save()) setPhase({ step: 'loading' })
+    if (await store.getState().save()) setPhase({ step: 'loading' })
   }
 
   return (

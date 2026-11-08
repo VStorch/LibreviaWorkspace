@@ -27,3 +27,8 @@ export function activeStoreOf({ tabs, activeId }: TabsState): WorkspaceStore {
 export function activeWorkspaceStore(): WorkspaceStore {
   return activeStoreOf(useTabs.getState())
 }
+
+/** Every tab, hidden ones included: a hidden tab reads its content from its own snapshot. */
+export async function autosaveAllTabs(): Promise<void> {
+  await Promise.all(useTabs.getState().tabs.map((tab) => tab.store.getState().autosave()))
+}

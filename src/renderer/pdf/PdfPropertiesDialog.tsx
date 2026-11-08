@@ -8,7 +8,7 @@ import {
   type StatisticRow,
 } from '../components/FilePropertiesDialog.js'
 import { useLanguage, useT } from '../i18n.js'
-import { useWorkspace } from '../state/workspace.js'
+import { activeWorkspaceStore } from '../state/tabs.js'
 import { usePdfViewer } from './viewer-state.js'
 
 type Inspection = IpcResponse<typeof IpcChannel.PdfProperties>
@@ -94,16 +94,17 @@ function useInspection(path: string, onClose: () => void): Inspection | null {
 
   useEffect(() => {
     let current = true
+    const store = activeWorkspaceStore()
     void (async () => {
       const result = await window.api.pdf.properties({ path })
       if (!current) return
       if (!result.ok) {
-        useWorkspace.getState().showError(result.error)
+        store.getState().showError(result.error)
         close.current()
         return
       }
-      if (useWorkspace.getState().properties === undefined) {
-        useWorkspace.setState({ properties: propertiesOf(result.data.properties ?? {}) })
+      if (store.getState().properties === undefined) {
+        store.setState({ properties: propertiesOf(result.data.properties ?? {}) })
       }
       setInspection(result.data)
     })()
