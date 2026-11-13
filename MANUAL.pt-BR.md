@@ -247,6 +247,14 @@ exporte de novo a partir do documento original.
 
 São os atalhos do Word, com poucas exceções, explicadas no fim da tabela.
 
+**Mudar um atalho:** em **Ferramentas → Opções… → Personalizar atalhos…**, clique no atalho de um
+comando e pressione as teclas novas, por exemplo `Ctrl+Shift+K` para **Localizar e substituir**. A
+tecla nova precisa de `Ctrl`, a não ser que seja uma tecla de função (`F1` a `F24`). O Librevia
+recusa uma tecla que já está em uso e diz por quem: outro comando, o editor de texto (`Ctrl+B`,
+alinhamento…) ou o sistema (copiar, colar, desfazer). **Padrão** traz de volta um atalho, e
+**Restaurar todos** traz todos. Só os comandos do menu mudam; as teclas de formatação do texto
+ficam fixas. As tabelas abaixo mostram os padrões.
+
 ### Arquivo e edição
 
 | Atalho | O que faz |

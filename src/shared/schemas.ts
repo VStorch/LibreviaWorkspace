@@ -333,6 +333,12 @@ export const privacyReportSchema = z.object({
  *
  * The `default`s let an old installation's file open, which has none of these keys.
  */
+const MAX_SHORTCUT_OVERRIDES = 200
+
+const shortcutOverridesSchema = z
+  .record(z.string().max(40), z.string().max(40))
+  .refine((overrides) => Object.keys(overrides).length <= MAX_SHORTCUT_OVERRIDES)
+
 export const editorPreferencesSchema = z.object({
   spellcheck: z.boolean().default(true),
   invisibleCharacters: z.boolean().default(false),
@@ -351,6 +357,7 @@ export const editorPreferencesSchema = z.object({
   commentsPane: z.boolean().default(true),
   authorName: z.string().max(MAX_NAME_LENGTH).default(''),
   saveFormat: z.enum(SAVE_FORMATS).default(SaveFormat.Ask),
+  shortcuts: shortcutOverridesSchema.default({}),
 })
 
 /**
@@ -376,6 +383,7 @@ export const editorPreferencesPatchSchema = z.object({
   commentsPane: z.boolean().optional(),
   authorName: z.string().max(MAX_NAME_LENGTH).optional(),
   saveFormat: z.enum(SAVE_FORMATS).optional(),
+  shortcuts: shortcutOverridesSchema.optional(),
 })
 
 /**

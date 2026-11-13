@@ -2,6 +2,12 @@ import { create } from 'zustand'
 import { IpcChannel } from '@shared/ipc-channels.js'
 import { pushContracts } from '@shared/ipc.js'
 import {
+  applyShortcutOverrides,
+  type ShortcutOverrides,
+  type ShortcutTable,
+} from '@shared/shortcut-overrides.js'
+import { SHORTCUTS } from '@shared/shortcuts.js'
+import {
   DEFAULT_EDITOR_PREFERENCES,
   type EditorPreferences,
   type EditorPreferencesPatch,
@@ -48,4 +54,17 @@ export function watchPreferences(): () => void {
   })
 
   return stop
+}
+
+let cached: { readonly overrides: ShortcutOverrides; readonly table: ShortcutTable } | null = null
+
+function tableFor(overrides: ShortcutOverrides): ShortcutTable {
+  if (cached?.overrides !== overrides)
+    cached = { overrides, table: applyShortcutOverrides(SHORTCUTS, overrides) }
+  return cached.table
+}
+
+/** The keys the menu has now, the person's choices included: what a button should announce. */
+export function useShortcutTable(): ShortcutTable {
+  return tableFor(usePreferences((state) => state.preferences.shortcuts))
 }

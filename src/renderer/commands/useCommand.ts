@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import { COMMANDS, type CommandId, type CommandMeta } from '@shared/commands/registry.js'
-import { SHORTCUTS, shortcutHintOf } from '@shared/shortcuts.js'
+import { shortcutHintOf } from '@shared/shortcuts.js'
+import { useShortcutTable } from '../state/preferences.js'
 import { executeCommand, isCommandAvailable, onAvailabilityChanged } from './execute.js'
 
 export interface BoundCommand {
@@ -13,9 +14,10 @@ export interface BoundCommand {
 export function useCommand(id: CommandId): BoundCommand {
   const enabled = useSyncExternalStore(onAvailabilityChanged, () => isCommandAvailable(id))
   const meta: CommandMeta = COMMANDS[id]
+  const shortcuts = useShortcutTable()
   return {
     enabled,
-    shortcut: meta.shortcut === undefined ? undefined : shortcutHintOf(SHORTCUTS[meta.shortcut]),
+    shortcut: meta.shortcut === undefined ? undefined : shortcutHintOf(shortcuts[meta.shortcut]),
     run: () => void executeCommand(id),
   }
 }

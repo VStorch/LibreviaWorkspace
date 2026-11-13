@@ -5,6 +5,7 @@ import { SAVE_FORMATS, SaveFormat, Theme, type EditorPreferences } from '@shared
 import { useT } from '../i18n.js'
 import { setPreference, usePreferences } from '../state/preferences.js'
 import { DialogActions } from './DialogActions.js'
+import { ShortcutsDialog } from './ShortcutsDialog.js'
 
 type OptionValues = Pick<
   EditorPreferences,
@@ -36,6 +37,7 @@ export function OptionsDialog({ onClose }: { readonly onClose: () => void }): Re
     spellcheck: stored.spellcheck,
     typography: stored.typography,
   }))
+  const [shortcuts, setShortcuts] = useState(false)
   const change = (patch: Partial<OptionValues>): void => setValues((current) => ({ ...current, ...patch }))
 
   function apply(): void {
@@ -43,6 +45,7 @@ export function OptionsDialog({ onClose }: { readonly onClose: () => void }): Re
     onClose()
   }
 
+  if (shortcuts) return <ShortcutsDialog onClose={() => setShortcuts(false)} />
   return (
     <div
       className="popover popover--wide options"
@@ -55,6 +58,12 @@ export function OptionsDialog({ onClose }: { readonly onClose: () => void }): Re
       <FileOptions values={values} onChange={change} />
       <AppearanceOptions values={values} onChange={change} />
       <EditingOptions values={values} onChange={change} />
+      <fieldset className="options__group">
+        <legend>{t('shell.options.keyboard')}</legend>
+        <button type="button" className="btn" onClick={() => setShortcuts(true)}>
+          {t('shell.options.customizeShortcuts')}
+        </button>
+      </fieldset>
       <DialogActions confirmLabel={t('document.common.apply')} onConfirm={apply} onCancel={onClose} />
     </div>
   )

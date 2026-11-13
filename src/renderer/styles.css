@@ -2527,3 +2527,36 @@ button {
   color: var(--muted);
   min-width: 24px;
 }
+
+.shortcuts {
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+}
+
+.shortcuts__table {
+  width: 100%;
+  margin-bottom: 12px;
+  border-collapse: collapse;
+}
+
+.shortcuts__table th {
+  padding: 3px 12px 3px 0;
+  font-weight: normal;
+  text-align: left;
+}
+
+.shortcuts__table td {
+  padding: 3px 0 3px 8px;
+}
+
+.shortcuts__key {
+  min-width: 150px;
+}
+
+.shortcuts__problem {
+  display: block;
+  max-width: 260px;
+  margin-top: 2px;
+  color: var(--danger-text);
+  font-size: 12px;
+}

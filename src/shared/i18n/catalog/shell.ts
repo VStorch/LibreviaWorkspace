@@ -24,6 +24,31 @@ export const SHELL = {
   },
   'shell.options.appearance': { pt: 'Aparência', en: 'Appearance' },
   'shell.options.editing': { pt: 'Edição', en: 'Editing' },
+  'shell.options.keyboard': { pt: 'Teclado', en: 'Keyboard' },
+  'shell.options.customizeShortcuts': { pt: 'Personalizar atalhos…', en: 'Customize shortcuts…' },
+
+  'shell.shortcuts.title': { pt: 'Atalhos do teclado', en: 'Keyboard shortcuts' },
+  'shell.shortcuts.intro': {
+    pt: 'Clique no atalho de um comando e pressione as teclas novas. Os de formatação do texto, como negrito e alinhamento, não mudam.',
+    en: 'Click a command’s shortcut and press the new keys. Text formatting ones, such as bold and alignment, do not change.',
+  },
+  'shell.shortcuts.press': { pt: 'Pressione as teclas… (Esc cancela)', en: 'Press the keys… (Esc cancels)' },
+  'shell.shortcuts.reset': { pt: 'Padrão', en: 'Default' },
+  'shell.shortcuts.resetOne': { pt: 'Voltar {command} ao padrão', en: 'Reset {command} to the default' },
+  'shell.shortcuts.resetAll': { pt: 'Restaurar todos', en: 'Restore all' },
+  'shell.shortcuts.needsModifier': {
+    pt: 'Use Ctrl junto com a tecla, ou uma tecla de F1 a F24.',
+    en: 'Use Ctrl with the key, or a key from F1 to F24.',
+  },
+  'shell.shortcuts.reserved': {
+    pt: '{key} é do sistema (copiar, colar, desfazer, alinhar…) e fica como está.',
+    en: '{key} belongs to the system (copy, paste, undo, align…) and stays as it is.',
+  },
+  'shell.shortcuts.taken': { pt: '{key} já é de “{command}”.', en: '{key} already belongs to “{command}”.' },
+  'shell.shortcuts.takenByEditor': {
+    pt: '{key} já é do editor de texto, como negrito ou alinhamento.',
+    en: '{key} already belongs to the text editor, like bold or alignment.',
+  },
 
   'shell.banner.dismiss': { pt: 'Dispensar aviso', en: 'Dismiss notice' },
 

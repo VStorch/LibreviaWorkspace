@@ -244,6 +244,14 @@ that data, export it again from the original document.
 
 They are Word's shortcuts, with few exceptions, explained at the end of the table.
 
+**Changing a shortcut:** in **Tools → Options… → Customize shortcuts…**, click a command's
+shortcut and press the new keys, for example `Ctrl+Shift+K` for **Find and replace**. The new key
+needs `Ctrl`, unless it is a function key (`F1` to `F24`). Librevia refuses a key already in use
+and says by what: another command, the text editor (`Ctrl+B`, alignment…) or the system (copy,
+paste, undo). **Default** brings back one shortcut, and **Restore all** brings back all of them.
+Only menu commands change; the text formatting keys stay fixed. The tables below show the
+defaults.
+
 ### File and editing
 
 | Shortcut | What it does |

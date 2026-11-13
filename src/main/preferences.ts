@@ -11,6 +11,8 @@ import {
   type EditorPreferencesPatch,
   type ResolvedTheme,
 } from '@shared/types.js'
+import { applyShortcutOverrides, type ShortcutTable } from '@shared/shortcut-overrides.js'
+import { SHORTCUTS } from '@shared/shortcuts.js'
 import { applySpellChecker } from './spellcheck.js'
 import { broadcastPush } from './window.js'
 
@@ -140,25 +142,18 @@ export function updatePreferences(patch: EditorPreferencesPatch): EditorPreferen
 function mergedPreferences(active: EditorPreferences, patch: EditorPreferencesPatch): EditorPreferences {
   // Key by key: spreading the patch would erase a key present with `undefined`. A cleared name
   // falls back to the system user immediately.
-  return withAuthor({
-    spellcheck: patch.spellcheck ?? active.spellcheck,
-    invisibleCharacters: patch.invisibleCharacters ?? active.invisibleCharacters,
-    typography: patch.typography ?? active.typography,
-    language: patch.language ?? active.language,
-    theme: patch.theme ?? active.theme,
-    readingMode: patch.readingMode ?? active.readingMode,
-    showToolbar: patch.showToolbar ?? active.showToolbar,
-    showStatusBar: patch.showStatusBar ?? active.showStatusBar,
-    zoom: patch.zoom ?? active.zoom,
-    zoomFit: patch.zoomFit ?? active.zoomFit,
-    navigationPane: patch.navigationPane ?? active.navigationPane,
-    commentsPane: patch.commentsPane ?? active.commentsPane,
-    authorName: patch.authorName ?? active.authorName,
-    saveFormat: patch.saveFormat ?? active.saveFormat,
-  })
+  const keys = Object.keys(active) as (keyof EditorPreferences)[]
+  return withAuthor(
+    Object.fromEntries(keys.map((key) => [key, patch[key] ?? active[key]])) as unknown as EditorPreferences,
+  )
 }
 
 /** An emitter, not a call to `refreshMenu`: the menu already imports this module. */
 export function onPreferencesChanged(listener: (preferences: EditorPreferences) => void): void {
   listeners.add(listener)
+}
+
+/** The table with the person's keys in place, which the menu builds its accelerators from. */
+export function currentShortcuts(): ShortcutTable {
+  return applyShortcutOverrides(SHORTCUTS, editorPreferences().shortcuts)
 }

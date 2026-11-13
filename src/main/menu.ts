@@ -12,7 +12,7 @@ import { listRecentFiles } from './fs/recent.js'
 import { t } from './i18n.js'
 import { logFolder } from './log.js'
 import { openFolder } from './open-folder.js'
-import { editorPreferences, updatePreferences } from './preferences.js'
+import { currentShortcuts, editorPreferences, updatePreferences } from './preferences.js'
 import { devServerUrl, menuSnapshotOf, sendMenuCommand } from './window.js'
 
 const isMac = process.platform === 'darwin'
@@ -88,7 +88,9 @@ const ROLE_ACCELERATORS: Partial<Record<MenuCommand, string>> = {
 }
 
 function acceleratorFor(meta: CommandMeta): string | undefined {
-  return meta.shortcut === undefined ? ROLE_ACCELERATORS[meta.id] : acceleratorOf(SHORTCUTS[meta.shortcut])
+  return meta.shortcut === undefined
+    ? ROLE_ACCELERATORS[meta.id]
+    : acceleratorOf(currentShortcuts()[meta.shortcut])
 }
 
 function commandItem(command: MenuCommand): MenuItemConstructorOptions {
@@ -200,19 +202,24 @@ function viewSubmenu(preferences: EditorPreferences, item: ItemOf): MenuItemCons
     preferenceToggle('view.showToolbar', 'showToolbar', preferences),
     preferenceToggle('view.showStatusBar', 'showStatusBar', preferences),
     { type: 'separator' },
-    preferenceToggle('view.reading', 'readingMode', preferences, acceleratorOf(SHORTCUTS.readingMode)),
+    preferenceToggle(
+      'view.reading',
+      'readingMode',
+      preferences,
+      acceleratorOf(currentShortcuts().readingMode),
+    ),
     { type: 'separator' },
     preferenceToggle(
       'menu.view.formattingMarks',
       'invisibleCharacters',
       preferences,
-      acceleratorOf(SHORTCUTS.formattingMarks),
+      acceleratorOf(currentShortcuts().formattingMarks),
     ),
     preferenceToggle(
       'menu.view.navigationPane',
       'navigationPane',
       preferences,
-      acceleratorOf(SHORTCUTS.navigationPane),
+      acceleratorOf(currentShortcuts().navigationPane),
     ),
     preferenceToggle('menu.view.commentsPane', 'commentsPane', preferences),
     { type: 'separator' },

@@ -310,6 +310,8 @@ export interface EditorPreferences {
    */
   readonly authorName: string
   readonly saveFormat: SaveFormat
+  /** Only the keys the person changed, by shortcut id; see `shortcut-overrides.ts`. */
+  readonly shortcuts: Readonly<Record<string, string>>
 }
 
 /**
@@ -339,6 +341,7 @@ export const DEFAULT_EDITOR_PREFERENCES: EditorPreferences = {
   commentsPane: true,
   authorName: '',
   saveFormat: SaveFormat.Ask,
+  shortcuts: {},
 }
 
 /** Only `webContents` can do these. */
