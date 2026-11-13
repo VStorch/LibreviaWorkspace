@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { DocumentKind, type DraftSummary } from '@shared/types.js'
+import { DocumentKind, MenuCommand, type DraftSummary } from '@shared/types.js'
 import type { IpcResult } from '@shared/ipc.js'
 import { isOdtTemplatePath, isWordTemplatePath } from '@services/file/formats.js'
 import { canPlaceTab, isHomeTab, MAX_OPEN_TABS } from '@services/tabs/tab-order.js'
@@ -13,11 +13,13 @@ import {
   addTab,
   findTabWithPath,
   removeTab,
+  showHome,
   tabOrderOf,
   tabStore,
   useTabs,
 } from './tabs.js'
 import { createWorkspaceStore, type WorkspaceStore } from './workspace-store.js'
+import { openInAnotherWindow, opensWindows } from './open-mode.js'
 import type { OpenedFile, WorkspaceState } from './types.js'
 
 /** What belongs to the window, not to a tab. */
@@ -112,7 +114,21 @@ async function openFile(load: () => Promise<OpenedFile | null>): Promise<boolean
   return true
 }
 
+const NEW_COMMANDS = {
+  [DocumentKind.Document]: MenuCommand.NewDocument,
+  [DocumentKind.Spreadsheet]: MenuCommand.NewSpreadsheet,
+} as const
+
+/** With one file per window and a file on screen, the new one goes to a window of its own. */
+function goesToNewWindow(replaces: Replaces): boolean {
+  return opensWindows() && replaceableTab(replaces) === null
+}
+
 function startNew(kind: NewKind): void {
+  if (goesToNewWindow('home')) {
+    void openInAnotherWindow({ kind: 'new', command: NEW_COMMANDS[kind] })
+    return
+  }
   if (!hasRoom('home')) return
   const store = createWorkspaceStore()
   store.getState().startNew(kind)
@@ -133,17 +149,17 @@ export async function openViaDialog(): Promise<boolean> {
   if (data === null || data.canceled) return false
   let opened = false
   for (const path of data.paths) {
-    if (!hasRoom('pristine')) break
+    if (!opensWindows() && !hasRoom('pristine')) break
     opened = (await openPicked(path)) || opened
   }
   return opened
 }
 
 /** A template opens a new document, even when a tab edits the template itself. */
-function openPicked(path: string): Promise<boolean> {
-  return isWordTemplatePath(path) || isOdtTemplatePath(path)
-    ? openFile(() => readPicked(path))
-    : openRecent(path)
+async function openPicked(path: string): Promise<boolean> {
+  if (!isWordTemplatePath(path) && !isOdtTemplatePath(path)) return openRecent(path)
+  if (goesToNewWindow('pristine')) return openInAnotherWindow({ kind: 'path', path, hasRoom: false })
+  return openFile(() => readPicked(path))
 }
 
 async function readPicked(path: string): Promise<OpenedFile | null> {
@@ -157,6 +173,10 @@ async function readPicked(path: string): Promise<OpenedFile | null> {
  */
 export async function openRecent(path: string): Promise<boolean> {
   if (showOpenTab(path)) return true
+  if (opensWindows()) {
+    const hasRoom = replaceableTab('pristine') !== null
+    if (await openInAnotherWindow({ kind: 'path', path, hasRoom })) return true
+  }
   return openFile(async () => {
     const opened = await readPicked(path)
     if (opened === null) await refreshRecents()
@@ -168,6 +188,7 @@ export async function openRecent(path: string): Promise<boolean> {
 export async function newFromTemplate(
   template: { readonly source: 'builtin' | 'user'; readonly id: string } | null,
 ): Promise<boolean> {
+  if (goesToNewWindow('pristine')) return openInAnotherWindow({ kind: 'template', template })
   return openFile(async () => {
     if (template !== null) {
       const data = await call(() => window.api.template.open(template))
@@ -304,4 +325,10 @@ export function dirtyTabs(): DirtyTab[] {
     const { isDirty, file } = store.getState()
     return isDirty ? [{ id, label: file?.name ?? t('shell.file.untitled') }] : []
   })
+}
+
+/** Ctrl+T and the tab bar's +: with one file per window and a file on screen, Home opens a window. */
+export function openHome(): void {
+  if (goesToNewWindow('home')) void openInAnotherWindow({ kind: 'new', command: MenuCommand.ShowHome })
+  else showHome()
 }

@@ -56,6 +56,20 @@ const commandListSchema = z.array(z.enum(MenuCommand)).max(Object.keys(MenuComma
  * What the menu shows for the active tab. Coarse on purpose: rebuilding the menu on Linux flickers
  * and closes an open menu, so nothing here follows the selection.
  */
+/** The commands that open a window of their own when the one in front already shows a file. */
+export const WINDOW_OPENING_COMMANDS = [
+  MenuCommand.NewDocument,
+  MenuCommand.NewSpreadsheet,
+  MenuCommand.ShowHome,
+] as const
+
+const windowTemplateSchema = z.object({
+  source: z.enum(['builtin', 'user']),
+  id: z.string().min(1).max(MAX_PATH_LENGTH),
+})
+
+export type WindowTemplate = z.infer<typeof windowTemplateSchema>
+
 export const menuSnapshotSchema = z.object({
   /** `null` on Home. */
   activeKind: z.enum(DocumentKind).nullable(),
@@ -341,12 +355,30 @@ export const ipcContracts = {
         )
         .max(MAX_OPEN_TABS),
       commands: menuSnapshotSchema,
+      /** The files of its tabs: a second window never reads one of them again. */
+      paths: z.array(z.string().min(1).max(MAX_PATH_LENGTH)).max(MAX_OPEN_TABS),
     }),
     response: z.object({ applied: z.literal(true) }),
   },
   [IpcChannel.WindowClose]: {
     request: emptyRequest,
     response: z.object({ closing: z.literal(true) }),
+  },
+  /**
+   * With one file per window: `path` shows the window that holds it, or opens one for it unless
+   * this window has room; `new` and `template` always open a window.
+   */
+  [IpcChannel.WindowOpen]: {
+    request: z.discriminatedUnion('kind', [
+      z.object({
+        kind: z.literal('path'),
+        path: z.string().min(1).max(MAX_PATH_LENGTH),
+        hasRoom: z.boolean(),
+      }),
+      z.object({ kind: z.literal('new'), command: z.enum(WINDOW_OPENING_COMMANDS) }),
+      z.object({ kind: z.literal('template'), template: windowTemplateSchema.nullable() }),
+    ]),
+    response: z.object({ placed: z.boolean() }),
   },
   [IpcChannel.WindowReady]: {
     request: emptyRequest,
@@ -513,6 +545,8 @@ export const pushContracts = {
     command: z.enum(MenuCommand),
     /** Only with "open recent". */
     path: z.string().optional(),
+    /** Only with "new from template", in a window opened for it: `null` browses for one. */
+    template: windowTemplateSchema.nullable().optional(),
   }),
   [IpcChannel.ContextMenuRequested]: contextMenuTargetSchema,
   [IpcChannel.PreferencesChanged]: editorPreferencesSchema,

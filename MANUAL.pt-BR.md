@@ -128,6 +128,13 @@ os botões da barra que o editariam, como **Quebra de página**, também ficam c
 Ao voltar a um documento, o cursor fica no início e **Desfazer** não alcança o que você fez antes
 de trocar de aba. As planilhas mantêm o desfazer.
 
+**Um arquivo por janela:** em **Ferramentas → Opções… → Abrir arquivos**, escolha **Cada um na sua
+janela, como no Word**. Aí um arquivo aberto a partir de uma janela que já mostra outro, um documento
+novo ou **Arquivo → Início** abre uma janela nova, e uma janela com um arquivo só não tem barra de
+abas. Abrir um arquivo que está aberto em outra janela traz essa janela para a frente. Cada janela
+pergunta pelas próprias alterações não salvas ao fechar. O assistente e os programas externos (MCP)
+trabalham na janela da frente.
+
 <a id="format-of-new-files"></a>
 
 ### O formato dos arquivos novos

@@ -107,11 +107,16 @@ export async function stubDialogs(
  * Fires a native menu command. Chromium serves input before IPC: one round through the page's task
  * queue lets the command run before the next key.
  */
-export async function menu(session: Session, command: string): Promise<void> {
-  await session.app.evaluate(({ BrowserWindow }, name) => {
-    BrowserWindow.getAllWindows()[0]?.webContents.send('menu:command', { command: name })
-  }, command)
-  await session.window.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 0)))
+export async function menu(session: Session, command: string, windowIndex = 0): Promise<void> {
+  await session.app.evaluate(
+    ({ BrowserWindow }, [name, index]) => {
+      const byAge = BrowserWindow.getAllWindows().sort((a, b) => a.id - b.id)
+      byAge[index]?.webContents.send('menu:command', { command: name })
+    },
+    [command, windowIndex] as const,
+  )
+  const page = session.app.windows()[windowIndex] ?? session.window
+  await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 0)))
 }
 
 /** By the labels, as a click with the mouse: `menu()` skips the item and goes straight to the page. */

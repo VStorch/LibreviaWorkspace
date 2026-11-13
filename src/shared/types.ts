@@ -266,6 +266,16 @@ export const SaveFormat = {
 
 export type SaveFormat = (typeof SaveFormat)[keyof typeof SaveFormat]
 
+/** Where a file opened from a window that already shows one goes: a new tab or a new window. */
+export const OpenMode = {
+  Tabs: 'tabs',
+  Windows: 'windows',
+} as const
+
+export type OpenMode = (typeof OpenMode)[keyof typeof OpenMode]
+
+export const OPEN_MODES = [OpenMode.Tabs, OpenMode.Windows] as const
+
 export const SAVE_FORMATS = [
   SaveFormat.Ask,
   SaveFormat.Office,
@@ -312,6 +322,7 @@ export interface EditorPreferences {
   readonly saveFormat: SaveFormat
   /** Only the keys the person changed, by shortcut id; see `shortcut-overrides.ts`. */
   readonly shortcuts: Readonly<Record<string, string>>
+  readonly openMode: OpenMode
 }
 
 /**
@@ -342,6 +353,7 @@ export const DEFAULT_EDITOR_PREFERENCES: EditorPreferences = {
   authorName: '',
   saveFormat: SaveFormat.Ask,
   shortcuts: {},
+  openMode: OpenMode.Tabs,
 }
 
 /** Only `webContents` can do these. */

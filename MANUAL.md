@@ -126,6 +126,12 @@ the toolbar buttons that would edit it, such as **Page break**, are greyed out t
 When you come back to a document, the cursor is at the start and **Undo** does not reach what you
 did before switching. Spreadsheets keep their undo.
 
+**One file per window:** in **Tools → Options… → Open files**, choose **Each in its own window, as
+in Word**. Then a file opened from a window that already shows one, a new document or **File →
+Home** opens a new window, and a window with a single file has no tab bar. Opening a file that is
+open in another window brings that window to the front. Each window asks about its own unsaved
+changes when it closes. The assistant and external programs (MCP) work on the window in front.
+
 <a id="format-of-new-files"></a>
 
 ### The format of new files

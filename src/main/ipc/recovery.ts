@@ -4,24 +4,37 @@
  */
 
 import { stat } from 'node:fs/promises'
+import { BrowserWindow } from 'electron'
+import type { IpcRequest } from '@shared/ipc.js'
 import { IpcChannel } from '@shared/ipc-channels.js'
 import { isExcelPath, isOdtPackagePath, isWordPackagePath } from '@services/file/formats.js'
 import { adoptOriginal, OriginalFormat } from '../opened-original.js'
 import { authorizePath } from '../fs/paths.js'
 import { discardDraft, listDraftSummaries, readDraft, writeDraft } from '../fs/recovery.js'
 import { handle } from './registry.js'
+import { windowOf } from './sender-window.js'
+
+/** Which window writes each draft: another live window's drafts are its tabs, not left by a crash. */
+const draftWindows = new Map<string, number>()
+
+function heldByAnotherWindow(draftId: string, asking: BrowserWindow): boolean {
+  const owner = draftWindows.get(draftId)
+  if (owner === undefined || owner === asking.id) return false
+  const window = BrowserWindow.fromId(owner)
+  return window !== null && !window.isDestroyed()
+}
 
 export function registerRecoveryHandlers(): void {
-  handle(IpcChannel.FileAutosave, async (payload) => ({
-    savedAt: await writeDraft(payload.draftId, {
-      path: payload.path,
-      name: payload.name,
-      kind: payload.kind,
-      content: payload.content,
-    }),
-  }))
+  handle(IpcChannel.FileAutosave, async (payload, event) => {
+    draftWindows.set(payload.draftId, windowOf(event).id)
+    return { savedAt: await writeDraftOf(payload) }
+  })
 
-  handle(IpcChannel.RecoveryPeek, async () => ({ drafts: await listDraftSummaries() }))
+  handle(IpcChannel.RecoveryPeek, async (_payload, event) => {
+    const asking = windowOf(event)
+    const drafts = await listDraftSummaries()
+    return { drafts: drafts.filter((draft) => !heldByAnotherWindow(draft.draftId, asking)) }
+  })
 
   handle(IpcChannel.RecoveryRestore, async ({ draftId }) => {
     const draft = await readDraft(draftId)
@@ -56,4 +69,13 @@ async function exists(path: string): Promise<boolean> {
   } catch {
     return false
   }
+}
+
+function writeDraftOf(payload: IpcRequest<typeof IpcChannel.FileAutosave>): Promise<number> {
+  return writeDraft(payload.draftId, {
+    path: payload.path,
+    name: payload.name,
+    kind: payload.kind,
+    content: payload.content,
+  })
 }

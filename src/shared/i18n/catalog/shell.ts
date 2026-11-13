@@ -22,6 +22,12 @@ export const SHELL = {
     pt: 'Vale para o primeiro salvamento de um arquivo novo. “Salvar como” continua oferecendo todos os formatos.',
     en: 'Applies to the first save of a new file. “Save as” still offers every format.',
   },
+  'shell.options.openMode': { pt: 'Abrir arquivos', en: 'Open files' },
+  'shell.options.openMode.tabs': { pt: 'Em abas, na mesma janela', en: 'In tabs, in the same window' },
+  'shell.options.openMode.windows': {
+    pt: 'Cada um na sua janela, como no Word',
+    en: 'Each in its own window, as in Word',
+  },
   'shell.options.appearance': { pt: 'Aparência', en: 'Appearance' },
   'shell.options.editing': { pt: 'Edição', en: 'Editing' },
   'shell.options.keyboard': { pt: 'Teclado', en: 'Keyboard' },

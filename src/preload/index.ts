@@ -69,6 +69,7 @@ const api: AppApi = {
     ready: (payload) => ipcRenderer.invoke(IpcChannel.WindowReady, payload),
     setState: (payload) => ipcRenderer.invoke(IpcChannel.WindowSetState, payload),
     close: (payload) => ipcRenderer.invoke(IpcChannel.WindowClose, payload),
+    open: (payload) => ipcRenderer.invoke(IpcChannel.WindowOpen, payload),
   },
   pdf: {
     share: (payload) => ipcRenderer.invoke(IpcChannel.PdfShare, payload),

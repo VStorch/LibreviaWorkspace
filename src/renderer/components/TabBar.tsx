@@ -1,9 +1,10 @@
 import { useStore } from 'zustand'
-import { DocumentKind } from '@shared/types.js'
+import { DocumentKind, OpenMode } from '@shared/types.js'
 import { isHomeTab } from '@services/tabs/tab-order.js'
 import { useT } from '../i18n.js'
-import { closeTab } from '../state/shell.js'
-import { activateTab, showHome, useTabs, type TabEntry } from '../state/tabs.js'
+import { closeTab, openHome } from '../state/shell.js'
+import { activateTab, useTabs, type TabEntry } from '../state/tabs.js'
+import { usePreferences } from '../state/preferences.js'
 import { Icon, type IconName } from './Icon.js'
 
 const KIND_ICON: Record<DocumentKind, IconName> = {
@@ -14,11 +15,14 @@ const KIND_ICON: Record<DocumentKind, IconName> = {
 
 const MIDDLE_BUTTON = 1
 
-export function TabBar(): React.JSX.Element {
+/** With one file per window, a window holding a single tab needs no bar. */
+export function TabBar(): React.JSX.Element | null {
   const t = useT()
   const tabs = useTabs((state) => state.tabs)
   const activeId = useTabs((state) => state.activeId)
+  const oneFilePerWindow = usePreferences((state) => state.preferences.openMode === OpenMode.Windows)
   const closable = tabs.length > 1 || !isHomeTab(activeId)
+  if (oneFilePerWindow && tabs.length === 1) return null
 
   return (
     <nav className="tabbar" aria-label={t('shell.tabs.list')}>
@@ -32,7 +36,7 @@ export function TabBar(): React.JSX.Element {
         className="tabbar__add"
         aria-label={t('shell.tabs.openHome')}
         title={t('shell.tabs.openHome')}
-        onClick={showHome}
+        onClick={openHome}
       >
         <Icon name="plus" />
       </button>

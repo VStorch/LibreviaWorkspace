@@ -27,6 +27,13 @@ export function menuSnapshot(state: MenuSource, disabled: readonly MenuCommand[]
   }
 }
 
+function openPaths(): string[] {
+  return useTabs.getState().tabs.flatMap(({ store }) => {
+    const path = store.getState().file?.path ?? null
+    return path === null ? [] : [path]
+  })
+}
+
 /** The window title and the state main's menu shows, both from the active tab. */
 export function useWindowStateSync(): void {
   useEffect(() => {
@@ -43,6 +50,7 @@ export function useWindowStateSync(): void {
         isDirty,
         dirty: dirtyTabs(),
         commands: menuSnapshot(state, unavailableCommands()),
+        paths: openPaths(),
       }
       const key = JSON.stringify(payload)
       if (key === last) return

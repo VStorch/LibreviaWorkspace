@@ -38,7 +38,6 @@ import {
   activatePreviousTab,
   activeWorkspaceStore,
   autosaveAllTabs,
-  showHome,
   useTabs,
 } from '../state/tabs.js'
 import { useWorkspace } from '../state/workspace.js'
@@ -48,6 +47,8 @@ import {
   clearRecents,
   closeActiveTab,
   closeAllTabs,
+  newFromTemplate,
+  openHome,
   newDocument,
   newSpreadsheet,
   openRecent,
@@ -112,7 +113,7 @@ const MENU_ACTIONS: Partial<Record<MenuCommand, MenuAction>> = {
   [MenuCommand.SaveAs]: (workspace) => workspace.saveAs(),
   [MenuCommand.CloseFile]: () => closeActiveTab(),
   [MenuCommand.CloseAllTabs]: () => closeAllTabs(),
-  [MenuCommand.ShowHome]: () => showHome(),
+  [MenuCommand.ShowHome]: () => openHome(),
   [MenuCommand.NextTab]: () => activateNextTab(),
   [MenuCommand.PreviousTab]: () => activatePreviousTab(),
   // Only closes if every save succeeds.
@@ -226,8 +227,12 @@ function useWorkspaceLifecycle(): void {
     const unregisterShell = registerHandlers('shell', shellHandlers())
     const unregisterRevisions = registerHandlers('revisions', REVISION_VIEW_HANDLERS)
     let commands = Promise.resolve()
-    const unsubscribe = window.api.menu.onCommand(({ command, path }) => {
-      commands = commands.then(() => executeCommand(command, path)).catch(console.error)
+    const unsubscribe = window.api.menu.onCommand(({ command, path, template }) => {
+      const run = async (): Promise<void> => {
+        if (template === undefined) await executeCommand(command, path)
+        else await newFromTemplate(template)
+      }
+      commands = commands.then(run).catch(console.error)
     })
     // Subscribes before asking main for files picked in the file manager.
     void window.api.window.ready({})

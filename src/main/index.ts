@@ -19,15 +19,16 @@ import { serveViewer } from './pdf-scheme.js'
 import { registerAppSchemes } from './schemes.js'
 import { applyStoredPreferences, onPreferencesChanged } from './preferences.js'
 import { stopAllAgents } from './ai/acp.js'
-import { attachMcpWindow, disposeMcp, mcpHost } from './ai/mcp.js'
+import { disposeMcp, mcpHost } from './ai/mcp.js'
 import { runMcpBridge } from './ai/mcp-bridge.js'
 import { isMcpBridge } from './ai/mcp-paths.js'
 import { applySessionPolicy } from './security.js'
 import { forgetSessionWords, installBundledDictionary, serveDictionary } from './spellcheck.js'
 import { checkSidecarHealth, disposeSidecar } from './sidecar/index.js'
-import { createMainWindow as createWindow, devServerUrl } from './window.js'
-import { fileFromArguments, requestExternalFile } from './external-files.js'
-import { watchProcessFailures, watchWindowFailures } from './failures.js'
+import { bringToFront, devServerUrl } from './window.js'
+import { openAppWindow } from './app-window.js'
+import { externalFilesTarget, fileFromArguments, requestExternalFile } from './external-files.js'
+import { watchProcessFailures } from './failures.js'
 import { logInfo, logWarning, useLogFolder } from './log.js'
 
 // The bridge of a client of the local MCP server: before anything of the app, which it never starts.
@@ -60,10 +61,8 @@ function startApp(): void {
   app.on('second-instance', (_event, argv, workingDirectory) => {
     const path = fileFromArguments(argv.slice(app.isPackaged ? 1 : 2), workingDirectory)
     if (path !== undefined) requestExternalFile(path)
-    const [existing] = BrowserWindow.getAllWindows()
-    if (existing === undefined) return
-    if (existing.isMinimized()) existing.restore()
-    existing.focus()
+    const existing = externalFilesTarget() ?? BrowserWindow.getAllWindows()[0]
+    if (existing !== undefined) bringToFront(existing)
   })
 
   void app.whenReady().then(onReady)
@@ -96,13 +95,6 @@ function registerHandlers(): void {
   registerMcpHandlers()
 }
 
-/** The local MCP server answers through the window that shows the document. */
-function createMainWindow(): void {
-  const window = createWindow()
-  watchWindowFailures(window)
-  attachMcpWindow(window.webContents)
-}
-
 async function onReady(): Promise<void> {
   applySessionPolicy(session.defaultSession, devServerUrl() === null ? 'production' : 'development')
   serveFonts()
@@ -129,7 +121,7 @@ async function onReady(): Promise<void> {
     void refreshMenu()
   })
 
-  createMainWindow()
+  openAppWindow()
 
   // After the window: the app does not wait for the sidecar to appear.
   void checkSidecarHealth()
@@ -141,6 +133,6 @@ async function onReady(): Promise<void> {
   }
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createMainWindow()
+    if (BrowserWindow.getAllWindows().length === 0) openAppWindow()
   })
 }

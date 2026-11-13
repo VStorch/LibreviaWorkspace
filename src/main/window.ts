@@ -10,9 +10,12 @@ import { confirmDiscardChanges, confirmDiscardSeveral } from './dialogs.js'
 import { installContextMenu } from './context-menu.js'
 import { SECURE_WEB_PREFERENCES } from './security-policy.js'
 import { applyNavigationPolicy } from './security.js'
+import { pathKey } from './fs/paths.js'
 
 interface WindowState {
   dirty: readonly DirtyTab[]
+  /** By `pathKey`: the files of its tabs. */
+  paths: ReadonlySet<string>
   bypassGuard: boolean
   commands: MenuSnapshot
 }
@@ -26,6 +29,7 @@ function stateOf(window: BrowserWindow): WindowState {
   if (existing !== undefined) return existing
   const created: WindowState = {
     dirty: [],
+    paths: new Set(),
     bypassGuard: false,
     commands: HOME_SNAPSHOT,
   }
@@ -41,16 +45,38 @@ export function devServerUrl(): string | null {
 /** Returns whether the menu has to be rebuilt. */
 export function updateWindowState(
   window: BrowserWindow,
-  shown: { title: string; isDirty: boolean; dirty: readonly DirtyTab[]; commands: MenuSnapshot },
+  shown: {
+    title: string
+    isDirty: boolean
+    dirty: readonly DirtyTab[]
+    commands: MenuSnapshot
+    paths: readonly string[]
+  },
 ): boolean {
   const state = stateOf(window)
   state.dirty = shown.dirty
+  state.paths = new Set(shown.paths.map((path) => pathKey(path)))
   window.setTitle(`${shown.isDirty ? '• ' : ''}${shown.title} — ${APP_NAME}`)
   window.setDocumentEdited(shown.dirty.length > 0)
 
   const menuChanged = JSON.stringify(shown.commands) !== JSON.stringify(state.commands)
   state.commands = shown.commands
   return menuChanged
+}
+
+/** Another window with the file in a tab: reading it again would swap the package under that tab. */
+export function windowHolding(path: string, asking: BrowserWindow): BrowserWindow | null {
+  const key = pathKey(path)
+  return (
+    BrowserWindow.getAllWindows().find(
+      (window) => window !== asking && !window.isDestroyed() && stateOf(window).paths.has(key),
+    ) ?? null
+  )
+}
+
+export function bringToFront(window: BrowserWindow): void {
+  if (window.isMinimized()) window.restore()
+  window.focus()
 }
 
 export function menuSnapshotOf(window: BrowserWindow | null): MenuSnapshot {

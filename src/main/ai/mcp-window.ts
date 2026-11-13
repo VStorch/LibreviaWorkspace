@@ -40,6 +40,7 @@ export class RendererDocument implements DocumentWindow {
   private readonly pending = new Map<string, (reply: Reply) => void>()
 
   attach(contents: WebContents): void {
+    if (this.contents === contents) return
     this.contents = contents
     contents.once('destroyed', () => {
       if (this.contents === contents) this.contents = null

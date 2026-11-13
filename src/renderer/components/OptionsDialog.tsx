@@ -1,7 +1,14 @@
 import { useState } from 'react'
 import { LANGUAGES, LANGUAGE_NAMES, type Language, type MessageKey } from '@shared/i18n/index.js'
 import { MAX_NAME_LENGTH } from '@shared/limits.js'
-import { SAVE_FORMATS, SaveFormat, Theme, type EditorPreferences } from '@shared/types.js'
+import {
+  OPEN_MODES,
+  OpenMode,
+  SAVE_FORMATS,
+  SaveFormat,
+  Theme,
+  type EditorPreferences,
+} from '@shared/types.js'
 import { useT } from '../i18n.js'
 import { setPreference, usePreferences } from '../state/preferences.js'
 import { DialogActions } from './DialogActions.js'
@@ -9,7 +16,7 @@ import { ShortcutsDialog } from './ShortcutsDialog.js'
 
 type OptionValues = Pick<
   EditorPreferences,
-  'saveFormat' | 'authorName' | 'language' | 'theme' | 'spellcheck' | 'typography'
+  'saveFormat' | 'openMode' | 'authorName' | 'language' | 'theme' | 'spellcheck' | 'typography'
 >
 
 const SAVE_FORMAT_LABELS: Record<SaveFormat, MessageKey> = {
@@ -17,6 +24,11 @@ const SAVE_FORMAT_LABELS: Record<SaveFormat, MessageKey> = {
   [SaveFormat.Office]: 'shell.options.saveFormat.office',
   [SaveFormat.LibreOffice]: 'shell.options.saveFormat.libreOffice',
   [SaveFormat.Librevia]: 'shell.options.saveFormat.librevia',
+}
+
+const OPEN_MODE_LABELS: Record<OpenMode, MessageKey> = {
+  [OpenMode.Tabs]: 'shell.options.openMode.tabs',
+  [OpenMode.Windows]: 'shell.options.openMode.windows',
 }
 
 const THEME_LABELS: Record<Theme, MessageKey> = {
@@ -31,6 +43,7 @@ export function OptionsDialog({ onClose }: { readonly onClose: () => void }): Re
   const stored = usePreferences((state) => state.preferences)
   const [values, setValues] = useState<OptionValues>(() => ({
     saveFormat: stored.saveFormat,
+    openMode: stored.openMode,
     authorName: stored.authorName,
     language: stored.language,
     theme: stored.theme,
@@ -94,6 +107,19 @@ function FileOptions({ values, onChange }: SectionProps): React.JSX.Element {
         </select>
       </label>
       <p className="popover__hint">{t('shell.options.saveFormatHint')}</p>
+      <label className="popover__field">
+        <span>{t('shell.options.openMode')}</span>
+        <select
+          value={values.openMode}
+          onChange={(event) => onChange({ openMode: event.target.value as OpenMode })}
+        >
+          {OPEN_MODES.map((mode) => (
+            <option key={mode} value={mode}>
+              {t(OPEN_MODE_LABELS[mode])}
+            </option>
+          ))}
+        </select>
+      </label>
     </fieldset>
   )
 }

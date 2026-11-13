@@ -15,6 +15,8 @@ import {
   McpDocumentAsk,
   McpDocumentRefusal,
   SAVE_FORMATS,
+  OPEN_MODES,
+  OpenMode,
   SaveFormat,
   Theme,
 } from './types.js'
@@ -358,6 +360,7 @@ export const editorPreferencesSchema = z.object({
   authorName: z.string().max(MAX_NAME_LENGTH).default(''),
   saveFormat: z.enum(SAVE_FORMATS).default(SaveFormat.Ask),
   shortcuts: shortcutOverridesSchema.default({}),
+  openMode: z.enum(OPEN_MODES).default(OpenMode.Tabs),
 })
 
 /**
@@ -384,6 +387,7 @@ export const editorPreferencesPatchSchema = z.object({
   authorName: z.string().max(MAX_NAME_LENGTH).optional(),
   saveFormat: z.enum(SAVE_FORMATS).optional(),
   shortcuts: shortcutOverridesSchema.optional(),
+  openMode: z.enum(OPEN_MODES).optional(),
 })
 
 /**

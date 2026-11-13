@@ -61,6 +61,7 @@ export const IpcChannel = {
   WindowReady: 'window:ready',
   /** Already resolved on the renderer side. */
   WindowClose: 'window:close',
+  WindowOpen: 'window:open',
 
   /** The address the viewer frame reads the PDF from; the frame never sees the path. */
   PdfShare: 'pdf:share',
@@ -158,6 +159,7 @@ export const INVOCABLE_IPC_CHANNELS = [
   IpcChannel.WindowSetState,
   IpcChannel.WindowReady,
   IpcChannel.WindowClose,
+  IpcChannel.WindowOpen,
   IpcChannel.PdfShare,
   IpcChannel.PdfPrint,
   IpcChannel.PdfProperties,

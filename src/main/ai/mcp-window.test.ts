@@ -94,6 +94,26 @@ describe('RendererDocument', () => {
     await expect(running).resolves.toEqual({ content: 'A1: 1', isError: false })
   })
 
+  it('asks the window that came to the front, and focusing it again does not watch it twice', () => {
+    const { document } = attached()
+    const watched: string[] = []
+    const front = {
+      once: (event: string) => watched.push(event),
+      isDestroyed: () => false,
+    } as unknown as WebContents
+    document.attach(front)
+    document.attach(front)
+    void document.snapshot().catch(() => undefined)
+
+    expect(watched).toEqual(['destroyed'])
+    expect(
+      document.receive(
+        { requestId: sent[0]!.requestId, ask: McpDocumentAsk.Snapshot, paragraphs: [] },
+        front,
+      ),
+    ).toBe(true)
+  })
+
   it('without an open sheet, the client is told', async () => {
     const { document, contents } = attached()
     const running = document.runSheetTool({ id: '1', name: 'list_sheets', arguments: '{}' }, 'X (MCP)')

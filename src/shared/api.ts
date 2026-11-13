@@ -1,5 +1,5 @@
 import type { IpcChannel, PushIpcChannel } from './ipc-channels.js'
-import type { IpcRequest, IpcResponse, IpcResult, PushPayload } from './ipc.js'
+import type { IpcRequest, IpcResponse, IpcResult, PushPayload, WindowTemplate } from './ipc.js'
 import type { ContextMenuTarget, EditorPreferences, MenuCommand } from './types.js'
 
 type Call<C extends keyof IpcRequestMap> = (
@@ -25,6 +25,7 @@ export type McpClients = PushPayload<typeof IpcChannel.McpClients>
 export interface MenuCommandPayload {
   readonly command: MenuCommand
   readonly path?: string
+  readonly template?: WindowTemplate | null
 }
 
 export interface AppApi {
@@ -71,6 +72,7 @@ export interface AppApi {
     ready: Call<typeof IpcChannel.WindowReady>
     setState: Call<typeof IpcChannel.WindowSetState>
     close: Call<typeof IpcChannel.WindowClose>
+    open: Call<typeof IpcChannel.WindowOpen>
   }
   readonly pdf: {
     share: Call<typeof IpcChannel.PdfShare>
