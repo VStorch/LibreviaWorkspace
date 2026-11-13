@@ -129,6 +129,22 @@ test.describe('AI assistant', () => {
     await expect.poll(() => fake.closedEarly).toBe(1)
   })
 
+  test('switching tabs mid-reply stops the request, so no answer reaches another file', async () => {
+    const editor = await write('O gato dorme.')
+    await configure()
+    fake.slow = true
+    await editor.click()
+    await session.window.keyboard.press('Control+A')
+    await menu(session, 'ai-assistant')
+    await panel().getByRole('button', { name: 'Gerar' }).click()
+    await expect(panel().getByLabel('Resposta')).toHaveText(/^0 /)
+
+    await menu(session, 'new-spreadsheet')
+    await expect.poll(() => fake.closedEarly).toBe(1)
+    await menu(session, 'previous-tab')
+    await expect(session.window.locator('.ProseMirror')).toHaveText('O gato dorme.')
+  })
+
   test('editing the excerpt during the reply disables Apply', async () => {
     const editor = await write('O gato dorme.')
     await configure()

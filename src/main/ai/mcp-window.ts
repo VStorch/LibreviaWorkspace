@@ -22,10 +22,10 @@ const NO_ANSWER = 'The Librevia window did not answer in time; nothing was chang
 
 const REFUSALS: Readonly<Record<McpDocumentRefusal, string>> = {
   [McpDocumentRefusal.NoTextDocument]:
-    'No text document is open in Librevia (a spreadsheet, a PDF or nothing is): open one and try again.',
+    "No text document is on Librevia's active tab (a spreadsheet, a PDF or Home is): switch to a document's tab and try again.",
   [McpDocumentRefusal.NoSpreadsheet]:
-    'No spreadsheet is open in Librevia (a text document, a PDF or nothing is): open one and try again.',
-  [McpDocumentRefusal.ReadOnly]: 'The open file is read-only: it takes no changes.',
+    "No spreadsheet is on Librevia's active tab (a text document, a PDF or Home is): switch to a spreadsheet's tab and try again.",
+  [McpDocumentRefusal.ReadOnly]: 'The file on the active tab is read-only: it takes no changes.',
   [McpDocumentRefusal.Expired]: NO_ANSWER,
 }
 

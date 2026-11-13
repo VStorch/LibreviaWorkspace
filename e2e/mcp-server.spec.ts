@@ -8,7 +8,7 @@ import { docxWithTrackedChange } from './fixtures.js'
 import { cell, gridReady, write } from './sheet-grid.js'
 
 const CLIENT = 'Cliente de teste'
-const OPTION = 'Permitir que programas externos leiam o documento aberto e proponham alterações (MCP)'
+const OPTION = 'Permitir que programas externos leiam o documento da aba ativa e proponham alterações (MCP)'
 
 interface McpClient {
   readonly process: ChildProcessWithoutNullStreams
@@ -160,6 +160,33 @@ test.describe('local MCP server', () => {
     expect(await refused.left).toBe(1)
   })
 
+  test('the client only sees the active tab, and follows it when the person switches', async () => {
+    const sourceFile = join(directory, 'ata.docx')
+    await writeFile(sourceFile, await docxWithTrackedChange())
+    await stubDialogs(session.app, { open: sourceFile, messageBox: 1 })
+    await menu(session, 'open')
+    await expect(session.window.locator('.ProseMirror')).toContainText('Ata da reunião de terça.')
+    await menu(session, 'new-spreadsheet')
+    await gridReady(session.window)
+    const configuration = await setServerPreference(true)
+    const bridge = openBridge(configuration!.command, configuration!.args, session.userData)
+    bridges.push(bridge)
+    await bridge.ask('initialize', {
+      protocolVersion: '2025-06-18',
+      clientInfo: { name: CLIENT, version: '1' },
+    })
+    const callTool = async (name: string, args: unknown): Promise<string> =>
+      textOf(await bridge.ask('tools/call', { name, arguments: args }))
+
+    expect(await callTool('read_paragraphs', { from: 1, count: 1 })).toContain(
+      "No text document is on Librevia's active tab",
+    )
+    await menu(session, 'previous-tab')
+    await expect(session.window.locator('.ProseMirror')).toBeVisible()
+    expect(await callTool('read_paragraphs', { from: 1, count: 1 })).toContain('[1] Ata da reunião de terça.')
+    expect(await callTool('list_sheets', {})).toContain("No spreadsheet is on Librevia's active tab")
+  })
+
   test('Disconnect in the status bar drops the client and leaves the server on', async () => {
     const sourceFile = join(directory, 'ata.docx')
     await writeFile(sourceFile, await docxWithTrackedChange())
@@ -210,7 +237,9 @@ test.describe('local MCP server', () => {
     expect(await callTool('read_cells', { range: 'A1:B2' })).toBe(
       ['Sheet: Planilha1', 'A1: Produto', 'A2: Café', 'B2: =2*5 → 10'].join('\n'),
     )
-    expect(await callTool('read_paragraphs', { from: 1, count: 1 })).toContain('No text document is open')
+    expect(await callTool('read_paragraphs', { from: 1, count: 1 })).toContain(
+      "No text document is on Librevia's active tab",
+    )
 
     expect(await callTool('write_cells', { start: 'B1', rows: [['Total'], ['=B3*2'], ['7']] })).toContain(
       'waiting',

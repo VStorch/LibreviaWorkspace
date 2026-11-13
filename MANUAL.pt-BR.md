@@ -833,7 +833,8 @@ Em **Preferências**, no mesmo diálogo:
    - **Copiar** leva a resposta para a área de transferência.
 
 Se você editar o trecho enquanto a resposta chega, **Aplicar** fica apagado e o painel avisa "O
-trecho mudou". Inserir abaixo e Copiar continuam valendo.
+trecho mudou". Inserir abaixo e Copiar continuam valendo. Mudar de aba interrompe uma resposta que
+ainda está chegando, para que ela nunca caia em outro arquivo.
 
 ### Conversar
 
@@ -902,10 +903,10 @@ Na planilha não há conversa, e cada pedido é independente.
 ### Programas externos (MCP)
 
 O Claude Code no terminal, o Claude Desktop ou outro programa que fale o protocolo MCP podem
-trabalhar no documento ou na planilha aberta no Librevia, inclusive no que ainda não foi salvo.
+trabalhar no documento ou na planilha da aba ativa do Librevia, inclusive no que ainda não foi salvo.
 
 1. Abra **Ferramentas → Assistentes de IA…** e ligue **Permitir que programas externos leiam o
-   documento aberto e proponham alterações (MCP)**. Vem desligado.
+   documento da aba ativa e proponham alterações (MCP)**. Vem desligado.
 2. Registre o Librevia no programa, uma vez só:
    - **Claude Code:** copie o comando que aparece embaixo e rode no terminal. Ele começa com
      `claude mcp add --scope user librevia --`.
@@ -923,7 +924,8 @@ Na planilha, que não tem controle de alterações, o programa lê as células e
 `Ctrl+Z` desfaz; **Descartar** joga fora.
 
 O programa não abre nem salva arquivos, não aceita nem rejeita revisões, não vê o nome nem o
-caminho do arquivo e não mexe em PDFs.
+caminho do arquivo e não mexe em PDFs. Ele só enxerga a aba ativa: para trabalhar em outro
+arquivo, mude para a aba dele.
 
 - Enquanto um programa estiver conectado, a barra de status mostra o nome dele e o botão
   **Desconectar**. No máximo 2 programas ao mesmo tempo.

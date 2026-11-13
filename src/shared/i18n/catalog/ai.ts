@@ -3,8 +3,8 @@ import type { Catalog } from '../message.js'
 export const AI = {
   'ai.consent.title': { pt: 'Permitir este assistente de IA?', en: 'Allow this AI assistant?' },
   'ai.consent.message': {
-    pt: '{provider} fica fora deste computador. Cada pedido envia a ele o trecho ou as células selecionadas, o documento aberto ou a planilha ativa como contexto e a instrução que você escrever. Na conversa, cada mensagem envia o documento e a conversa até ali.',
-    en: '{provider} is outside this computer. Each request sends it the selected passage or cells, the open document or the active sheet as context and the instruction you write. In the chat, each message sends the document and the chat so far.',
+    pt: '{provider} fica fora deste computador. Cada pedido envia a ele o trecho ou as células selecionadas, o documento da aba ativa ou a planilha ativa como contexto e a instrução que você escrever. Na conversa, cada mensagem envia o documento e a conversa até ali.',
+    en: '{provider} is outside this computer. Each request sends it the selected passage or cells, the document on the active tab or the active sheet as context and the instruction you write. In the chat, each message sends the document and the chat so far.',
   },
   'ai.consent.detail': {
     pt: 'A resposta é gerada lá, fora deste computador. O Librevia lembra esta permissão para este assistente. Para ser perguntado de novo, use Ferramentas → Assistentes de IA.',
@@ -247,8 +247,8 @@ export const AI = {
     en: 'If the Anthropic model refuses, try another model Anthropic recommends',
   },
   'ai.preferences.mcpServer': {
-    pt: 'Permitir que programas externos leiam o documento aberto e proponham alterações (MCP)',
-    en: 'Let external programs read the open document and propose changes (MCP)',
+    pt: 'Permitir que programas externos leiam o documento da aba ativa e proponham alterações (MCP)',
+    en: 'Let external programs read the document on the active tab and propose changes (MCP)',
   },
   'ai.preferences.mcpWarning': {
     pt: 'O programa conectado recebe o texto inteiro do documento, ou as células que pedir da planilha, e o envia para onde ele estiver configurado (por exemplo, os servidores da Anthropic). No documento, as alterações dele entram como revisões e comentários, que você aceita ou rejeita; na planilha, ficam esperando você aplicar ou descartar.',

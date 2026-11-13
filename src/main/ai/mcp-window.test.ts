@@ -103,6 +103,6 @@ describe('RendererDocument', () => {
       refusal: McpDocumentRefusal.NoSpreadsheet,
     } as const
     document.receive(reply, contents)
-    await expect(running).rejects.toThrow(/No spreadsheet is open/u)
+    await expect(running).rejects.toThrow(/No spreadsheet is on Librevia's active tab/u)
   })
 })

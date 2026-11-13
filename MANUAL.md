@@ -836,7 +836,8 @@ In **Preferences**, in the same dialog:
    - **Copy** takes the answer to the clipboard.
 
 If you edit the passage while the answer arrives, **Apply** is greyed out and the panel warns that
-the passage changed. Insert below and Copy still work.
+the passage changed. Insert below and Copy still work. Switching tabs stops an answer that is still
+arriving, so it never lands in another file.
 
 ### Chat
 
@@ -909,10 +910,10 @@ In the spreadsheet there is no chat, and each request is independent.
 ### External programs (MCP)
 
 Claude Code in the terminal, Claude Desktop or another program that speaks the MCP protocol can
-work on the document or spreadsheet open in Librevia, including what has not been saved yet.
+work on the document or spreadsheet on Librevia's active tab, including what has not been saved yet.
 
-1. Open **Tools → AI assistants…** and turn on **Let external programs read the open document and
-   propose changes (MCP)**. It comes turned off.
+1. Open **Tools → AI assistants…** and turn on **Let external programs read the document on the active
+   tab and propose changes (MCP)**. It comes turned off.
 2. Register Librevia in the program, once:
    - **Claude Code:** copy the command shown below it and run it in the terminal. It starts with
      `claude mcp add --scope user librevia --`.
@@ -931,7 +932,8 @@ which **do not go in right away**: they appear in a banner above the grid, with 
 **Apply** writes, and `Ctrl+Z` undoes; **Discard** throws it away.
 
 The program does not open or save files, does not accept or reject revisions, does not see the
-file's name or path and does not touch PDFs.
+file's name or path and does not touch PDFs. It only sees the active tab: to work on another
+file, switch to its tab.
 
 - While a program is connected, the status bar shows its name and the **Disconnect** button. At
   most 2 programs at the same time.
